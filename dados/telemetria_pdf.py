@@ -4,9 +4,9 @@ def mostra_graficos_geral(jogadores, nome_arquivo="graficos_geral.png"):
     plt.figure(figsize=(10,6))
 
     for j in jogadores:
-        if len(j.laps_historia)>= 2:
-            voltas =list(range(1,len(j.laps_historia) + 1))
-            tempos = [lap/1000 for lap in j.laps_historia]
+        if len(j.laps_info)>= 2:
+            voltas =list(range(1,len(j.laps_info) + 1))
+            tempos = [lap/1000 for lap in j.laps_info]
             plt.plot(voltas , tempos , label=j.name)
     plt.xlabel("Laps")
     plt.ylabel("Tempo (s)")

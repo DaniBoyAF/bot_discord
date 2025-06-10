@@ -18,7 +18,8 @@ def atualizar_lapdata(lap_data_packet):
            ]
       except AttributeError:
         jogador.currentSectors = [0.0 , 0.0 ,0.0]
-    
+      if lap.m_last_lap_time > 0:
+         jogador.laps_info.append(lap.m_last_lap_time / 1000.0)
       jogador.tyresAgeLaps = lap.m_tyres_age_laps
       jogador.pit = lap.m_pit_status != 0
       jogador.currentLapInvalid = lap.m_invalid_lap == 1

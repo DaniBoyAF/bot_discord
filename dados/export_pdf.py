@@ -33,7 +33,7 @@ def export_pdf_corrida_final(filepath, jogadores, session):
 
     for j in jogadores_ordenados:
         estrela = "⭐" if j == vencedor else ""
-        linha = f"{j.position}º {j.name} {estrela} | Melhor Volta: {j. bestLapTime:.3f}s | Última: {j.lastLapTime:.3f}s | Pneus: {j. tyresAgeLaps} | ERS: {j.ERS_pourcentage}%"
+        linha = f"{j.position}º {j.name} {estrela} | Melhor Volta: {j.bestLapTime:.3f}s | Última: {j.lastLapTime:.3f}s | Pneus: {j.tyresAgeLaps} | ERS: {j.ERS_pourcentage}%"
         c.drawString(40, y, linha)
         y -= 15
         if y < 50:
