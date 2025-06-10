@@ -2,7 +2,7 @@ from Bot.jogadores import get_jogadores
 
 async def danos(ctx, piloto: str = None):
     jogadores = get_jogadores ()
-
+   
     if not piloto :
         await ctx.send("❌ Especifique o nome do piloto. Ex: `.avaria Nome do jogador") 
         return

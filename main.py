@@ -10,11 +10,12 @@ from comandos.status import comando_status
 from Bot.parser2024 import start_udp_listener
 from comandos.clima import comando_clima
 from comandos.pilotos import commando_piloto
-from comandos.danos import danos
+from comandos.danos import danos as comandos_danos
 import os
 import json
 from gtts import gTTS
 TEMPO_INICIO = False
+DANOS_INICIO = False
 # Corrige o caminho para importar módulos de fora da pasta
 intents =discord.Intents.default()
 intents.message_content=True
@@ -149,7 +150,7 @@ async def volta_chat(ctx):
     canal_id = 1373049532983804014
     canal = bot.get_channel(canal_id)
     if not canal:
-        await ctx.send("❌ Canal de voz não encontrado.")
+        await ctx.send("❌ Canal não encontrado.")
         return
     await ctx.send("🔄 Iniciando o envio de mensagens de volta...")
 
@@ -194,7 +195,7 @@ async def arquivo(ctx):
         dados = json.load(f)
     await ctx.send("📁 Dados do arquivo JSON carregados com sucesso!",file=discord.File(caminho))
 @bot.command()
-async def pararvoltas(ctx):
+async def parar_telas(ctx):
     global TEMPO_INICIO
     TEMPO_INICIO = False
     await ctx.send("🛑 Envio automático de voltas/parado.")
@@ -220,8 +221,34 @@ async def clima(ctx):
 async def pilotos(ctx):
     await commando_piloto(ctx)
 @bot.command()
-async def danos(ctx, *, piloto: str = None):
-    await danos(ctx, piloto = piloto)
+async def danos(ctx, piloto: str = None):
+    await comandos_danos(ctx, piloto=piloto)
+@bot.command()
+async def parar_danos(ctx):
+    global DANOS_INICIO
+    DANOS_INICIO = False
+    await ctx.send("🛑 Envio automático de danos parado.")
+@bot.command()
+async def inicio_danos(ctx):
+    global DANOS_INICIO
+    DANOS_INICIO = True
+    await ctx.send("✅ Envio automático de danos ativado!")
+async def loop_danos():
+    await bot.wait_until_ready()
+    canal_id = 1382050740922482892
+    canal = bot.get_channel(canal_id)
+    from Bot.jogadores import get_jogadores
+    while not bot.is_closed():
+        if DANOS_INICIO:
+            jogadores = get_jogadores()
+            for j in jogadores:
+                if not j.name.strip():
+                    continue
+                await comandos_danos(await bot.get_context(await canal.send("")), piloto=j.name)
+                await asyncio.sleep(1)
+        await asyncio.sleep(10)  # Ajuste o tempo conforme necessário
+
+bot.loop.create_task(loop_danos())
 import uuid
 
 def gerar_audio_gtts(texto, idioma="pt", nome_arquivo=None):
@@ -263,6 +290,6 @@ if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener
     threading.Thread(target=start_udp_listener, daemon=True).start()    
-bot.run("")
+bot.run("") # Substitua pelo seu token do bot
  #python Bot/bot_discord.py pra ativar
 
