@@ -706,9 +706,8 @@ class FinalClassificationData(Packet):
         # Result status - 0 = invalid, 1 = inactive, 2 = active
         # 3 = finished, 4 = didnotfinish, 5 = disqualified
         # 6 = not classified, 7 = retired
-        # Best lap time of the session in milliseconds
         ("m_best_lap_time_in_ms", ctypes.c_uint32),
-        # Total race time in seconds without penalties
+        # Best lap time of the session in milliseconds
         ("m_total_race_time", ctypes.c_double),
         ("m_penalties_time", ctypes.c_uint8),  # Total penalties accumulated in seconds
         # Number of penalties applied to this driver
@@ -954,9 +953,11 @@ def start_udp_listener():
 
         # Interpreta o tipo de pacote
         if header.m_packet_id == 1:  # PacketSessionData
-            session.atualizar(body)  # <- vamos criar isso no próximo passo
+            session.atualizar(body)
         elif header.m_packet_id == 2:  # PacketLapData
-            atualizar_lapdata(body)   # <- também vamos criar isso já já
+            atualizar_lapdata(body)
+        elif header.m_packet_id == 8:  # PacketFinalClassificationData
+            atualizar_final_classification(body)
 
         # ⚠️ Detectar fim da corrida
         if not corrida_finalizada and session.Seance == 10:
@@ -968,13 +969,30 @@ def start_udp_listener():
                 print("📄 PDF gerado com gráfico!")
                 corrida_finalizada = True
 def atualizar_lapdata(pacote_lapdata):
-    from Bot.jogadores import JOGADORES  # ou onde estiver seu armazenamento de pilotos
+    from Bot.jogadores import JOGADORES
 
     for idx, lap in enumerate(pacote_lapdata.m_lap_data):
         piloto = JOGADORES[idx]
         piloto.lastLapTime = lap.m_last_lap_time_in_ms / 1000
+        piloto.currentLapTime = lap.m_current_lap_time_in_ms / 1000
         piloto.position = lap.m_car_position
-        piloto.currentLapTime = lap.m_current_lap_num
+        piloto.currentLap = lap.m_current_lap_num
         piloto.hasRetired = lap.m_result_status in [4, 7]  # DNF ou Retired
-        piloto.bestLapTime= lap.m_best_lap_time
-        # ...adicione o que quiser atualizarlastLapTime
+
+        # ATUALIZA O TIPO DE PNEU E A IDADE DO PNEU
+        try:
+            piloto.tyres = lap.m_actual_tyre_compound  # F1 e F2
+        except AttributeError:
+            piloto.tyres = -1
+
+        try:
+            piloto.tyresAgeLaps = lap.m_tyres_age_laps
+        except AttributeError:
+            piloto.tyresAgeLaps = 0
+
+
+def atualizar_final_classification(pacote_final):
+    from Bot.jogadores import JOGADORES
+    for idx, data in enumerate(pacote_final.m_classification_data):
+        piloto = JOGADORES[idx]
+        piloto.bestLapTime = data.m_best_lap_time_in_ms / 1000

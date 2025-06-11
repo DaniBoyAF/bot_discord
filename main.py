@@ -16,15 +16,26 @@ import json
 from gtts import gTTS
 TEMPO_INICIO = False
 DANOS_INICIO = False
+TEMPO_INICIO_TABELA = False
+TEMPO_INICIO_VOLTAS = False
 # Corrige o caminho para importar módulos de fora da pasta
 intents =discord.Intents.default()
 intents.message_content=True
 bot =commands.Bot(command_prefix=".", intents=intents)
-
 @bot.event
 async def on_ready():
     print("Bot on")
-
+    bot.loop.create_task(loop_danos())
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send("❌ Comando não encontrado. Use `.comando` para ver a lista de comandos.")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Argumento obrigatório ausente. Verifique o comando e tente novamente.")
+    elif isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ Este comando está em cooldown. Tente novamente em {error.retry_after:.2f} segundos.")
+    else:
+        await ctx.send(f"❌ Ocorreu um erro: {error}")
 @bot.event
 async def on_member_join(membro:discord.Member):
     canal = bot.get_channel(1375265281630539846)
@@ -89,7 +100,7 @@ async def sobre(ctx:commands.Context):
 @bot.command()
 async def voltas(ctx,*,piloto: str):
     from Bot.jogadores import get_jogadores
-    jogadores=get_jogadores
+    jogadores= get_jogadores()
     piloto = piloto.lower()
     for j in jogadores:
         if piloto in j.name.lower():
@@ -122,62 +133,113 @@ async def grafico(ctx):
     await ctx.send(file=discord.File("grafico_tempos.png"))
 @bot.command()
 async def tabela(ctx):
-    global TEMPO_INICIO
-    TEMPO_INICIO = True
+    global TEMPO_INICIO_TABELA
+    TEMPO_INICIO_TABELA = True
     from Bot.jogadores import get_jogadores
     canal_id = 1381831375006601328
     canal = bot.get_channel(canal_id)
     if not canal:   
         await ctx.send("❌ Canal de voz não encontrado.")
         return
-    mensagem = "🔄 Iniciando o envio de mensagens da tabela ao vivo..."
-    while TEMPO_INICIO:
+    mensagem = await canal.send("🔄 Iniciando o envio de mensagens da tabela ao vivo...")
+    while TEMPO_INICIO_TABELA:
         jogador = get_jogadores()  # Atualiza a lista a cada ciclo
+        tyres_nomes = {
+                0: "Duro",
+                1: "Médio",
+                2: "Macio",
+                3: "Intermediário",
+                4: "Chuva",
+                7: "Intermediário",
+                8: "Chuva",
+                16: "Duro",
+                17: "Médio",
+                18: "Macio",
+                11: "F2 Supermacio",
+                12: "F2 Macio",
+                13: "F2 Médio",
+                14: "F2 Duro",
+                15: "F2 Chuva"  # F2
+            }
         jogador= sorted(jogador, key=lambda j: j.position)
-        linhas = ["P  #  NAME           GAP    TYRES"]
+        linhas = ["P  #  NAME           GAP      TYRES        TYRES AGE  PIT"]
         for j in jogador:
-            delta_to_leader = getattr(j, "delta_to_leader", "—")  # Ajuste conforme seu atributo de gap
-            linhas.append(f"{j.position:<2} {j.numero:<2} {j.name:<14} {j.delta_to_leader} {j.tyres}")
+            delta_to_leader = getattr(j, "delta_to_leader", "—")
+            linhas.append(
+                f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {j.name:<14} "
+                f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {str(j.tyresAgeLaps):<9} {str(j.pit):<3}"
+            )
         tabela = "```\n" + "\n".join(linhas) + "\n```"
         await mensagem.edit(content=tabela)
         await canal.send(tabela,delete_after=10)
         await asyncio.sleep(3)  # Intervalo de atualização, ajuste conforme necessário
 @bot.command()
+async def parar_tabela(ctx):
+    global TEMPO_INICIO_TABELA
+    TEMPO_INICIO_TABELA = False
+    await ctx.send("🛑 Envio automático da tabela parado.")
+@bot.command()
 async def volta_chat(ctx):
-    global TEMPO_INICIO
-    TEMPO_INICIO = True
+    global TEMPO_INICIO_VOLTAS
+    TEMPO_INICIO_VOLTAS = True
     from Bot.jogadores import get_jogadores
-    canal_id = 1373049532983804014
+    canal_id = 1382050740922482892
     canal = bot.get_channel(canal_id)
     if not canal:
         await ctx.send("❌ Canal não encontrado.")
         return
     await ctx.send("🔄 Iniciando o envio de mensagens de volta...")
 
-    while TEMPO_INICIO:
-        jogadores = get_jogadores()  # Atualiza a lista a cada ciclo
+    while TEMPO_INICIO_VOLTAS:
+        jogadores = get_jogadores() # Atualiza a lista a cada ciclo
+                
         mensagens = []
         dados_salvar = []
         # Ordena os jogadores por posição
         for j in jogadores:
+            print(f"DEBUG: {j.name} tyres={j.tyres} tyresAgeLaps={j.tyresAgeLaps}")
             if not j.name.strip():
                 continue
             setores = j.bestLapSectors
-
+            lap_max = j.laps_max
+            j.pit = j.pit
+            j.position = j.position
             # Agora mostra todos os setores, inclusive zeros
             tempo_total = sum(setores)
             minutos = int(tempo_total // 60)
             segundos = int(tempo_total % 60)
+            tyres_nomes = {
+                0: "Duro",
+                1: "Médio",
+                2: "Macio",
+                3: "Intermediário",
+                4: "Chuva",
+                7: "Intermediário",
+                8: "Chuva",
+                16: "Duro",
+                17: "Médio",
+                18: "Macio",
+                11: "F2 Supermacio",
+                12: "F2 Macio",
+                13: "F2 Médio",
+                14: "F2 Duro",
+                15: "F2 Chuva"  # F2
+                
+            }
             texto = (
-                f"🏎️ {j.name} - S1: {setores[0]:.3f}s | S2: {setores[1]:.3f}s | S3: {setores[2]:.3f}s | "
-                f"Tempo total: ⏱️ {minutos}m {segundos}s"
+                f"🏎️{j.position}|{j.name}|LAP:{lap_max}| Tyres: {tyres_nomes.get(j.tyres, 'Desconhecido')}| "
+                f"Tyres Age: {j.tyresAgeLaps}| Pit: {j.pit}| ..."
             )
             mensagens.append(texto)
             dados_salvar.append({
                 "nome": j.name,
                 "setores": setores,
                 "tempo_total": tempo_total,
-
+                "laps_max": lap_max,
+                "position": j.position,
+                "tyres": j.tyres,
+                "tyresAgeLaps": j.tyresAgeLaps,
+                "pit": j.pit
             })
         with open("dados_salvar.json", "w",encoding="utf-8") as f:
             json.dump(dados_salvar, f, ensure_ascii=False, indent=4)
@@ -186,19 +248,10 @@ async def volta_chat(ctx):
         
         await asyncio.sleep(4)
 @bot.command()
-async def arquivo(ctx):
-    caminho = "dados_salvar.json"
-    if not os.path.exists(caminho):
-        await ctx.send("❌ O arquivo JSON ainda não foi gerado.\nUse o comando `.volta_chat` para gerar.")
-        return
-    with open(caminho, "r", encoding="utf-8") as f:
-        dados = json.load(f)
-    await ctx.send("📁 Dados do arquivo JSON carregados com sucesso!",file=discord.File(caminho))
-@bot.command()
-async def parar_telas(ctx):
-    global TEMPO_INICIO
-    TEMPO_INICIO = False
-    await ctx.send("🛑 Envio automático de voltas/parado.")
+async def parar_voltas(ctx):
+    global TEMPO_INICIO_VOLTAS
+    TEMPO_INICIO_VOLTAS = False
+    await ctx.send("🛑 Envio automático de voltas parado.")
 @bot.command()
 async def delta(ctx):
     await comando_delta(ctx)
@@ -248,7 +301,6 @@ async def loop_danos():
                 await asyncio.sleep(1)
         await asyncio.sleep(10)  # Ajuste o tempo conforme necessário
 
-bot.loop.create_task(loop_danos())
 import uuid
 
 def gerar_audio_gtts(texto, idioma="pt", nome_arquivo=None):

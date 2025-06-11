@@ -7,8 +7,9 @@ def atualizar_lapdata(lap_data_packet):
     for idx,lap in enumerate(lap_data_packet.m_lap_data):
       jogador = JOGADORES[idx]
       jogador.position = lap.m_position
+      jogador.laps_max = lap.m_current_lap_max
       jogador.currentLapTime = lap.m_current_lap_time/ 1000.0
-      jogador.bestLapTime = lap.m_best_lap_time / 1000.0
+      jogador.bestLapTime = lap.m_bestLapTime / 1000.0
       jogador.lastLapTime = lap.m_last_lap_time / 1000.0
       try:
           jogador.currentSectors= [
@@ -44,6 +45,9 @@ def telemetry_data(packet):
       jogador.speed_trap = telemetry.m_speed_trap
       jogador.fuelMix = telemetry.m_fuelMix
       jogador.aiControlled = telemetry.m_Ai
+      jogador.tyres = telemetry.m_tyres
+      jogador.warnings = telemetry.m_warnings
+      jogador.penalties = telemetry.m_penalties
 
 
 
