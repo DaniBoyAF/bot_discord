@@ -954,10 +954,17 @@ def start_udp_listener():
         # Interpreta o tipo de pacote
         if header.m_packet_id == 1:  # PacketSessionData
             session.atualizar(body)
+        if header.m_packet_id == 4:
+            atualizar_participantes(body)
         elif header.m_packet_id == 2:  # PacketLapData
             atualizar_lapdata(body)
+        elif header.m_packet_id == 7:  # PacketCarStatusData
+            atualizar_car_status(body)
+        elif header.m_packet_id == 10:
+            atualizar_damage_data(body)
         elif header.m_packet_id == 8:  # PacketFinalClassificationData
             atualizar_final_classification(body)
+
 
         # ⚠️ Detectar fim da corrida
         if not corrida_finalizada and session.Seance == 10:
@@ -968,31 +975,69 @@ def start_udp_listener():
                 export_pdf_corrida_final("relatorio_final.pdf", jogadores, session)
                 print("📄 PDF gerado com gráfico!")
                 corrida_finalizada = True
-def atualizar_lapdata(pacote_lapdata):
-    from Bot.jogadores import JOGADORES
 
-    for idx, lap in enumerate(pacote_lapdata.m_lap_data):
-        piloto = JOGADORES[idx]
-        piloto.lastLapTime = lap.m_last_lap_time_in_ms / 1000
-        piloto.currentLapTime = lap.m_current_lap_time_in_ms / 1000
-        piloto.position = lap.m_car_position
-        piloto.currentLap = lap.m_current_lap_num
-        piloto.hasRetired = lap.m_result_status in [4, 7]  # DNF ou Retired
-
-        # ATUALIZA O TIPO DE PNEU E A IDADE DO PNEU
-        try:
-            piloto.tyres = lap.m_actual_tyre_compound  # F1 e F2
-        except AttributeError:
-            piloto.tyres = -1
-
-        try:
-            piloto.tyresAgeLaps = lap.m_tyres_age_laps
-        except AttributeError:
-            piloto.tyresAgeLaps = 0
-
+def atualizar_SessionData(pacote_session):
+    from Bot.Session import SESSION 
+    print("Recebendo pacote SessionData!")
+    SESSION.atualizar(pacote_session)
+    m_weather = pacote_session.m_weather
+    m_air_temperature = pacote_session.m_air_temperature
+    m_track_temperature = pacote_session.m_track_temperature
+    m_total_laps = pacote_session.m_total_laps
 
 def atualizar_final_classification(pacote_final):
     from Bot.jogadores import JOGADORES
     for idx, data in enumerate(pacote_final.m_classification_data):
         piloto = JOGADORES[idx]
         piloto.bestLapTime = data.m_best_lap_time_in_ms / 1000
+        piloto.totalRaceTime = data.m_total_race_time
+        if data.m_result_status == 1:
+            piloto = JOGADORES[idx]
+def atualizar_lapdata(pacote_lap):
+    from Bot.jogadores import JOGADORES
+    for idx, lap in enumerate(pacote_lap.m_lap_data):
+        piloto = JOGADORES[idx]
+        piloto.lastLapTime = lap.m_last_lap_time_in_ms / 1000
+        piloto.currentLapTime = lap.m_current_lap_time_in_ms / 1000
+        
+        piloto.position = lap.m_car_position
+        # GAP para o líder
+        delta_ms = getattr(lap, "m_deltaToRaceLeaderMSPart", 65535)
+        delta_min = getattr(lap, "m_deltaToRaceLeaderMinutesPart", 0)
+        if delta_ms == 65535:
+            piloto.delta_to_leader = "—"
+        else:
+            piloto.delta_to_leader = delta_min * 60 + (delta_ms / 1000)
+
+        # PIT
+        piloto.pit = lap.m_pit_status != 0
+def atualizar_participantes(pacote_participantes):
+    from Bot.jogadores import JOGADORES
+    for idx, participante in enumerate(pacote_participantes.m_participants):
+        piloto = JOGADORES[idx]
+        piloto.name = participante.m_name.decode('utf-8').strip('\x00')
+        piloto.numero = participante.m_race_number
+
+def atualizar_car_status(pacote_status):
+    from Bot.jogadores import JOGADORES
+    for idx, status in enumerate(pacote_status.m_car_status_data):
+        piloto = JOGADORES[idx]
+        piloto.tyres = status.m_actual_tyre_compound
+        piloto.tyresAgeLaps = status.m_tyres_age_laps
+
+def atualizar_damage_data(pacote_danos):
+    from Bot.jogadores import JOGADORES
+    for idx, dano in enumerate(pacote_danos.m_car_damage_data):
+        piloto = JOGADORES[idx]
+        piloto.tyresWear = dano.m_tyres_wear
+        piloto.tyresDamage = dano.m_tyres_damage
+       # piloto.brakesDamage = dano.m_brakes_damage
+        piloto.FrontLeftWingDamage = dano.m_front_left_wing_damage
+        piloto.FrontRightWingDamage = dano.m_front_right_wing_damage
+        piloto.rearWingDamage = dano.m_rear_wing_damage
+        piloto.floorDamage = dano.m_floor_damage
+        piloto.diffuserDamage = dano.m_diffuser_damage
+        piloto.sidepodDamage = dano.m_sidepod_damage
+       # piloto.drsFault = dano.m_drs_fault
+       # piloto.ersFault = dano.m_ers_fault
+       # piloto.gearBoxDamage = dano.m_gear_box_damage

@@ -48,7 +48,7 @@ def telemetry_data(packet):
       jogador.tyres = telemetry.m_tyres
       jogador.warnings = telemetry.m_warnings
       jogador.penalties = telemetry.m_penalties
-
+      jogador.hasRetired = telemetry.m_has_retired
 
 
    

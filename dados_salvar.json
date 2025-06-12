@@ -1,1 +1,310 @@
-[]
+[
+    {
+        "nome": "HADJAR",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 18,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "VILLAGÓMEZ",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 19,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "O'SULLIVAN",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 3,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "FITTIPALDI",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 14,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "COLAPINTO",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 10,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "BEARMAN",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 15,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "BORTOLETO",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 5,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "MARTINS",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 13,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "STANĚK",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 17,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "MARTÍ",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 16,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "CRAWFORD",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 4,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "VERSCHOOR",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 21,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "ARON",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 20,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "MALONEY",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 7,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "DUERKSEN",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 11,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "BARNARD",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 12,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "MAINI",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 6,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "CORDEEL",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 22,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "ANTONELLI",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 8,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "CORREA",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 9,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "MIYATA",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 2,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    },
+    {
+        "nome": "HAUGER",
+        "setores": [
+            0,
+            0,
+            0
+        ],
+        "tempo_total": 0,
+        "laps_max": 0,
+        "position": 1,
+        "tyres": 11,
+        "tyresAgeLaps": 1,
+        "pit": false
+    }
+]

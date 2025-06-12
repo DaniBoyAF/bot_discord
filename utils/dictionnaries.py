@@ -28,7 +28,13 @@ tyres_dictionnary = {
     17: "Médio",
     18: "Duro",
     7: "Intermediário",
-    8: "Molhado"
+    8: "Molhado",
+    #F2 2024
+    11: "Supermacio",
+    12: "Macio",
+    13: "Médio",
+    14: "Duro",
+    15: "Chuva"
 }
 
 tyres_color_dictionnary = {

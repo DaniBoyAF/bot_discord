@@ -26,6 +26,7 @@ bot =commands.Bot(command_prefix=".", intents=intents)
 async def on_ready():
     print("Bot on")
     bot.loop.create_task(loop_danos())
+
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
@@ -75,25 +76,31 @@ async def bem(ctx: commands.Context):
 @bot.command()
 async def comando(ctx: commands.Context):
     await ctx.reply("Os comandos são:\n"
-    ".ola\n"
-    ".gap\n"
-    ".pitstop\n"
-    ".status\n"
-    ".clima\n"
-    ".gerar_audio\n"
-    ".delta\n"
-    ".telemetriapdf\n"
-    ".enviarpdf\n"
-    ".pneusv\n"
-    ".danos\n"
-    ".pilotos\n"
-    ".gerarpdf\n"
-    ".sobre\n"
-    ".voltas\n"
-    ".volta_chat\n"
-    ".pararvoltas\n"
-    ".velocidade\n"
-    ".ranking\n")
+    ".ola            - O bot cumprimenta você\n"
+    ".gap            - Mostra a diferença de tempo entre os pilotos\n"
+    ".pitstop        - Mostra informações de pitstop dos pilotos\n"
+    ".status         - Mostra o status de um piloto (ex: em pista, no pit, etc)\n"
+    ".clima          - Mostra informações do clima atual\n"
+    ".gerar_audio    - Gera e toca um áudio de teste no canal de voz\n"
+    ".delta          - Mostra o delta de tempo dos pilotos\n"
+    ".telemetriapdf  - Envia o PDF da telemetria geral\n"
+    ".enviarpdf      - Envia o PDF do relatório de corrida\n"
+    ".pneusv         - Mostra informações dos pneus dos pilotos\n"
+    ".danos          - Mostra os danos do carro de um piloto\n"
+    ".pilotos        - Lista os pilotos da sessão\n"
+    ".gerarpdf       - Gera o PDF do relatório de corrida\n"
+    ".sobre          - Mostra informações sobre o bot\n"
+    ".voltas         - Mostra os tempos de volta de um piloto\n"
+    ".volta_chat     - Envia mensagens automáticas com setores e pneus dos pilotos\n"
+    ".pararvoltas    - Para o envio automático de voltas\n"
+    ".velocidade     - Mostra o piloto mais rápido no speed trap\n"
+    ".ranking        - Mostra o top 10 da corrida\n"
+    ".grafico        - Envia o gráfico dos tempos de volta\n"
+    ".tabela         - Envia a tabela ao vivo dos pilotos\n"
+    ".parartabela    - Para o envio automático da tabela\n"
+    ".inicio_danos   - Inicia o envio automático de danos\n"
+    ".parar_danos    - Para o envio automático de danos\n"
+    "Use o comando '.comando' para ver a lista de comandos disponíveis.")
 @bot.command()
 async def sobre(ctx:commands.Context):
  await ctx.reply("Sou um bot que pode falar com radio e criar pdf.")
@@ -112,10 +119,11 @@ async def voltas(ctx,*,piloto: str):
 @bot.command()
 async def velocidade(ctx):
     from Bot.jogadores import get_jogadores
-    jogadores =get_jogadores()
+    jogadores = get_jogadores()
+
     M_rapido =max(jogadores,key=lambda j: j.speed_trap)
     await ctx.send(f"🚀 {M_rapido.name} foi o mais rápido no speed trap: {M_rapido.speed_trap} km/h")
-@bot.command
+@bot.command()
 async def ranking(ctx):
     from Bot.jogadores import get_jogadores
     jogadores = get_jogadores()
@@ -136,6 +144,7 @@ async def tabela(ctx):
     global TEMPO_INICIO_TABELA
     TEMPO_INICIO_TABELA = True
     from Bot.jogadores import get_jogadores
+    from utils.dictionnaries import tyres_dictionnary
     canal_id = 1381831375006601328
     canal = bot.get_channel(canal_id)
     if not canal:   
@@ -144,35 +153,21 @@ async def tabela(ctx):
     mensagem = await canal.send("🔄 Iniciando o envio de mensagens da tabela ao vivo...")
     while TEMPO_INICIO_TABELA:
         jogador = get_jogadores()  # Atualiza a lista a cada ciclo
-        tyres_nomes = {
-                0: "Duro",
-                1: "Médio",
-                2: "Macio",
-                3: "Intermediário",
-                4: "Chuva",
-                7: "Intermediário",
-                8: "Chuva",
-                16: "Duro",
-                17: "Médio",
-                18: "Macio",
-                11: "F2 Supermacio",
-                12: "F2 Macio",
-                13: "F2 Médio",
-                14: "F2 Duro",
-                15: "F2 Chuva"  # F2
-            }
+        tyres_nomes = tyres_dictionnary
+
         jogador= sorted(jogador, key=lambda j: j.position)
-        linhas = ["P  #  NAME           GAP      TYRES        TYRES AGE  PIT"]
+        linhas = ["P  #  NAME           GAP      TYRES        PIT"]
         for j in jogador:
             delta_to_leader = getattr(j, "delta_to_leader", "—")
             linhas.append(
                 f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {j.name:<14} "
-                f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {str(j.tyresAgeLaps):<9} {str(j.pit):<3}"
+                f"{str(delta_to_leader):<8} "
+                f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {'Sim' if j.pit else 'Não':<3}"
             )
         tabela = "```\n" + "\n".join(linhas) + "\n```"
         await mensagem.edit(content=tabela)
         await canal.send(tabela,delete_after=10)
-        await asyncio.sleep(3)  # Intervalo de atualização, ajuste conforme necessário
+        await asyncio.sleep(5)  # Intervalo de atualização, ajuste conforme necessário
 @bot.command()
 async def parar_tabela(ctx):
     global TEMPO_INICIO_TABELA
@@ -183,6 +178,7 @@ async def volta_chat(ctx):
     global TEMPO_INICIO_VOLTAS
     TEMPO_INICIO_VOLTAS = True
     from Bot.jogadores import get_jogadores
+    from utils.dictionnaries import tyres_dictionnary
     canal_id = 1382050740922482892
     canal = bot.get_channel(canal_id)
     if not canal:
@@ -192,7 +188,7 @@ async def volta_chat(ctx):
 
     while TEMPO_INICIO_VOLTAS:
         jogadores = get_jogadores() # Atualiza a lista a cada ciclo
-                
+        tyres_nomes = tyres_dictionnary
         mensagens = []
         dados_salvar = []
         # Ordena os jogadores por posição
@@ -208,27 +204,10 @@ async def volta_chat(ctx):
             tempo_total = sum(setores)
             minutos = int(tempo_total // 60)
             segundos = int(tempo_total % 60)
-            tyres_nomes = {
-                0: "Duro",
-                1: "Médio",
-                2: "Macio",
-                3: "Intermediário",
-                4: "Chuva",
-                7: "Intermediário",
-                8: "Chuva",
-                16: "Duro",
-                17: "Médio",
-                18: "Macio",
-                11: "F2 Supermacio",
-                12: "F2 Macio",
-                13: "F2 Médio",
-                14: "F2 Duro",
-                15: "F2 Chuva"  # F2
-                
-            }
+            tyres_nomes = tyres_dictionnary
             texto = (
                 f"🏎️{j.position}|{j.name}|LAP:{lap_max}| Tyres: {tyres_nomes.get(j.tyres, 'Desconhecido')}| "
-                f"Tyres Age: {j.tyresAgeLaps}| Pit: {j.pit}| ..."
+                f"Tyres Age: {j.tyresAgeLaps}| Pit: {'Sim' if j.pit else 'Não'}|"
             )
             mensagens.append(texto)
             dados_salvar.append({
