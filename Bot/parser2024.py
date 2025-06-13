@@ -964,8 +964,22 @@ def start_udp_listener():
             atualizar_damage_data(body)
         elif header.m_packet_id == 8:  # PacketFinalClassificationData
             atualizar_final_classification(body)
-
-
+        elif header.m_packet_id == 11:
+             atualizar_setores(body)
+        elif header.m_packet_id == 3:
+            event_code = bytes(body.m_event_string_code).decode('utf-8').strip("\x00") 
+            if event_code == "Bateu":
+                atualizar_colisao(body.m_event_details.m_collision)
+            elif event_code == "OTAK":
+                atualizar_ultrapassagem(body)
+            elif event_code == "PIT":
+                atualizar_pit_stop(body)
+            elif event_code == "PIT_SERV":
+                atualizar_pit_stop_served(body)
+            elif event_code == "PUNICAO":
+                atualizar_punicao(body)
+            elif event_code == "SPTP":
+                atualizar_speed_trap(body.m_event_details.m_speed_trap)
         # ⚠️ Detectar fim da corrida
         if not corrida_finalizada and session.Seance == 10:
             jogadores = get_jogadores()
@@ -980,10 +994,11 @@ def atualizar_SessionData(pacote_session):
     from Bot.Session import SESSION 
     print("Recebendo pacote SessionData!")
     SESSION.atualizar(pacote_session)
-    m_weather = pacote_session.m_weather
-    m_air_temperature = pacote_session.m_air_temperature
-    m_track_temperature = pacote_session.m_track_temperature
-    m_total_laps = pacote_session.m_total_laps
+    clima = pacote_session.m_weather
+    air_temperature = pacote_session.m_air_temperature
+    track_temperature = pacote_session.m_track_temperature
+    total_laps = pacote_session.m_total_laps
+    tipo_sessao = pacote_session.m_session_type
 
 def atualizar_final_classification(pacote_final):
     from Bot.jogadores import JOGADORES
@@ -994,12 +1009,12 @@ def atualizar_final_classification(pacote_final):
         if data.m_result_status == 1:
             piloto = JOGADORES[idx]
 def atualizar_lapdata(pacote_lap):
+    print("Atualizando lapdata")
     from Bot.jogadores import JOGADORES
     for idx, lap in enumerate(pacote_lap.m_lap_data):
         piloto = JOGADORES[idx]
         piloto.lastLapTime = lap.m_last_lap_time_in_ms / 1000
         piloto.currentLapTime = lap.m_current_lap_time_in_ms / 1000
-        
         piloto.position = lap.m_car_position
         # GAP para o líder
         delta_ms = getattr(lap, "m_deltaToRaceLeaderMSPart", 65535)
@@ -1008,9 +1023,8 @@ def atualizar_lapdata(pacote_lap):
             piloto.delta_to_leader = "—"
         else:
             piloto.delta_to_leader = delta_min * 60 + (delta_ms / 1000)
-
-        # PIT
         piloto.pit = lap.m_pit_status != 0
+
 def atualizar_participantes(pacote_participantes):
     from Bot.jogadores import JOGADORES
     for idx, participante in enumerate(pacote_participantes.m_participants):
@@ -1031,13 +1045,95 @@ def atualizar_damage_data(pacote_danos):
         piloto = JOGADORES[idx]
         piloto.tyresWear = dano.m_tyres_wear
         piloto.tyresDamage = dano.m_tyres_damage
-       # piloto.brakesDamage = dano.m_brakes_damage
         piloto.FrontLeftWingDamage = dano.m_front_left_wing_damage
         piloto.FrontRightWingDamage = dano.m_front_right_wing_damage
         piloto.rearWingDamage = dano.m_rear_wing_damage
         piloto.floorDamage = dano.m_floor_damage
         piloto.diffuserDamage = dano.m_diffuser_damage
         piloto.sidepodDamage = dano.m_sidepod_damage
-       # piloto.drsFault = dano.m_drs_fault
-       # piloto.ersFault = dano.m_ers_fault
-       # piloto.gearBoxDamage = dano.m_gear_box_damage
+
+def atualizar_setores(pacote_setores_history):
+    from Bot.jogadores import JOGADORES
+    car_idx = pacote_setores_history.m_car_idx
+    piloto = JOGADORES[car_idx]
+    num_laps = pacote_setores_history.m_num_laps
+    lap_history = pacote_setores_history.m_lap_history_data
+    piloto.todas_voltas_setores = []
+    for i in range(num_laps):
+        lap = lap_history[i]
+        if lap.m_sector1_time_in_ms > 0 and lap.m_sector2_time_in_ms > 0 and lap.m_sector3_time_in_ms > 0:
+            setores = [
+                lap.m_sector1_time_in_ms / 1000,
+                lap.m_sector2_time_in_ms / 1000,
+                lap.m_sector3_time_in_ms / 1000
+            ]
+            tempo_total = sum(setores)
+            piloto.todas_voltas_setores.append({
+                "volta": i + 1,
+                "tempo_total": tempo_total,
+                "setores": setores
+            })
+
+def atualizar_colisao(pacote_colisao):
+    from Bot.jogadores import JOGADORES
+    idx1 = pacote_colisao.m_vehicle1Idx
+    idx2 = pacote_colisao.m_vehicle2Idx
+    if idx1 < len(JOGADORES):
+        piloto1 = JOGADORES[idx1]
+        piloto1.colisao = True
+        piloto1.colidiu_com = idx2
+    if idx2 < len(JOGADORES):
+        piloto2 = JOGADORES[idx2]
+        piloto2.colisao = True
+        piloto2.colidiu_com = idx1
+
+def atualizar_ultrapassagem(pacote_ultrapassagem):
+    from Bot.jogadores import JOGADORES
+    idx1 = pacote_ultrapassagem.m_overtakingVehicleIdx
+    idx2 = pacote_ultrapassagem.m_beingOvertakenVehicleIdx
+    if idx1 < len(JOGADORES):
+        piloto1 = JOGADORES[idx1]
+        piloto1.ultrapassou = True
+        piloto1.ultrapassou_idx = idx2
+    if idx2 < len(JOGADORES):
+        piloto2 = JOGADORES[idx2]
+        piloto2.ultrapassado = True
+        piloto2.ultrapassado_idx = idx1
+
+def atualizar_pit_stop(pacote_pit_stop):
+    from Bot.jogadores import JOGADORES
+    idx = pacote_pit_stop.m_vehicle_idx
+    if idx < len(JOGADORES):
+        piloto = JOGADORES[idx]
+        piloto.pit = True
+        piloto.pit_stop = True
+        piloto.pit_lap = getattr(pacote_pit_stop, "m_pit_lap", None)
+        piloto.pit_stops = getattr(piloto, "pit_stops", 0) + 1
+
+def atualizar_pit_stop_served(pacote_pit_stop_served):
+    from Bot.jogadores import JOGADORES
+    idx = pacote_pit_stop_served.m_vehicle_idx
+    if idx < len(JOGADORES):
+        piloto = JOGADORES[idx]
+        piloto.pit = False
+        piloto.pit_stop = False
+        piloto.pit_lap = None
+        piloto.pit_stops = getattr(piloto, "pit_stops", 0) + 1
+
+def atualizar_punicao(pacote_punicao):
+    from Bot.jogadores import JOGADORES
+    idx = pacote_punicao.m_vehicle_idx
+    if idx < len(JOGADORES):
+        piloto = JOGADORES[idx]
+        piloto.punicao = True
+        piloto.punicao_time = getattr(pacote_punicao, "m_time_penalty", 0)
+        piloto.punicao_type = getattr(pacote_punicao, "m_penalty_type", 0)
+        piloto.punicao_lap = getattr(pacote_punicao, "m_infringement_lap", 0)
+        piloto.punicao_points = getattr(pacote_punicao, "m_num_of_penalty_points", 0)
+
+def atualizar_speed_trap(pacote_speed_trap):
+    from Bot.jogadores import JOGADORES
+    idx = pacote_speed_trap.m_vehicle_idx
+    if idx < len(JOGADORES):
+        piloto = JOGADORES[idx]
+        piloto.speed_trap = pacote_speed_trap.m_speed

@@ -57,15 +57,6 @@ async def enviarpdf(ctx: commands.Context):
         await ctx.send("O pdf estar :",file=discord.File(pdf,"relatorio_de_corrida_completo.pdf"))
         
 @bot.command()
-async def telemetriapdf(ctx: commands.Context):
-    caminho = "telemetria geral.pdf"
-    if not os.path.exists(caminho):
-        await ctx.send("❌ O arquivo PDF ainda não foi gerado.")
-        return
-    with open("telemetria geral.pdf","rb")as pdf :
-
-        await ctx.send("O pdf estar :",file=discord.File(pdf,"telemetria geral.pdf"))
-@bot.command()
 async def ola(ctx: commands.Context):
     nome= ctx.author.name
     await ctx.reply(f"Olá, {nome}! tudo bem?")
@@ -83,7 +74,6 @@ async def comando(ctx: commands.Context):
     ".clima          - Mostra informações do clima atual\n"
     ".gerar_audio    - Gera e toca um áudio de teste no canal de voz\n"
     ".delta          - Mostra o delta de tempo dos pilotos\n"
-    ".telemetriapdf  - Envia o PDF da telemetria geral\n"
     ".enviarpdf      - Envia o PDF do relatório de corrida\n"
     ".pneusv         - Mostra informações dos pneus dos pilotos\n"
     ".danos          - Mostra os danos do carro de um piloto\n"
@@ -116,31 +106,42 @@ async def voltas(ctx,*,piloto: str):
             await ctx.send(f"📊 Tempos de volta de {j.name}:\n```{texto}```")
             return
     await ctx.send("❌ Piloto não encontrado.")
-@bot.command()
+@bot.command()#pronto
 async def velocidade(ctx):
     from Bot.jogadores import get_jogadores
     jogadores = get_jogadores()
 
-    M_rapido =max(jogadores,key=lambda j: j.speed_trap)
-    await ctx.send(f"🚀 {M_rapido.name} foi o mais rápido no speed trap: {M_rapido.speed_trap} km/h")
+    m_rapido = max(jogadores, key=lambda j: j.speed_trap)
+    await ctx.send(f"🚀 {m_rapido.name} foi o mais rápido no speed trap: {m_rapido.speed_trap} km/h")
 @bot.command()
-async def ranking(ctx):
+async def ranking(ctx):# pronto
     from Bot.jogadores import get_jogadores
     jogadores = get_jogadores()
     top10 = sorted(jogadores,key=lambda j: j.position )[:10]
     texto="\n".join([f"{j.position}º - {j.name}" for j in top10])
     await ctx.send(f"🏆 Top 10 da corrida:\n```{texto}```")
 @bot.command()
-async def grafico(ctx):
+async def grafico(ctx):# pronto
+    import json
     from dados.telemetria_pdf import mostra_graficos_geral
-    from Bot.jogadores import get_jogadores
 
-    jogadores = get_jogadores()
-    mostra_graficos_geral(jogadores, nome_arquivo="grafico_tempos.png")
-    
+    # Classe temporária para transformar dicionário em objeto
+    class PilotoTemp:
+        def __init__(self, d):
+            self.__dict__ = d
+
+    # Lê o JSON salvo
+    with open("dados_salvar.json", "r", encoding="utf-8") as f:
+        dados_salvos = json.load(f)
+
+    # Cria lista de objetos temporários
+    pilotos = [PilotoTemp(d) for d in dados_salvos]
+
+    # Gera o gráfico
+    mostra_graficos_geral(pilotos, nome_arquivo="grafico_tempos.png")
     await ctx.send(file=discord.File("grafico_tempos.png"))
 @bot.command()
-async def tabela(ctx):
+async def tabela(ctx):# pronto
     global TEMPO_INICIO_TABELA
     TEMPO_INICIO_TABELA = True
     from Bot.jogadores import get_jogadores
@@ -166,15 +167,14 @@ async def tabela(ctx):
             )
         tabela = "```\n" + "\n".join(linhas) + "\n```"
         await mensagem.edit(content=tabela)
-        await canal.send(tabela,delete_after=10)
-        await asyncio.sleep(5)  # Intervalo de atualização, ajuste conforme necessário
-@bot.command()
+        await asyncio.sleep(0.5)  # Intervalo de atualização, ajuste conforme necessário
+@bot.command()# pronto
 async def parar_tabela(ctx):
     global TEMPO_INICIO_TABELA
     TEMPO_INICIO_TABELA = False
     await ctx.send("🛑 Envio automático da tabela parado.")
 @bot.command()
-async def volta_chat(ctx):
+async def volta_chat(ctx):# pronto
     global TEMPO_INICIO_VOLTAS
     TEMPO_INICIO_VOLTAS = True
     from Bot.jogadores import get_jogadores
@@ -184,50 +184,46 @@ async def volta_chat(ctx):
     if not canal:
         await ctx.send("❌ Canal não encontrado.")
         return
-    await ctx.send("🔄 Iniciando o envio de mensagens de volta...")
+    mensagem = await canal.send("🔄 Iniciando o envio de mensagens de volta. Se aparecer algum erro de envio de mensagem no discord é normal .")
 
     while TEMPO_INICIO_VOLTAS:
-        jogadores = get_jogadores() # Atualiza a lista a cada ciclo
+        jogadores = get_jogadores()
         tyres_nomes = tyres_dictionnary
         mensagens = []
         dados_salvar = []
-        # Ordena os jogadores por posição
         for j in jogadores:
-            print(f"DEBUG: {j.name} tyres={j.tyres} tyresAgeLaps={j.tyresAgeLaps}")
             if not j.name.strip():
                 continue
-            setores = j.bestLapSectors
-            lap_max = j.laps_max
-            j.pit = j.pit
-            j.position = j.position
-            # Agora mostra todos os setores, inclusive zeros
-            tempo_total = sum(setores)
-            minutos = int(tempo_total // 60)
-            segundos = int(tempo_total % 60)
-            tyres_nomes = tyres_dictionnary
-            texto = (
-                f"🏎️{j.position}|{j.name}|LAP:{lap_max}| Tyres: {tyres_nomes.get(j.tyres, 'Desconhecido')}| "
-                f"Tyres Age: {j.tyresAgeLaps}| Pit: {'Sim' if j.pit else 'Não'}|"
-            )
-            mensagens.append(texto)
+            # Pega o histórico de todas as voltas/setores
+            todas_voltas = getattr(j, "todas_voltas_setores", [])
+            # Salva no arquivo JSON
             dados_salvar.append({
                 "nome": j.name,
-                "setores": setores,
-                "tempo_total": tempo_total,
-                "laps_max": lap_max,
+                "voltas": todas_voltas,
+                "laps_max": j.laps_max,
                 "position": j.position,
                 "tyres": j.tyres,
                 "tyresAgeLaps": j.tyresAgeLaps,
                 "pit": j.pit
             })
-        with open("dados_salvar.json", "w",encoding="utf-8") as f:
+            # Monta mensagem para cada volta (opcional: só mostra a última volta se quiser)
+            if todas_voltas:
+                ultima_volta = todas_voltas[-1]
+                setores_str = " | ".join(f"{s:.3f}s" for s in ultima_volta["setores"])
+                texto = (
+                    f"🏎️{j.position}|{j.name}|Volta {ultima_volta['volta']}| "
+                    f"Setores: {setores_str} | Total: {ultima_volta['tempo_total']:.3f}s | "
+                    f"Tyres: {tyres_nomes.get(j.tyres, 'Desconhecido')}| "
+                    f"Tyres Age: {j.tyresAgeLaps}| Pit: {'Sim' if j.pit else 'Não'}|"
+                )
+                mensagens.append(texto)
+        with open("dados_salvar.json", "w", encoding="utf-8") as f:
             json.dump(dados_salvar, f, ensure_ascii=False, indent=4)
         if mensagens:
-            await canal.send("📊 **Setores por piloto:**\n" + "\n".join(mensagens))
-        
-        await asyncio.sleep(4)
+            await mensagem.edit(content="📊 ** Telemetria Geral:**\n" + "\n".join(mensagens))
+        await asyncio.sleep(0.5)  # Intervalo de atualização, ajuste conforme necessário
 @bot.command()
-async def parar_voltas(ctx):
+async def parar_voltas(ctx):#pronto
     global TEMPO_INICIO_VOLTAS
     TEMPO_INICIO_VOLTAS = False
     await ctx.send("🛑 Envio automático de voltas parado.")
@@ -247,7 +243,7 @@ async def pitstop(ctx):
 async def status(ctx,*, piloto: str = None):
      await comando_status(ctx, piloto=piloto)
 @bot.command()
-async def clima(ctx):
+async def clima(ctx):#pronto
     await comando_clima(ctx)
 @bot.command()
 async def pilotos(ctx):
@@ -278,7 +274,7 @@ async def loop_danos():
                     continue
                 await comandos_danos(await bot.get_context(await canal.send("")), piloto=j.name)
                 await asyncio.sleep(1)
-        await asyncio.sleep(10)  # Ajuste o tempo conforme necessário
+        await asyncio.sleep(3)  # Ajuste o tempo conforme necessário
 
 import uuid
 

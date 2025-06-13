@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from Bot.Session import SESSION  # Supondo que SESSION está em Bot/Session.py
 from utils.dictionnaries import session_dictionary, weather_dictionary
-
+# Variável global para armazenar o tempo de início da sessão
 TEMPO_INICIO = time.time()
 
 async def comando_clima(ctx):
@@ -19,12 +19,12 @@ async def comando_clima(ctx):
     segundos = tempo_rolando % 60
 
     # Acessa os dados da sessão do F1 corretamente
-    tempo_ar = getattr(SESSION, "airTemperature", 0)
-    tempo_pista = getattr(SESSION, "trackTemperature", 0)
-    clima = weather_dictionary.get(getattr(SESSION, "weather", 0), "desconhecido")
-    tipo_sessao = session_dictionary.get(getattr(session, "Seance", 0), "desconhecida")
-    volta_atual = getattr(session, "currentLap", 0)
-    total_voltas = getattr(session, "nbLaps", 0)
+    tempo_ar = getattr(SESSION, "m_air_temperature", 0)
+    tempo_pista = getattr(SESSION, "m_track_temperature", 0)
+    clima = weather_dictionary.get(getattr(SESSION, "m_weather", 0), "desconhecido")
+    tipo_sessao = session_dictionary.get(getattr(session, "m_session_type", 0), "desconhecida")
+    volta_atual = getattr(session, "m_currentLap", 0)
+    total_voltas = getattr(session, "m_total_laps", 0)
 
     texto = (
         f"Sessão: {tipo_sessao}. Já se passaram {minutos} minutos e {segundos} segundos. "

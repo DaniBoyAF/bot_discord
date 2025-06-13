@@ -1,0 +1,30 @@
+0: PacketMotionData
+Dados de movimento dos carros (posição, velocidade, aceleração, direção, etc).
+1: PacketSessionData
+Dados gerais da sessão (clima, tipo de sessão, número de voltas, temperatura, status do safety car, etc).
+2: PacketLapData
+Dados de volta de cada carro (tempo de volta, setor, posição, número da volta, delta para líder e carro da frente, status de pit, penalidades, etc).
+3: PacketEventData
+Eventos especiais (volta mais rápida, aposentadoria, penalidade, vencedor, colisão, etc).
+4: PacketParticipantsData
+Dados dos participantes (nome, número, nacionalidade, equipe, se é IA ou humano, etc).
+5: PacketCarSetupData
+Setup do carro (asas, cambagem, toe, pressão dos pneus, combustível, etc).
+6: PacketCarTelemetryData
+Telemetria do carro (velocidade, aceleração, freio, marcha, temperatura dos pneus e freios, pressão dos pneus, etc).
+7: PacketCarStatusData
+Status do carro (composto do pneu, idade do pneu, combustível, DRS, ERS, modo de combustível, etc).
+8: PacketFinalClassificationData
+Classificação final da corrida (posição final, voltas completadas, tempo total, penalidades, pneus usados, etc).
+9: PacketLobbyInfoData
+Informações do lobby (jogadores na sala, status de pronto, equipe, nacionalidade, etc).
+10: PacketCarDamageData
+Dados de dano do carro (desgaste e dano dos pneus, asa dianteira/traseira, assoalho, difusor, sidepod, falha de DRS/ERS, danos no motor, etc).
+11: PacketSessionHistoryData
+Histórico da sessão (tempos de volta, setores, stints de pneus, etc).
+12: PacketTyreSetsData
+Dados dos conjuntos de pneus disponíveis e usados (composto, desgaste, vida útil, etc).
+13: PacketMotionExData
+Dados extras de movimento (suspensão, forças nas rodas, ângulos, etc).
+14: PacketTimeTrialData
+Dados de time trial (melhores tempos do jogador, rival, etc).
