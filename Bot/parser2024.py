@@ -999,7 +999,7 @@ def atualizar_SessionData(pacote_session):
     track_temperature = pacote_session.m_track_temperature
     total_laps = pacote_session.m_total_laps
     tipo_sessao = pacote_session.m_session_type
-
+    
 def atualizar_final_classification(pacote_final):
     from Bot.jogadores import JOGADORES
     for idx, data in enumerate(pacote_final.m_classification_data):
@@ -1061,14 +1061,36 @@ def atualizar_setores(pacote_setores_history):
     piloto.todas_voltas_setores = []
     for i in range(num_laps):
         lap = lap_history[i]
-        if lap.m_sector1_time_in_ms > 0 and lap.m_sector2_time_in_ms > 0 and lap.m_sector3_time_in_ms > 0:
-            setores = [
-                lap.m_sector1_time_in_ms / 1000,
-                lap.m_sector2_time_in_ms / 1000,
-                lap.m_sector3_time_in_ms / 1000
-            ]
-            tempo_total = sum(setores)
-            piloto.todas_voltas_setores.append({
+        if (
+            lap.m_sector1_time_in_ms > 0 or 
+            lap.m_sector2_time_in_ms > 0 or 
+            lap.m_sector3_time_in_ms > 0
+        ):
+          setores = []
+          tempo_total = 0.0
+            # Setor 1
+        if lap.m_sector1_time_in_ms > 0:
+                setor1 = lap.m_sector1_time_in_ms / 1000
+                setores.append(setor1)
+                tempo_total += setor1
+        else:
+                setores.append(0.0)
+            # Setor 2
+        if lap.m_sector2_time_in_ms > 0:
+                setor2 = lap.m_sector2_time_in_ms / 1000
+                setores.append(setor2)
+                tempo_total += setor2
+        else:
+                setores.append(0.0)
+            # Setor 3
+        if lap.m_sector3_time_in_ms > 0:
+                setor3 = lap.m_sector3_time_in_ms / 1000
+                setores.append(setor3)
+                tempo_total += setor3
+        else:
+                setores.append(0.0)
+
+        piloto.todas_voltas_setores.append({
                 "volta": i + 1,
                 "tempo_total": tempo_total,
                 "setores": setores

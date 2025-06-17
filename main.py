@@ -13,7 +13,6 @@ from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
 import os
 import json
-from gtts import gTTS
 TEMPO_INICIO = False
 DANOS_INICIO = False
 TEMPO_INICIO_TABELA = False
@@ -25,8 +24,6 @@ bot =commands.Bot(command_prefix=".", intents=intents)
 @bot.event
 async def on_ready():
     print("Bot on")
-    bot.loop.create_task(loop_danos())
-
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
@@ -72,7 +69,6 @@ async def comando(ctx: commands.Context):
     ".pitstop        - Mostra informações de pitstop dos pilotos\n"
     ".status         - Mostra o status de um piloto (ex: em pista, no pit, etc)\n"
     ".clima          - Mostra informações do clima atual\n"
-    ".gerar_audio    - Gera e toca um áudio de teste no canal de voz\n"
     ".delta          - Mostra o delta de tempo dos pilotos\n"
     ".enviarpdf      - Envia o PDF do relatório de corrida\n"
     ".pneusv         - Mostra informações dos pneus dos pilotos\n"
@@ -88,8 +84,6 @@ async def comando(ctx: commands.Context):
     ".grafico        - Envia o gráfico dos tempos de volta\n"
     ".tabela         - Envia a tabela ao vivo dos pilotos\n"
     ".parartabela    - Para o envio automático da tabela\n"
-    ".inicio_danos   - Inicia o envio automático de danos\n"
-    ".parar_danos    - Para o envio automático de danos\n"
     "Use o comando '.comando' para ver a lista de comandos disponíveis.")
 @bot.command()
 async def sobre(ctx:commands.Context):
@@ -107,7 +101,7 @@ async def voltas(ctx,*,piloto: str):
             return
     await ctx.send("❌ Piloto não encontrado.")
 @bot.command()#pronto
-async def velocidade(ctx):
+async def velocidade(ctx):#
     from Bot.jogadores import get_jogadores
     jogadores = get_jogadores()
 
@@ -124,6 +118,8 @@ async def ranking(ctx):# pronto
 async def grafico(ctx):# pronto
     import json
     from dados.telemetria_pdf import mostra_graficos_geral
+    from Bot.Session import SESSION
+    total_voltas = getattr(SESSION, "m_total_laps", None)
 
     # Classe temporária para transformar dicionário em objeto
     class PilotoTemp:
@@ -138,7 +134,7 @@ async def grafico(ctx):# pronto
     pilotos = [PilotoTemp(d) for d in dados_salvos]
 
     # Gera o gráfico
-    mostra_graficos_geral(pilotos, nome_arquivo="grafico_tempos.png")
+    mostra_graficos_geral(pilotos,total_voltas=total_voltas, nome_arquivo="grafico_tempos.png")
     await ctx.send(file=discord.File("grafico_tempos.png"))
 @bot.command()
 async def tabela(ctx):# pronto
@@ -160,6 +156,9 @@ async def tabela(ctx):# pronto
         linhas = ["P  #  NAME           GAP      TYRES        PIT"]
         for j in jogador:
             delta_to_leader = getattr(j, "delta_to_leader", "—")
+            current_lap = getattr(j, "current_lap", "—")
+            if current_lap > 0:
+                delta_to_leader = f"+{current_lap}L"
             linhas.append(
                 f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {j.name:<14} "
                 f"{str(delta_to_leader):<8} "
@@ -251,56 +250,6 @@ async def pilotos(ctx):
 @bot.command()
 async def danos(ctx, piloto: str = None):
     await comandos_danos(ctx, piloto=piloto)
-@bot.command()
-async def parar_danos(ctx):
-    global DANOS_INICIO
-    DANOS_INICIO = False
-    await ctx.send("🛑 Envio automático de danos parado.")
-@bot.command()
-async def inicio_danos(ctx):
-    global DANOS_INICIO
-    DANOS_INICIO = True
-    await ctx.send("✅ Envio automático de danos ativado!")
-async def loop_danos():
-    await bot.wait_until_ready()
-    canal_id = 1382050740922482892
-    canal = bot.get_channel(canal_id)
-    from Bot.jogadores import get_jogadores
-    while not bot.is_closed():
-        if DANOS_INICIO:
-            jogadores = get_jogadores()
-            for j in jogadores:
-                if not j.name.strip():
-                    continue
-                await comandos_danos(await bot.get_context(await canal.send("")), piloto=j.name)
-                await asyncio.sleep(1)
-        await asyncio.sleep(3)  # Ajuste o tempo conforme necessário
-
-import uuid
-
-def gerar_audio_gtts(texto, idioma="pt", nome_arquivo=None):
-
-    if nome_arquivo is None:
-        nome_arquivo = f"saida_{uuid.uuid4().hex}.mp3"
-    tts = gTTS(text=texto, lang=idioma)
-    tts.save(nome_arquivo)
-    return nome_arquivo
-@bot.command()
-async def gerar_audio(ctx):
-    if ctx.author.voice:
-        canal = ctx.author.voice.channel
-        vc = ctx.voice_client or await canal.connect()
-
-        texto = "Esse é um teste com a voz do Google."
-        nome_audio = gerar_audio_gtts(texto)
-
-        vc.play(discord.FFmpegPCMAudio(nome_audio))
-        while vc.is_playing():
-            await asyncio.sleep(1)
-
-        await vc.disconnect()
-    else:
-        await ctx.send("❌ Você precisa estar em um canal de voz.")
 @bot.command()
 async def gerarpdf(ctx):
     from dados.export_pdf import export_pdf_corrida_final

@@ -4,7 +4,7 @@ async def danos(ctx, piloto: str = None):
     jogadores = get_jogadores ()
    
     if not piloto :
-        await ctx.send("❌ Especifique o nome do piloto. Ex: `.avaria Nome do jogador") 
+        await ctx.send("❌ Especifique o nome do piloto. Ex: `.dano Nome do jogador") 
         return
     for j in jogadores:
          if piloto.lower() in j.name.lower():

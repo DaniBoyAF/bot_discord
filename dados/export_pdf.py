@@ -19,7 +19,7 @@ def export_pdf_corrida_final(filepath, jogadores, session):
     c.setFont("Helvetica", 10)
     c.drawString(40, y, f"Tipo: {session.Seance} | Voltas: {session.currentLap}/{session.nbLaps}")
     y -= 15
-    c.drawString(40, y, f"Clima: {session.weather} | Ar: {session.airTemperature}°C | Pista: {session.trackTemperature}°C")
+    c.drawString(40, y, f"Clima: {session.m_weather} | Ar: {session.m_air_temperature}°C | Pista: {session.m_track_temperature}°C")
     y -= 30
 
     # Dados dos pilotos
