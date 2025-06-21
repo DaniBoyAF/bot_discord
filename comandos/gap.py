@@ -11,15 +11,15 @@ async def comando_gap(ctx):
         return
 
     jogadores = get_jogadores()
-    top3 = sorted([p for p in jogadores if not p.hasRetired], key=lambda x: x.position)[:3]
+    top5 = sorted([p for p in jogadores if not p.hasRetired], key=lambda x: x.position)[:5]
 
-    if len(top3) < 2:
+    if len(top5) < 2:
         await ctx.send("❌ Não há pilotos suficientes.")
         return
 
-    lider = top3[0]
+    lider = top5[0]
     falas = []
-    for p in top3[1:]:
+    for p in top5[1:]:
         gap = (p.bestLapTime - lider.bestLapTime)
         falas.append(f"{p.name} está a {gap:.3f} segundos de {lider.name}")
 

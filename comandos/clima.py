@@ -1,12 +1,10 @@
 import sys
 import os
 import time
-import asyncio
-import discord
 # Corrige o caminho para importar módulos de fora da pasta
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Bot.Session import SESSION  # Supondo que SESSION está em Bot/Session.py
+from Bot.Session import SESSION,SESSION_COMPLET  # Supondo que SESSION está em Bot/Session.py
 from utils.dictionnaries import session_dictionary, weather_dictionary
 # Variável global para armazenar o tempo de início da sessão
 TEMPO_INICIO = time.time()

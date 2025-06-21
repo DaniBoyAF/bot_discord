@@ -1,7 +1,5 @@
 from discord.ext import commands
 from Bot.jogadores import get_jogadores
-import asyncio
-import discord
 import sys
 import os
 

@@ -24,7 +24,7 @@ async def pitstop(ctx):
             estado_pneu_anterior[p.name] = p.tyresAgeLaps
 
     if pitaram:
-        texto = "Fizeram pit stop recentemente: " + ", ".join(pitaram)
+        texto = "\n Fizeram pit stop recentemente: " + ", ".join(pitaram)
     else:
         texto = "Nenhum pit stop recente detectado."
 

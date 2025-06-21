@@ -67,11 +67,7 @@ Envia o PDF relatorio_de_corrida_completo.pdf para o chat, se existir.
 
 .telemetriapdf
 
-Envia o PDF telemetria geral.pdf com informações brutas da telemetria.
-
-🌊 Integração com Voz (Google TTS)
-
-Ao usar comandos como .delta, .gap, .clima, você pode fazer o bot falar usando a biblioteca gTTS.
+Envia o PDF telemetria geral.pdf com informações brutas da telemetria
 
 A voz é gerada localmente e enviada no canal de voz onde o usuário está conectado.
 
@@ -94,8 +90,6 @@ Python 3.9+
 discord.py
 
 matplotlib
-
-gTTS
 
 reportlab
 ##

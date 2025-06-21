@@ -157,8 +157,8 @@ async def tabela(ctx):# pronto
         for j in jogador:
             delta_to_leader = getattr(j, "delta_to_leader", "—")
             current_lap = getattr(j, "current_lap", "—")
-            if current_lap > 0:
-                delta_to_leader = f"+{current_lap}L"
+            if isinstance(current_lap,(int,float)) and current_lap > 0:
+               delta_to_leader = f"+{int(current_lap)}L"
             linhas.append(
                 f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {j.name:<14} "
                 f"{str(delta_to_leader):<8} "

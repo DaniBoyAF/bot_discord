@@ -991,14 +991,18 @@ def start_udp_listener():
                 corrida_finalizada = True
 
 def atualizar_SessionData(pacote_session):
-    from Bot.Session import SESSION 
+    from Bot.Session import SESSION ,SESSION_COMPLET 
+  
     print("Recebendo pacote SessionData!")
     SESSION.atualizar(pacote_session)
+    SESSION_COMPLET.atualizar(pacote_session)
+    currentLap=pacote_session.m_currentLap
     clima = pacote_session.m_weather
     air_temperature = pacote_session.m_air_temperature
     track_temperature = pacote_session.m_track_temperature
     total_laps = pacote_session.m_total_laps
     tipo_sessao = pacote_session.m_session_type
+
     
 def atualizar_final_classification(pacote_final):
     from Bot.jogadores import JOGADORES
@@ -1069,25 +1073,25 @@ def atualizar_setores(pacote_setores_history):
           setores = []
           tempo_total = 0.0
             # Setor 1
-        if lap.m_sector1_time_in_ms > 0:
+          if lap.m_sector1_time_in_ms > 0:
                 setor1 = lap.m_sector1_time_in_ms / 1000
                 setores.append(setor1)
                 tempo_total += setor1
-        else:
+          else:
                 setores.append(0.0)
             # Setor 2
-        if lap.m_sector2_time_in_ms > 0:
+          if lap.m_sector2_time_in_ms > 0:
                 setor2 = lap.m_sector2_time_in_ms / 1000
                 setores.append(setor2)
                 tempo_total += setor2
-        else:
+          else:
                 setores.append(0.0)
             # Setor 3
-        if lap.m_sector3_time_in_ms > 0:
+          if lap.m_sector3_time_in_ms > 0:
                 setor3 = lap.m_sector3_time_in_ms / 1000
                 setores.append(setor3)
                 tempo_total += setor3
-        else:
+          else:
                 setores.append(0.0)
 
         piloto.todas_voltas_setores.append({

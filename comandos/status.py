@@ -1,7 +1,5 @@
 
 from utils.dictionnaries import tyres_dictionnary, ERS_dictionary
-import asyncio
-import discord
 import sys
 import os
 
