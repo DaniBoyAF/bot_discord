@@ -14,7 +14,6 @@ from comandos.danos import danos as comandos_danos
 import os
 import json
 TEMPO_INICIO = False
-DANOS_INICIO = False
 TEMPO_INICIO_TABELA = False
 TEMPO_INICIO_VOLTAS = False
 # Corrige o caminho para importar módulos de fora da pasta
@@ -77,7 +76,7 @@ async def comando(ctx: commands.Context):
     ".gerarpdf       - Gera o PDF do relatório de corrida\n"
     ".sobre          - Mostra informações sobre o bot\n"
     ".voltas         - Mostra os tempos de volta de um piloto\n"
-    ".volta_chat     - Envia mensagens automáticas com setores e pneus dos pilotos\n"
+    ".volta_salvar     - Envia mensagens automáticas com setores e pneus dos pilotos\n"
     ".pararvoltas    - Para o envio automático de voltas\n"
     ".velocidade     - Mostra o piloto mais rápido no speed trap\n"
     ".ranking        - Mostra o top 10 da corrida\n"
@@ -95,7 +94,8 @@ async def voltas(ctx,*,piloto: str):
     piloto = piloto.lower()
     for j in jogadores:
         if piloto in j.name.lower():
-            voltas = [f"Volta {i+1}: {tempo/1000:.3f}s" for i, tempo in enumerate(j.currentLapTime)]
+            todas_voltas = getattr(j,"todas_voltas_setores",[])
+            voltas = [f"Volta {v['volta']}: {v['tempo_total']:.3f}s" for v in todas_voltas]
             texto ="\n".join(voltas) or "não a dados sobre os registradas."
             await ctx.send(f"📊 Tempos de volta de {j.name}:\n```{texto}```")
             return
@@ -106,7 +106,7 @@ async def velocidade(ctx):#
     jogadores = get_jogadores()
 
     m_rapido = max(jogadores, key=lambda j: j.speed_trap)
-    await ctx.send(f"🚀 {m_rapido.name} foi o mais rápido no speed trap: {m_rapido.speed_trap} km/h")
+    await ctx.send(f"🚀 {m_rapido.name} foi o mais rápido no speed trap: {m_rapido.speed_trap:.2f} km/h")
 @bot.command()
 async def ranking(ctx):# pronto
     from Bot.jogadores import get_jogadores
@@ -159,11 +159,11 @@ async def tabela(ctx):# pronto
             current_lap = getattr(j, "current_lap", "—")
             if isinstance(current_lap,(int,float)) and current_lap > 0:
                delta_to_leader = f"+{int(current_lap)}L"
-            linhas.append(
+               linhas.append(
                 f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {j.name:<14} "
                 f"{str(delta_to_leader):<8} "
                 f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {'Sim' if j.pit else 'Não':<3}"
-            )
+             )
         tabela = "```\n" + "\n".join(linhas) + "\n```"
         await mensagem.edit(content=tabela)
         await asyncio.sleep(0.5)  # Intervalo de atualização, ajuste conforme necessário
@@ -173,7 +173,7 @@ async def parar_tabela(ctx):
     TEMPO_INICIO_TABELA = False
     await ctx.send("🛑 Envio automático da tabela parado.")
 @bot.command()
-async def volta_chat(ctx):# pronto
+async def volta_salvar(ctx):# pronto
     global TEMPO_INICIO_VOLTAS
     TEMPO_INICIO_VOLTAS = True
     from Bot.jogadores import get_jogadores
@@ -253,15 +253,30 @@ async def danos(ctx, piloto: str = None):
 @bot.command()
 async def gerarpdf(ctx):
     from dados.export_pdf import export_pdf_corrida_final
-    from dados.telemetria_pdf import mostra_graficos_geral
-    from Bot.jogadores import get_jogadores
     from Bot.Session import SESSION
+    import discord
+    import json
 
-    jogadores = get_jogadores()
-    mostra_graficos_geral(jogadores)  # gera imagem do gráfico
-    export_pdf_corrida_final("relatorio_de_corrida_completo.pdf", jogadores, SESSION)
-    await ctx.send("✅ PDF gerado com sucesso!")
+    class PilotoTemp:
+        def __init__(self, d):
+            self.__dict__ = d
+            self.bestLapTime = getattr(self, "bestLapTime", 0.0)
+            self.name = getattr(self, "name", "Desconhecido")
+            self.position = getattr(self, "position", 0)
+            self.lastLapTime = getattr(self, "lastLapTime", 0.0)
+    try:
+        with open("dados_salvar.json", "r", encoding="utf-8") as f:
+            dados_salvos = json.load(f)
+    except FileNotFoundError:
+        await ctx.send("❌ Arquivo de dados não encontrado. Use `.volta_salvar` antes.")
+        return
 
+    pilotos = [PilotoTemp(d) for d in dados_salvos]
+
+    # Corrigido aqui: salvar o gráfico como imagem
+
+    export_pdf_corrida_final("relatorio_de_corrida_completo.pdf", pilotos, SESSION)
+    await ctx.send(file=discord.File("relatorio_de_corrida_completo.pdf"))
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener

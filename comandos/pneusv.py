@@ -1,7 +1,4 @@
-
 from utils.dictionnaries import tyres_dictionnary  
-import asyncio
-import discord
 import sys
 import os
 

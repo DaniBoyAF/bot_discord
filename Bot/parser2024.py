@@ -1063,6 +1063,7 @@ def atualizar_setores(pacote_setores_history):
     num_laps = pacote_setores_history.m_num_laps
     lap_history = pacote_setores_history.m_lap_history_data
     piloto.todas_voltas_setores = []
+    
     for i in range(num_laps):
         lap = lap_history[i]
         if (

@@ -1,6 +1,4 @@
 from Bot.jogadores import get_jogadores
-import discord
-import asyncio
 from utils.dictionnaries import tyres_dictionnary, ERS_dictionary
 import sys
 import os
