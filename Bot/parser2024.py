@@ -933,7 +933,6 @@ HEADER_FIELD_TO_PACKET_TYPE = {
 }
 from Bot.Session import SESSION as session
 from Bot.jogadores import get_jogadores
-from dados.export_pdf import export_pdf_corrida_final
 from dados.telemetria_pdf import mostra_graficos_geral
 from Bot.parser2024 import Listener
 
@@ -986,7 +985,6 @@ def start_udp_listener():
             if all(p.hasRetired or p.position > 0 for p in jogadores):
                 print("🏁 Corrida finalizada!")
                 mostra_graficos_geral(jogadores)
-                export_pdf_corrida_final("relatorio_final.pdf", jogadores, session)
                 print("📄 PDF gerado com gráfico!")
                 corrida_finalizada = True
 
@@ -1095,7 +1093,7 @@ def atualizar_setores(pacote_setores_history):
           else:
                 setores.append(0.0)
 
-        piloto.todas_voltas_setores.append({
+          piloto.todas_voltas_setores.append({
                 "volta": i + 1,
                 "tempo_total": tempo_total,
                 "setores": setores

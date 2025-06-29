@@ -20,7 +20,7 @@ async def comando_clima(ctx):
     tempo_ar = getattr(SESSION, "m_air_temperature", 0)
     tempo_pista = getattr(SESSION, "m_track_temperature", 0)
     clima = weather_dictionary.get(getattr(SESSION, "m_weather", 0), "desconhecido")
-    tipo_sessao = session_dictionary.get(getattr(session, "m_session_type", 0), "desconhecida")
+    tipo_sessao = session_dictionary.get(getattr(SESSION, "m_session_type", 0), "desconhecida")
     volta_atual = getattr(session, "m_currentLap", 0)
     total_voltas = getattr(session, "m_total_laps", 0)
     carro_de_segurança = getattr(session, "m_safety_car_status", 0)

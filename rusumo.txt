@@ -28,3 +28,32 @@ Dados dos conjuntos de pneus disponíveis e usados (composto, desgaste, vida út
 Dados extras de movimento (suspensão, forças nas rodas, ângulos, etc).
 14: PacketTimeTrialData
 Dados de time trial (melhores tempos do jogador, rival, etc).
+
+🧱 Comandos Básicos
+Comando	O que faz
+plt.plot(x, y)	Gráfico de linha
+plt.bar(x, y)	Gráfico de barras
+plt.barh(x, y)	Gráfico de barras horizontal
+plt.scatter(x, y)	Gráfico de dispersão (pontos)
+plt.pie(x)	Gráfico de pizza
+plt.hist(x)	Histograma
+plt.boxplot(x)	Boxplot (distribuição estatística)
+
+✍️ Anotações e Estilo
+Comando	Uso
+plt.title("Título")	Adiciona um título ao gráfico
+plt.xlabel("Eixo X")	Nomeia o eixo X
+plt.ylabel("Eixo Y")	Nomeia o eixo Y
+plt.grid(True)	Mostra grade
+plt.legend()	Mostra legenda (se tiver labels)
+plt.text(x, y, "Texto")	Escreve texto no gráfico
+plt.xticks([...])	Define os valores no eixo X
+plt.yticks([...])	Define os valores no eixo Y
+
+🎨 Cores e Estilo
+Parâmetro	O que faz
+color='red'	Cor da linha/barras/pontos
+linestyle='--'	Estilo da linha (pontilhada, contínua, etc)
+marker='o'	Marcador nos pontos de linha
+alpha=0.5	Transparência (0 a 1)
+linewidth=2	Espessura da linha

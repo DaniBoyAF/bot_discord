@@ -16,6 +16,7 @@ import json
 TEMPO_INICIO = False
 TEMPO_INICIO_TABELA = False
 TEMPO_INICIO_VOLTAS = False
+TEMPO_INICIO_TABELA_Q = False
 # Corrige o caminho para importar módulos de fora da pasta
 intents =discord.Intents.default()
 intents.message_content=True
@@ -42,16 +43,6 @@ async def on_member_join(membro:discord.Member):
 async def on_member_remove(membro: discord.Member):
     canal = bot.get_channel(1375265281630539846)
     await canal.send(f"{membro.mention} Saiu do servidor !!")
-
-@bot.command()
-async def enviarpdf(ctx: commands.Context):
-    caminho_2 = "relatorio_de_corrida_completo.pdf"
-    if not os.path.exists(caminho_2):
-        await ctx.send("❌ O arquivo PDF ainda não foi gerado.\nUse o comando `.gerarpdf` após a corrida.")
-        return
-    with open("relatorio_de_corrida_completo.pdf","rb") as pdf :
-        await ctx.send("O pdf estar :",file=discord.File(pdf,"relatorio_de_corrida_completo.pdf"))
-        
 @bot.command()
 async def ola(ctx: commands.Context):
     nome= ctx.author.name
@@ -69,11 +60,10 @@ async def comando(ctx: commands.Context):
     ".status         - Mostra o status de um piloto (ex: em pista, no pit, etc)\n"
     ".clima          - Mostra informações do clima atual\n"
     ".delta          - Mostra o delta de tempo dos pilotos\n"
-    ".enviarpdf      - Envia o PDF do relatório de corrida\n"
     ".pneusv         - Mostra informações dos pneus dos pilotos\n"
     ".danos          - Mostra os danos do carro de um piloto\n"
     ".pilotos        - Lista os pilotos da sessão\n"
-    ".gerarpdf       - Gera o PDF do relatório de corrida\n"
+    ".Tabela_Qualy       - Mostra os tempos\n"
     ".sobre          - Mostra informações sobre o bot\n"
     ".voltas         - Mostra os tempos de volta de um piloto\n"
     ".volta_salvar     - Envia mensagens automáticas com setores e pneus dos pilotos\n"
@@ -137,36 +127,45 @@ async def grafico(ctx):# pronto
     mostra_graficos_geral(pilotos,total_voltas=total_voltas, nome_arquivo="grafico_tempos.png")
     await ctx.send(file=discord.File("grafico_tempos.png"))
 @bot.command()
-async def tabela(ctx):# pronto
+async def tabela(ctx):  # pronto
     global TEMPO_INICIO_TABELA
     TEMPO_INICIO_TABELA = True
     from Bot.jogadores import get_jogadores
     from utils.dictionnaries import tyres_dictionnary
     canal_id = 1381831375006601328
     canal = bot.get_channel(canal_id)
-    if not canal:   
+    if not canal:
         await ctx.send("❌ Canal de voz não encontrado.")
         return
+
     mensagem = await canal.send("🔄 Iniciando o envio de mensagens da tabela ao vivo...")
     while TEMPO_INICIO_TABELA:
-        jogador = get_jogadores()  # Atualiza a lista a cada ciclo
+        jogador = get_jogadores()
         tyres_nomes = tyres_dictionnary
+        jogador = sorted(jogador, key=lambda j: j.position)
 
-        jogador= sorted(jogador, key=lambda j: j.position)
         linhas = ["P  #  NAME           GAP      TYRES        PIT"]
         for j in jogador:
             delta_to_leader = getattr(j, "delta_to_leader", "—")
-            current_lap = getattr(j, "current_lap", "—")
-            if isinstance(current_lap,(int,float)) and current_lap > 0:
-               delta_to_leader = f"+{int(current_lap)}L"
-               linhas.append(
-                f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {j.name:<14} "
+            current_lap = getattr(j, "current_lap", 0)
+            if isinstance(current_lap, (int, float)) and current_lap > 0:
+                delta_to_leader = f"+{int(current_lap)}L"
+
+            nome = str(getattr(j, "name", "SemNome"))[:14]
+            linhas.append(
+                f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
                 f"{str(delta_to_leader):<8} "
                 f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {'Sim' if j.pit else 'Não':<3}"
-             )
+            )
+
         tabela = "```\n" + "\n".join(linhas) + "\n```"
-        await mensagem.edit(content=tabela)
-        await asyncio.sleep(0.5)  # Intervalo de atualização, ajuste conforme necessário
+        try:
+            await mensagem.edit(content=tabela)
+        except Exception as e:
+            print(f"Erro ao atualizar tabela: {e}")
+            break
+
+        await asyncio.sleep(0.7) # Intervalo de atualização, ajuste conforme necessário
 @bot.command()# pronto
 async def parar_tabela(ctx):
     global TEMPO_INICIO_TABELA
@@ -250,33 +249,53 @@ async def pilotos(ctx):
 @bot.command()
 async def danos(ctx, piloto: str = None):
     await comandos_danos(ctx, piloto=piloto)
+def formatacao(ms):
+    if ms == "—" or ms is None:
+        return "—"
+    minutos = ms // 60000
+    segundos = (ms % 60000) // 1000
+    milissegundos = ms % 1000
+    return f"{minutos}:{segundos:02}.{milissegundos:03}"
 @bot.command()
-async def gerarpdf(ctx):
-    from dados.export_pdf import export_pdf_corrida_final
-    from Bot.Session import SESSION
-    import discord
-    import json
+async def Tabela_Qualy(ctx):
+  global TEMPO_INICIO_TABELA_Q
+  TEMPO_INICIO_TABELA_Q = True
+  from Bot.jogadores import get_jogadores
+  from utils.dictionnaries import tyres_dictionnary
+  canal_id = 1373049532983804014
+  canal = bot.get_channel(canal_id)
+  if not canal:
+    await ctx.send("❌ Canal de voz não encontrado.")
+    return
+  mensagem = await canal.send("🔄 Iniciando o envio de mensagens da tabela ao vivo...")  
+  while TEMPO_INICIO_TABELA_Q:
+    jogador = get_jogadores()
+    tyres_nomes = tyres_dictionnary
+    jogador = sorted(jogador, key=lambda j: j.position)
+    linhas = ["P  #  NAME           GAP      TYRES        PIT"]
+    for j in jogador:
+        raw_best_time = getattr(j, "bestLapTim", None)
+        formatado = formatacao(raw_best_time)
+        nome = str(getattr(j, "name", "SemNome"))[:14]
+        linhas.append(
+        f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
+        f"{str(formatado):<8} "
+        f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {'Sim' if j.pit else 'Não':<3}"
+         )
 
-    class PilotoTemp:
-        def __init__(self, d):
-            self.__dict__ = d
-            self.bestLapTime = getattr(self, "bestLapTime", 0.0)
-            self.name = getattr(self, "name", "Desconhecido")
-            self.position = getattr(self, "position", 0)
-            self.lastLapTime = getattr(self, "lastLapTime", 0.0)
+    tabela = "```\n" + "\n".join(linhas) + "\n```"
     try:
-        with open("dados_salvar.json", "r", encoding="utf-8") as f:
-            dados_salvos = json.load(f)
-    except FileNotFoundError:
-        await ctx.send("❌ Arquivo de dados não encontrado. Use `.volta_salvar` antes.")
-        return
+            await mensagem.edit(content=tabela)
+    except Exception as e:
+            print(f"Erro ao atualizar tabela: {e}")
+            break
 
-    pilotos = [PilotoTemp(d) for d in dados_salvos]
-
-    # Corrigido aqui: salvar o gráfico como imagem
-
-    export_pdf_corrida_final("relatorio_de_corrida_completo.pdf", pilotos, SESSION)
-    await ctx.send(file=discord.File("relatorio_de_corrida_completo.pdf"))
+    await asyncio.sleep(0.7)
+@bot.command()
+async def parar_tabela_Qualy(ctx):
+    global TEMPO_INICIO_TABELA_Q
+    TEMPO_INICIO_TABELA_Q = False
+    await ctx.send("🛑 Envio automático da tabela parado.")
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener
