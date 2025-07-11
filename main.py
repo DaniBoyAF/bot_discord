@@ -4,13 +4,13 @@ import asyncio
 import threading
 from comandos.pneusv import comando_pneusv
 from comandos.delta import comando_delta  # se o nome correto for esse
-from comandos.gap import comando_gap
 from comandos.pitstop import pitstop
 from comandos.status import comando_status
 from Bot.parser2024 import start_udp_listener
 from comandos.clima import comando_clima
 from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
+from comandos.media import comando_media
 import os
 import json
 TEMPO_INICIO = False
@@ -231,9 +231,6 @@ async def delta(ctx):
 @bot.command()
 async def pneusv(ctx):
     await comando_pneusv(ctx)
-@bot.command(name='gap')
-async def gap(ctx):
-    await comando_gap(ctx)
 @bot.command()
 async def pitstop(ctx):
     await pitstop(ctx)
@@ -272,9 +269,9 @@ async def Tabela_Qualy(ctx):
     jogador = get_jogadores()
     tyres_nomes = tyres_dictionnary
     jogador = sorted(jogador, key=lambda j: j.position)
-    linhas = ["P  #  NAME           GAP      TYRES        PIT"]
+    linhas = ["P  #  NAME           TEMPO       TYRES        PIT"]
     for j in jogador:
-        raw_best_time = getattr(j, "bestLapTim", None)
+        raw_best_time = getattr(j, "bestLapTime", None)
         formatado = formatacao(raw_best_time)
         nome = str(getattr(j, "name", "SemNome"))[:14]
         linhas.append(
@@ -296,6 +293,10 @@ async def parar_tabela_Qualy(ctx):
     global TEMPO_INICIO_TABELA_Q
     TEMPO_INICIO_TABELA_Q = False
     await ctx.send("🛑 Envio automático da tabela parado.")
+@bot.command()
+async def media_lap(ctx):
+  await comando_media(ctx)
+                                       
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener

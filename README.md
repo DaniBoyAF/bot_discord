@@ -1,95 +1,89 @@
-# F1 24 Telemetry Application Bot discord
+# 🏎️ F1 24 Telemetry Discord Bot
 
-##
-Este documento lista os principais comandos que podem ser utilizados em um bot do Discord para transmitir e interagir com dados de telemetria da F1 24. Ideal para acompanhar corridas ao vivo, gerar relatórios e interagir com informações da corrida em tempo real.
+Um bot para Discord que transmite dados de telemetria do F1 24 em tempo real, gera relatórios, gráficos e permite interações rápidas durante corridas.
 
-✨ Comandos Gerais
+---
 
-.ola
+## ✨ Funcionalidades
 
-Responde com uma saudação personalizada ao usuário.
+- **Comandos ao vivo:** Gap, delta, pneus, pitstops, clima, status detalhado e mais.
+- **Relatórios em PDF:** Geração automática de relatórios completos e telemetria bruta.
+- **Gráficos:** Visualização dos tempos de volta de todos os pilotos.
+- **Totalmente integrado ao F1 24 via UDP.**
 
-.comando
+---
 
-Lista todos os comandos disponíveis do bot.
+## 📋 Comandos Principais
 
-.gerar_audio
+| Comando           | Descrição                                                                 |
+|-------------------|---------------------------------------------------------------------------|
+| `.ola`            | Saúda o usuário.                                                          |
+| `.comando`        | Lista todos os comandos disponíveis.                                      |
+| `.delta`          | Mostra o piloto mais rápido no momento.                                   |
+| `.gap`            | Mostra a diferença entre os 5 primeiros.                                  |
+| `.pneusv`         | Mostra pneus e voltas dos 5 mais rápidos.                                 |
+| `.pitstop`        | Lista pilotos que pararam nos boxes.                                      |
+| `.status [nome]`  | Mostra status detalhado de um piloto.                                     |
+| `.clima`          | Mostra clima, tipo de sessão e voltas completas.                          |
+| `.voltas [nome]`  | Mostra os tempos de volta de um piloto.                                   |
+| `.grafico`        | Envia o gráfico dos tempos de volta.                                      |
+| `.tabela`         | Envia a tabela ao vivo dos pilotos.                                       |
+| `.Tabela_Qualy`   | Mostra os melhores tempos da qualificação.                                |
+| `.media_lap`      | Mostra a média de tempo de volta dos pilotos.                             |
+| `.danos [nome]`   | Mostra os danos do carro de um piloto.                                    |
+| `.pilotos`        | Lista os pilotos da sessão.                                               |
+| `.parar_tabela`   | Para o envio automático da tabela.                                        |
+| `.parar_voltas`   | Para o envio automático de voltas.                                        |
 
-Fala uma mensagem de exemplo com voz gerada via Google TTS.
+---
 
-.listar_vozes
+## 📄 Relatórios
 
-Lista vozes disponíveis na sua conta ElevenLabs (se configurado).
+- **Relatório Completo:**  
+  - Informações da sessão  
+  - Dados de todos os pilotos (melhor volta, ERS, pneus, etc)  
+  - Estatísticas finais (pitstops, melhor volta)  
+  - Gráfico de tempos de volta
 
-⚡ Comandos de Corrida ao Vivo
+- **Telemetria Bruta:**  
+  - PDF com dados crus da sessão
 
-.delta
+---
 
-Informa qual piloto está com o melhor tempo na pista no momento.
+## 🚀 Como Executar
 
-.gap
+1. Instale os requisitos:
+    ```bash
+    pip install -r requirements.txt
+    ```
+2. Certifique-se de que o F1 24 está enviando dados UDP para o IP da sua máquina.
+3. Inicie o listener UDP (caso necessário):
+    ```python
+    start_udp_listener()
+    ```
+4. Execute o bot:
+    ```bash
+    python main.py
+    ```
 
-Informa a diferença de tempo entre os 5 primeiros colocados.
+---
 
-.pneusv
+## 🌐 Requisitos
 
-Informa o tipo de pneu e quantidade de voltas dos 5 pilotos mais rápidos.
+- Python 3.9+
+- [discord.py](https://github.com/Rapptz/discord.py)
+- matplotlib
+- reportlab
 
-.pitstop
+---
 
-Lista os pilotos que fizeram pitstops e quantas vezes pararam.
+## 📝 Observações
 
-.status [nome]
+- O bot precisa estar em um servidor Discord com permissões para ler e escrever mensagens.
+- Para comandos de PDF, gráficos e relatórios, os arquivos são enviados diretamente no chat.
 
-Mostra o status detalhado de um piloto (ERS, pneus, danos, etc).
+---
 
-.clima
+## 📧 Suporte
 
-Informa o tipo de sessão, clima, temperatura da pista/ar e voltas completas.
-
-📄 Geração e Envio de Relatórios
-
-.gerarpdf
-
-Gera um PDF com:
-
-Informações da sessão
-
-Dados de todos os pilotos (melhor volta, ERS, pneus, etc)
-
-Estatísticas finais (quem mais fez pitstops, melhor volta)
-
-Gráfico de tempos de volta
-
-.enviarpdf
-
-Envia o PDF relatorio_de_corrida_completo.pdf para o chat, se existir.
-
-.telemetriapdf
-
-Envia o PDF telemetria geral.pdf com informações brutas da telemetria
-
-A voz é gerada localmente e enviada no canal de voz onde o usuário está conectado.
-
-🚀 Execução
-
-Execute o bot com:
-
-python main.py
-
-Certifique-se que:
-
-O jogo F1 24 esteja enviando os dados UDP para o IP da sua máquina
-
-O listener UDP esteja ativo via start_udp_listener()
-
-🌐 Requisitos
-
-Python 3.9+
-
-discord.py
-
-matplotlib
-
-reportlab
-##
+Dúvidas ou sugestões? Abra uma issue ou entre em contato pelo Discord!

@@ -1,24 +1,27 @@
 from discord.ext import commands
 from Bot.jogadores import get_jogadores
+from utils.dictionnaries import tyres_dictionnary
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Bot.jogadores import get_jogadores
-
-async def comando_delta(ctx):
-    if not ctx.send("❌ Não há dados."):
-        return
-
+async def comando_delta(ctx, piloto: str = None):
     jogadores = get_jogadores()
-    validos = [p for p in jogadores if not p.hasRetired and p.bestLapTime > 0]
-
-    if not validos:
-        texto = "Nenhum piloto com volta válida ainda."
-    else:
-        melhor = min(validos, key=lambda p: p.bestLapTime)
-        tempo = melhor.bestLapTime / 1000
-        minutos = int(tempo // 60)
-        segundos = tempo % 60
-        texto = (f"{melhor.name} é o mais rápido da pista com {minutos} minuto e {segundos:.3f} segundos.")
-    await ctx.send(texto)
+    tyres_nome = tyres_dictionnary
+    if not piloto:
+        await ctx.send("❌ Especifique o nome do piloto. Ex: `.delta Nome do jogador`")
+        return
+    
+    for j in jogadores:
+        if piloto.lower() in j.name.lower():
+            msg = (
+                f"⏱️ Delta do piloto **{j.name}**:\n"
+                f"- Diferença para o líder: {j.delta_to_leader / 1000:.3f} segundos\n"
+                f"- Posição: {j.position}\n"
+                f"- Melhor volta: {j.bestLapTime / 1000:.3f} segundos\n"
+                f"- Tempo atual: {j.currentLapTime / 1000:.3f} segundos\n"
+                f"- Volta anterior: {j.lastLapTime / 1000:.3f} segundos\n"
+                f"- Tipo de pneus: {tyres_nome.get(j.tyres, 'Desconhecido')}"
+            )
+            await ctx.send(msg)
+            return
+    await ctx.send("❌ Piloto não encontrado.")

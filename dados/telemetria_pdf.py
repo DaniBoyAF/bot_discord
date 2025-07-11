@@ -5,7 +5,6 @@ def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_g
     melhor_tempo = float('inf')
     melhor_volta = None
     melhor_piloto = ''
-  
     for j in jogadores:
 
         if hasattr(j,"voltas") and len(j.voltas)>=2:
@@ -15,6 +14,7 @@ def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_g
                     melhor_tempo = tempo
                     melhor_volta = v.get("volta", None)
                     melhor_piloto = getattr(j, "nome", getattr(j, "name", "Piloto"))
+                   
     for j in jogadores:
         # Usa o campo 'voltas' do JSON
         if hasattr(j, "voltas") and len(j.voltas) >= 2:
