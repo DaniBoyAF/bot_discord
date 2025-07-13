@@ -95,14 +95,14 @@ async def velocidade(ctx):#
     from Bot.jogadores import get_jogadores
     jogadores = get_jogadores()
 
-    m_rapido = max(jogadores, key=lambda j: j.speed_trap)
+    m_rapido = max(jogadores, key=lambda j: getattr(j,"speed_trap",0))
     await ctx.send(f"🚀 {m_rapido.name} foi o mais rápido no speed trap: {m_rapido.speed_trap:.2f} km/h")
 @bot.command()
 async def ranking(ctx):# pronto
     from Bot.jogadores import get_jogadores
     jogadores = get_jogadores()
     top10 = sorted(jogadores,key=lambda j: j.position )[:10]
-    texto="\n".join([f"{j.position}º - {j.name}" for j in top10])
+    texto="\n".join([f"{j.position}º - {j.name} - {getattr(j, 'speed__trap', 0):.2f} km/h" for j in top10])
     await ctx.send(f"🏆 Top 10 da corrida:\n```{texto}```")
 @bot.command()
 async def grafico(ctx):# pronto
@@ -144,7 +144,7 @@ async def tabela(ctx):  # pronto
         tyres_nomes = tyres_dictionnary
         jogador = sorted(jogador, key=lambda j: j.position)
 
-        linhas = ["P  #  NAME           GAP      TYRES        PIT"]
+        linhas = ["P  #  NAME           GAP      TYRES        PIT    AVISOS   PUNIÇÃO"]
         for j in jogador:
             delta_to_leader = getattr(j, "delta_to_leader", "—")
             current_lap = getattr(j, "current_lap", 0)
@@ -156,6 +156,7 @@ async def tabela(ctx):  # pronto
                 f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
                 f"{str(delta_to_leader):<8} "
                 f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {'Sim' if j.pit else 'Não':<3}"
+                f"    {getattr(j, 'avisos', 0):<3}      {getattr(j, 'm_time_penalty',0 ):<3}"
             )
 
         tabela = "```\n" + "\n".join(linhas) + "\n```"
@@ -165,7 +166,7 @@ async def tabela(ctx):  # pronto
             print(f"Erro ao atualizar tabela: {e}")
             break
 
-        await asyncio.sleep(0.7) # Intervalo de atualização, ajuste conforme necessário
+        await asyncio.sleep(0.5) # Intervalo de atualização, ajuste conforme necessário
 @bot.command()# pronto
 async def parar_tabela(ctx):
     global TEMPO_INICIO_TABELA
@@ -198,11 +199,14 @@ async def volta_salvar(ctx):# pronto
             dados_salvar.append({
                 "nome": j.name,
                 "voltas": todas_voltas,
-                "laps_max": j.laps_max,
+                "laps_max": getattr(j, "total_laps", 0),
                 "position": j.position,
                 "tyres": j.tyres,
                 "tyresAgeLaps": j.tyresAgeLaps,
-                "pit": j.pit
+                "pit": j.pit,
+                "speed": getattr(j, "speed_trap", 0),
+                "avisos": getattr(j, "avisos", 0),
+                "m_time_penalty": getattr(j, "m_time_penalty", 0),
             })
             # Monta mensagem para cada volta (opcional: só mostra a última volta se quiser)
             if todas_voltas:
@@ -212,7 +216,7 @@ async def volta_salvar(ctx):# pronto
                     f"🏎️{j.position}|{j.name}|Volta {ultima_volta['volta']}| "
                     f"Setores: {setores_str} | Total: {ultima_volta['tempo_total']:.3f}s | "
                     f"Tyres: {tyres_nomes.get(j.tyres, 'Desconhecido')}| "
-                    f"Tyres Age: {j.tyresAgeLaps}| Pit: {'Sim' if j.pit else 'Não'}|"
+                    f"Tyres Age: {j.tyresAgeLaps}| Pit: {j.pit}|"
                 )
                 mensagens.append(texto)
         with open("dados_salvar.json", "w", encoding="utf-8") as f:
@@ -269,15 +273,17 @@ async def Tabela_Qualy(ctx):
     jogador = get_jogadores()
     tyres_nomes = tyres_dictionnary
     jogador = sorted(jogador, key=lambda j: j.position)
-    linhas = ["P  #  NAME           TEMPO       TYRES        PIT"]
+    linhas = ["P  #  NAME           BEST_LAP  LAST_LAP   TYRES        PIT"]
     for j in jogador:
         raw_best_time = getattr(j, "bestLapTime", None)
+        raw_Last_time = getattr(j, "lastLapTime", None)
+        formatando2 = formatacao(raw_Last_time)
         formatado = formatacao(raw_best_time)
         nome = str(getattr(j, "name", "SemNome"))[:14]
         linhas.append(
         f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
-        f"{str(formatado):<8} "
-        f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {'Sim' if j.pit else 'Não':<3}"
+        f"{str(formatado):<8}  {str(formatando2):<8}"
+        f"   {tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {'Sim' if j.pit else 'Não':<3}"
          )
 
     tabela = "```\n" + "\n".join(linhas) + "\n```"

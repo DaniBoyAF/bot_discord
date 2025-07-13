@@ -11,7 +11,6 @@ TEMPO_INICIO = time.time()
 
 async def comando_clima(ctx):
     session = SESSION  # Objeto com os dados da sessão
-
     tempo_rolando = int(time.time() - TEMPO_INICIO)
     minutos = tempo_rolando // 60
     segundos = tempo_rolando % 60

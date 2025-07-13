@@ -6,7 +6,7 @@ class Player:
         self.laps_info = []
         self.laps_max: int = 0
         self.position: int = 0
-        self.tyre_wear = []
+        self.tyre_wear = [0, 0, 0, 0]  # [FL, FR, RL, RR]
         self.tyres = 0
         self.warnings = 0
         self.ERS_mode = -1

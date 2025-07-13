@@ -70,7 +70,7 @@ class Session:
         for i in range(len(self.segments)):
             map_canvas.itemconfig(self.segments[i], fill=color_flag_dict[self.marshalZones[i].m_zone_flag])
 
-SESSION_COMPLET = Session()
+
 class SessionData:
     def __init__(self):
         self.Seance = 0
