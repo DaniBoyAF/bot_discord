@@ -4,7 +4,8 @@ import time
 # Corrige o caminho para importar módulos de fora da pasta
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Bot.Session import SESSION,SESSION_COMPLET  # Supondo que SESSION está em Bot/Session.py
+from Bot.Session import SESSION # Supondo que SESSION está em Bot/Session.py
+
 from utils.dictionnaries import session_dictionary, weather_dictionary
 # Variável global para armazenar o tempo de início da sessão
 TEMPO_INICIO = time.time()
@@ -18,9 +19,9 @@ async def comando_clima(ctx):
     # Acessa os dados da sessão do F1 corretamente
     tempo_ar = getattr(SESSION, "m_air_temperature", 0)
     tempo_pista = getattr(SESSION, "m_track_temperature", 0)
-    clima = weather_dictionary.get(getattr(SESSION, "m_weather", 0), "desconhecido")
+    clima = {session_dictionary[getattr(SESSION, "m_weather", 0)]}
     tipo_sessao = session_dictionary.get(getattr(SESSION, "m_session_type", 0), "desconhecida")
-    volta_atual = getattr(session, "m_currentLap", 0)
+    volta_atual = session.currentLap  if hasattr(session, "currentLap") else 0
     total_voltas = getattr(session, "m_total_laps", 0)
     carro_de_segurança = getattr(session, "m_safety_car_status", 0)
     if carro_de_segurança == 0:
@@ -33,7 +34,7 @@ async def comando_clima(ctx):
         f"Sessão: {tipo_sessao}. Já se passaram {minutos} minutos e {segundos} segundos. "
         f"Temperatura do ar: {tempo_ar} graus. Temperatura da pista: {tempo_pista} graus. "
         f"Clima atual: {clima}. Volta {volta_atual} de {total_voltas}."
-        f"A sessão tem {len(session.weatherList)} previsões de clima futuras.\n"
+        f"A sessão tem {len(session.weatherList)}% previsões de clima futuras.\n"
         f"Carro de segurança: {carro_de_segurança}.\n"
     )
 

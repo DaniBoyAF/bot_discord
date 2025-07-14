@@ -13,10 +13,10 @@ async def comando_pneusv(ctx):
     jogadores = get_jogadores()
     top22 = sorted([p for p in jogadores if not p.hasRetired], key=lambda x: x.position)[:22]
 
-    mensagens = []
+    linhas = ["NAME               TYRES_AGE  TYRES_TYPE"]
     for p in top22:
         tipo = tyres_dictionnary.get(p.tyres, "Desconhecido")
-        mensagens.append(f"{p.name}: {p.tyresAgeLaps} voltas com pneu {tipo}")
+        linhas.append(f"{p.name:<14}     {p.tyresAgeLaps}          {tipo}")
 
-    texto = "📻 Situação dos pneus dos 22 primeiros:\n " + ". ".join(mensagens)
+    texto = "📻```\n" + "\n".join(linhas) + "\n```"
     await ctx.send(texto)

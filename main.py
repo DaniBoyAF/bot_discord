@@ -55,7 +55,6 @@ async def bem(ctx: commands.Context):
 async def comando(ctx: commands.Context):
     await ctx.reply("Os comandos são:\n"
     ".ola            - O bot cumprimenta você\n"
-    ".gap            - Mostra a diferença de tempo entre os pilotos\n"
     ".pitstop        - Mostra informações de pitstop dos pilotos\n"
     ".status         - Mostra o status de um piloto (ex: em pista, no pit, etc)\n"
     ".clima          - Mostra informações do clima atual\n"
@@ -63,7 +62,7 @@ async def comando(ctx: commands.Context):
     ".pneusv         - Mostra informações dos pneus dos pilotos\n"
     ".danos          - Mostra os danos do carro de um piloto\n"
     ".pilotos        - Lista os pilotos da sessão\n"
-    ".Tabela_Qualy       - Mostra os tempos\n"
+    ".Tabela_Qualy   - Mostra os tempos\n"
     ".sobre          - Mostra informações sobre o bot\n"
     ".voltas         - Mostra os tempos de volta de um piloto\n"
     ".volta_salvar     - Envia mensagens automáticas com setores e pneus dos pilotos\n"
@@ -95,14 +94,14 @@ async def velocidade(ctx):#
     from Bot.jogadores import get_jogadores
     jogadores = get_jogadores()
 
-    m_rapido = max(jogadores, key=lambda j: getattr(j,"speed_trap",0))
+    m_rapido = max(jogadores, key=lambda j: j.speed_trap)
     await ctx.send(f"🚀 {m_rapido.name} foi o mais rápido no speed trap: {m_rapido.speed_trap:.2f} km/h")
 @bot.command()
 async def ranking(ctx):# pronto
     from Bot.jogadores import get_jogadores
     jogadores = get_jogadores()
     top10 = sorted(jogadores,key=lambda j: j.position )[:10]
-    texto="\n".join([f"{j.position}º - {j.name} - {getattr(j, 'speed__trap', 0):.2f} km/h" for j in top10])
+    texto="\n".join([f"{j.position}º - {j.name} - {j.speed_trap} km/h" for j in top10])
     await ctx.send(f"🏆 Top 10 da corrida:\n```{texto}```")
 @bot.command()
 async def grafico(ctx):# pronto
@@ -144,7 +143,7 @@ async def tabela(ctx):  # pronto
         tyres_nomes = tyres_dictionnary
         jogador = sorted(jogador, key=lambda j: j.position)
 
-        linhas = ["P  #  NAME           GAP      TYRES        PIT    AVISOS   PUNIÇÃO"]
+        linhas = ["P  #  NAME           GAP      TYRES       TYRES_AGE PIT   "]
         for j in jogador:
             delta_to_leader = getattr(j, "delta_to_leader", "—")
             current_lap = getattr(j, "current_lap", 0)
@@ -155,8 +154,7 @@ async def tabela(ctx):  # pronto
             linhas.append(
                 f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
                 f"{str(delta_to_leader):<8} "
-                f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {'Sim' if j.pit else 'Não':<3}"
-                f"    {getattr(j, 'avisos', 0):<3}      {getattr(j, 'm_time_penalty',0 ):<3}"
+            f"{tyres_nomes.get(j.tyres, 'Desconhecido'):<12}{j.tyresAgeLaps}         {'Sim' if j.pit else 'Não':<3}"
             )
 
         tabela = "```\n" + "\n".join(linhas) + "\n```"
@@ -201,12 +199,11 @@ async def volta_salvar(ctx):# pronto
                 "voltas": todas_voltas,
                 "laps_max": getattr(j, "total_laps", 0),
                 "position": j.position,
-                "tyres": j.tyres,
+                "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
                 "tyresAgeLaps": j.tyresAgeLaps,
                 "pit": j.pit,
-                "speed": getattr(j, "speed_trap", 0),
-                "avisos": getattr(j, "avisos", 0),
-                "m_time_penalty": getattr(j, "m_time_penalty", 0),
+                "speed": j.speed_trap,
+                "avisos": j.warnings,
             })
             # Monta mensagem para cada volta (opcional: só mostra a última volta se quiser)
             if todas_voltas:
@@ -273,17 +270,17 @@ async def Tabela_Qualy(ctx):
     jogador = get_jogadores()
     tyres_nomes = tyres_dictionnary
     jogador = sorted(jogador, key=lambda j: j.position)
-    linhas = ["P  #  NAME           BEST_LAP  LAST_LAP   TYRES        PIT"]
+    linhas = ["P  #  NAME           BEST_LAP  LAST_LAP   TYRES     TYRES_AGE      PIT"]
     for j in jogador:
-        raw_best_time = getattr(j, "bestLapTime", None)
-        raw_Last_time = getattr(j, "lastLapTime", None)
+        raw_best_time = j.bestLapTime
+        raw_Last_time = j.lastLapTime
         formatando2 = formatacao(raw_Last_time)
         formatado = formatacao(raw_best_time)
         nome = str(getattr(j, "name", "SemNome"))[:14]
         linhas.append(
         f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
         f"{str(formatado):<8}  {str(formatando2):<8}"
-        f"   {tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {'Sim' if j.pit else 'Não':<3}"
+        f"   {tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {j.tyresAgeLaps}           {'Sim' if j.pit else 'Não':<3}"
          )
 
     tabela = "```\n" + "\n".join(linhas) + "\n```"
@@ -293,7 +290,7 @@ async def Tabela_Qualy(ctx):
             print(f"Erro ao atualizar tabela: {e}")
             break
 
-    await asyncio.sleep(0.7)
+    await asyncio.sleep(0.5)
 @bot.command()
 async def parar_tabela_Qualy(ctx):
     global TEMPO_INICIO_TABELA_Q

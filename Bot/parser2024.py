@@ -989,16 +989,16 @@ def start_udp_listener():
                 corrida_finalizada = True
 
 def atualizar_SessionData(pacote_session):
-    from Bot.Session import SESSION 
-  
-    print("Recebendo pacote SessionData!")
-    SESSION.atualizar(pacote_session)
-    currentLap = getattr(pacote_session, "m_currentLap", 0)
-    clima = getattr(pacote_session, "m_weather", 0)
-    air_temperature = getattr(pacote_session, "m_air_temperature", 0.0)
-    track_temperature = getattr(pacote_session, "m_track_temperature", 0.0)
-    total_laps = getattr(pacote_session, "m_total_laps", 0)
-    tipo_sessao = getattr(pacote_session, "m_session_type", 0)
+ from Bot.Session import SESSION 
+ print("Recebendo pacote SessionData!")
+ SESSION.atualizar(pacote_session)
+ currentLap = getattr(pacote_session, "m_currentLap", 0)
+ clima = getattr(pacote_session, "m_weather", 0)
+ air_temperature = getattr(pacote_session, "m_air_temperature", 0.0)
+ track_temperature = getattr(pacote_session, "m_track_temperature", 0.0)
+ total_laps = getattr(pacote_session, "m_total_laps", 0)
+ tipo_sessao = getattr(pacote_session, "m_session_type", 0)
+ 
 
     
 def atualizar_final_classification(pacote_final):
@@ -1039,10 +1039,6 @@ def atualizar_car_status(pacote_status):
         piloto = JOGADORES[idx]
         piloto.tyres = status.m_actual_tyre_compound
         piloto.tyresAgeLaps = status.m_tyres_age_laps
-        piloto.tyresWear[0] = status.m_tyres_wear[0]  # FL
-        piloto.tyresWear[1] = status.m_tyres_wear[1]  # FR
-        piloto.tyresWear[2] = status.m_tyres_wear[2]  # RL
-        piloto.tyresWear[3] = status.m_tyres_wear[3]  # RR
 
 def atualizar_damage_data(pacote_danos):
     from Bot.jogadores import JOGADORES
@@ -1153,15 +1149,15 @@ def atualizar_punicao(pacote_punicao):
         piloto = JOGADORES[idx]
         piloto.punicao = True
         piloto.punicao_time = getattr(pacote_punicao, "m_time_penalty", 0)
-        piloto.punicao_type = getattr(pacote_punicao, "m_penalty_type", 0)
-        piloto.punicao_lap = getattr(pacote_punicao, "m_infringement_lap", 0)
-        piloto.punicao_points = getattr(pacote_punicao, "m_num_of_penalty_points", 0)
-        piloto.avisos = getattr(piloto, "avisos", 0) + 1
+        piloto.punicao_type = pacote_punicao.m_penalty_type
+        piloto.punicao_lap = pacote_punicao.m_infringement_lap
+        piloto.punicao_points = pacote_punicao.m_num_of_penalty_points
+        piloto.warnings = piloto.warnings + 1
 
 def atualizar_speed_trap(pacote_speed_trap):
     from Bot.jogadores import JOGADORES
     idx = pacote_speed_trap.m_vehicle_idx
     if idx < len(JOGADORES):
         piloto = JOGADORES[idx]
-        piloto.speed_trap = getattr(pacote_speed_trap, "m_speed_trap", 0)
-        piloto.speed = getattr(pacote_speed_trap, "m_speed", 0)
+        piloto.speed_trap = pacote_speed_trap.m_speed_trap
+        piloto.speed = pacote_speed_trap.m_speed
