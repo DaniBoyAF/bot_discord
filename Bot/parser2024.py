@@ -957,6 +957,8 @@ def start_udp_listener():
             atualizar_participantes(body)
         elif header.m_packet_id == 2:  # PacketLapData
             atualizar_lapdata(body)
+        elif header.m_packet_id == 6:  # PacketCarTelemetryData
+            atualizar_car_telemetry(body)
         elif header.m_packet_id == 7:  # PacketCarStatusData
             atualizar_car_status(body)
         elif header.m_packet_id == 10:
@@ -1044,6 +1046,7 @@ def atualizar_damage_data(pacote_danos):
     from Bot.jogadores import JOGADORES
     for idx, dano in enumerate(pacote_danos.m_car_damage_data):
         piloto = JOGADORES[idx]
+        piloto.tyre_wear = dano.m_tyres_wear
         piloto.FrontLeftWingDamage = dano.m_front_left_wing_damage
         piloto.FrontRightWingDamage = dano.m_front_right_wing_damage
         piloto.rearWingDamage = dano.m_rear_wing_damage
@@ -1161,3 +1164,13 @@ def atualizar_speed_trap(pacote_speed_trap):
         piloto = JOGADORES[idx]
         piloto.speed_trap = pacote_speed_trap.m_speed_trap
         piloto.speed = pacote_speed_trap.m_speed
+def atualizar_car_telemetry(pacote_telemetry):
+    from Bot.jogadores import JOGADORES
+    for idx in pacote_telemetry.m_car_telemetry_data:
+        piloto = JOGADORES[idx.m_car_idx]
+        piloto.tyres_temp_inner = pacote_telemetry.m_tyres_inner_temperature
+        piloto.tyres_temp_surface = pacote_telemetry.m_tyres_surface_temperature
+        piloto.throttle = pacote_telemetry.m_throttle
+        piloto.brake = pacote_telemetry.m_brake
+        piloto.clutch = pacote_telemetry.m_clutch
+        piloto.steer = pacote_telemetry.m_steer

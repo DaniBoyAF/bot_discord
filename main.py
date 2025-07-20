@@ -109,7 +109,7 @@ async def grafico(ctx):# pronto
     from dados.telemetria_pdf import mostra_graficos_geral
     from Bot.Session import SESSION
     total_voltas = getattr(SESSION, "m_total_laps", None)
-
+    
     # Classe temporária para transformar dicionário em objeto
     class PilotoTemp:
         def __init__(self, d):
@@ -201,6 +201,7 @@ async def volta_salvar(ctx):# pronto
                 "position": j.position,
                 "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
                 "tyresAgeLaps": j.tyresAgeLaps,
+                "tyre_wear": j.tyre_wear[0:4],  # Pega os 4 pneus
                 "pit": j.pit,
                 "speed": j.speed_trap,
                 "avisos": j.warnings,
@@ -259,7 +260,7 @@ async def Tabela_Qualy(ctx):
   global TEMPO_INICIO_TABELA_Q
   TEMPO_INICIO_TABELA_Q = True
   from Bot.jogadores import get_jogadores
-  from utils.dictionnaries import tyres_dictionnary
+  from utils.dictionnaries import tyres_dictionnary , DRS_dict
   canal_id = 1373049532983804014
   canal = bot.get_channel(canal_id)
   if not canal:
@@ -270,7 +271,7 @@ async def Tabela_Qualy(ctx):
     jogador = get_jogadores()
     tyres_nomes = tyres_dictionnary
     jogador = sorted(jogador, key=lambda j: j.position)
-    linhas = ["P  #  NAME           BEST_LAP  LAST_LAP   TYRES     TYRES_AGE      PIT"]
+    linhas = ["P  #  NAME           BEST_LAP  LAST_LAP   TYRES     TYRES_AGE      PIT  DRS"]
     for j in jogador:
         raw_best_time = j.bestLapTime
         raw_Last_time = j.lastLapTime
@@ -281,6 +282,7 @@ async def Tabela_Qualy(ctx):
         f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
         f"{str(formatado):<8}  {str(formatando2):<8}"
         f"   {tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {j.tyresAgeLaps}           {'Sim' if j.pit else 'Não':<3}"
+        f" {DRS_dict.get(j.drs, 'Desconhecido'):<5}"
          )
 
     tabela = "```\n" + "\n".join(linhas) + "\n```"
@@ -299,7 +301,6 @@ async def parar_tabela_Qualy(ctx):
 @bot.command()
 async def media_lap(ctx):
   await comando_media(ctx)
-                                       
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener

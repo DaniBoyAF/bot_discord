@@ -19,7 +19,7 @@ async def comando_clima(ctx):
     # Acessa os dados da sessão do F1 corretamente
     tempo_ar = getattr(SESSION, "m_air_temperature", 0)
     tempo_pista = getattr(SESSION, "m_track_temperature", 0)
-    clima = {session_dictionary[getattr(SESSION, "m_weather", 0)]}
+    clima = {weather_dictionary[getattr(SESSION, "m_weather", 0)]}
     tipo_sessao = session_dictionary.get(getattr(SESSION, "m_session_type", 0), "desconhecida")
     volta_atual = session.currentLap  if hasattr(session, "currentLap") else 0
     total_voltas = getattr(session, "m_total_laps", 0)
@@ -31,9 +31,9 @@ async def comando_clima(ctx):
     elif carro_de_segurança == 2:
         tipo_sessao += " (Virtual Safety Car)"
     texto = (
-        f"Sessão: {tipo_sessao}. Já se passaram {minutos} minutos e {segundos} segundos. "
-        f"Temperatura do ar: {tempo_ar} graus. Temperatura da pista: {tempo_pista} graus. "
-        f"Clima atual: {clima}. Volta {volta_atual} de {total_voltas}."
+        f"Sessão: {tipo_sessao}. Já se passaram {minutos} minutos e {segundos} segundos.\n "
+        f"Temperatura do ar: {tempo_ar} graus.\n Temperatura da pista: {tempo_pista} graus. "
+        f"Clima atual: {clima}.\n Volta {volta_atual} de {total_voltas}."
         f"A sessão tem {len(session.weatherList)}% previsões de clima futuras.\n"
         f"Carro de segurança: {carro_de_segurança}.\n"
     )

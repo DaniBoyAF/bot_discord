@@ -6,7 +6,7 @@ def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_g
     melhor_volta = None
     melhor_piloto = ''
     for j in jogadores:
-
+        
         if hasattr(j,"voltas") and len(j.voltas)>=2:
             for v in j.voltas:
                 tempo = v.get("tempo_total", 0)
@@ -17,10 +17,14 @@ def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_g
                    
     for j in jogadores:
         # Usa o campo 'voltas' do JSON
-        if hasattr(j, "voltas") and len(j.voltas) >= 2:
-            voltas = [v.get("volta", i+1) for i, v in enumerate(j.voltas)]
-            tempos = [v.get("tempo_total", 0) for v in j.voltas]
-            plt.plot(voltas, tempos, label=getattr(j, "nome", getattr(j, "name", "Piloto")))
+        voltas_validas = [
+    v for v in j.voltas
+    if "setores" in v and len(v["setores"]) == 3 and all(s > 0 for s in v["setores"])
+]
+        tempos = [v["tempo_total"] for v in voltas_validas if "tempo_total" in v]
+        voltas_idx = [v["volta"] for v in voltas_validas if "volta" in v]
+
+        plt.plot(voltas_idx, tempos, label=getattr(j, "nome", getattr(j, "name", "Piloto")))
     plt.xlabel("Voltas")
     plt.ylabel("Tempo (s)")
     if total_voltas:
