@@ -111,7 +111,20 @@ teams_name_dictionary = {
     7: "Haas",
     8: "McLaren",
     9: "Alfa Romeo",
-    41:"Multi"
+    # F2 2024
+    104: "MP Motorsport",
+    255: "Van Amersfoort",
+    44: "Carlin",
+    10: "DAMS",
+    11: "Virtuosi",
+    12: "Campos",
+    13: "Charouz",
+    14: "PREMA",
+    15: "ART Grand Prix",
+    16: "Trident",
+    17: "Hitech",
+    18: "PHM Racing",
+    41:"Multi",
 }
 
 weather_dictionary = {

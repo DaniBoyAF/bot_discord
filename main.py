@@ -24,6 +24,7 @@ bot =commands.Bot(command_prefix=".", intents=intents)
 @bot.event
 async def on_ready():
     print("Bot on")
+    bot.loop.create_task(volta_salvar(bot))
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
@@ -65,8 +66,8 @@ async def comando(ctx: commands.Context):
     ".Tabela_Qualy   - Mostra os tempos\n"
     ".sobre          - Mostra informações sobre o bot\n"
     ".voltas         - Mostra os tempos de volta de um piloto\n"
-    ".volta_salvar     - Envia mensagens automáticas com setores e pneus dos pilotos\n"
-    ".pararvoltas    - Para o envio automático de voltas\n"
+    ".salvar_dados     - Envia mensagens automáticas com setores e pneus dos pilotos\n"
+    ".parar_salvar   - Para o envio automático de dados\n"
     ".velocidade     - Mostra o piloto mais rápido no speed trap\n"
     ".ranking        - Mostra o top 10 da corrida\n"
     ".grafico        - Envia o gráfico dos tempos de volta\n"
@@ -171,15 +172,21 @@ async def parar_tabela(ctx):
     TEMPO_INICIO_TABELA = False
     await ctx.send("🛑 Envio automático da tabela parado.")
 @bot.command()
-async def volta_salvar(ctx):# pronto
+async def salvar_dados(ctx):
+    await ctx.send("🔄 Salvando dados dos pilotos...")
+    bot.loop.create_task(volta_salvar(bot))
+
+async def volta_salvar(bot):# pronto
     global TEMPO_INICIO_VOLTAS
     TEMPO_INICIO_VOLTAS = True
     from Bot.jogadores import get_jogadores
     from utils.dictionnaries import tyres_dictionnary
+    from Bot.Session import SESSION
+    currentLap = getattr(SESSION, "m_current_lap", 0)
     canal_id = 1382050740922482892
     canal = bot.get_channel(canal_id)
     if not canal:
-        await ctx.send("❌ Canal não encontrado.")
+        print("❌ Canal não encontrado.")
         return
     mensagem = await canal.send("🔄 Iniciando o envio de mensagens de volta. Se aparecer algum erro de envio de mensagem no discord é normal .")
 
@@ -197,14 +204,14 @@ async def volta_salvar(ctx):# pronto
             dados_salvar.append({
                 "nome": j.name,
                 "voltas": todas_voltas,
-                "laps_max": getattr(j, "total_laps", 0),
+                "laps_max": currentLap,
                 "position": j.position,
                 "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
                 "tyresAgeLaps": j.tyresAgeLaps,
                 "tyre_wear": j.tyre_wear[0:4],  # Pega os 4 pneus
-                "pit": j.pit,
                 "speed": j.speed_trap,
                 "avisos": j.warnings,
+                "Fuel": j.fuelRemainingLaps,
             })
             # Monta mensagem para cada volta (opcional: só mostra a última volta se quiser)
             if todas_voltas:
@@ -223,7 +230,7 @@ async def volta_salvar(ctx):# pronto
             await mensagem.edit(content="📊 ** Telemetria Geral:**\n" + "\n".join(mensagens))
         await asyncio.sleep(0.5)  # Intervalo de atualização, ajuste conforme necessário
 @bot.command()
-async def parar_voltas(ctx):#pronto
+async def parar_salvar(ctx):#pronto
     global TEMPO_INICIO_VOLTAS
     TEMPO_INICIO_VOLTAS = False
     await ctx.send("🛑 Envio automático de voltas parado.")
@@ -271,7 +278,7 @@ async def Tabela_Qualy(ctx):
     jogador = get_jogadores()
     tyres_nomes = tyres_dictionnary
     jogador = sorted(jogador, key=lambda j: j.position)
-    linhas = ["P  #  NAME           BEST_LAP  LAST_LAP   TYRES     TYRES_AGE      PIT  DRS"]
+    linhas = ["P  #  NAME           BEST_LAP  LAST_LAP   TYRES     TYRES_AGE     "]
     for j in jogador:
         raw_best_time = j.bestLapTime
         raw_Last_time = j.lastLapTime
@@ -280,11 +287,9 @@ async def Tabela_Qualy(ctx):
         nome = str(getattr(j, "name", "SemNome"))[:14]
         linhas.append(
         f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
-        f"{str(formatado):<8}  {str(formatando2):<8}"
-        f"   {tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {j.tyresAgeLaps}           {'Sim' if j.pit else 'Não':<3}"
-        f" {DRS_dict.get(j.drs, 'Desconhecido'):<5}"
+        f"{int(formatado):<8}  {int(formatando2):<8}"
+        f"   {tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {j.tyresAgeLaps}         "
          )
-
     tabela = "```\n" + "\n".join(linhas) + "\n```"
     try:
             await mensagem.edit(content=tabela)

@@ -3,6 +3,10 @@ from utils.dictionnaries import *
 
 class Player:
     def __init__(self):
+        self.tyre_life = 0
+        self.tyre_set_data = 0
+        self.m_lap_delta_time = 0
+        self.tyre_set_recommended_session = 0
         self.laps_info = []
         self.laps_max: int = 0
         self.position: int = 0

@@ -56,11 +56,11 @@ def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_g
     if melhor_tempo is not None:
         plt.figtext(0.15, 0.97, f"Melhor tempo: {minutos:02d}:{segundos:02d}.{milissegundos:03d}s ({melhor_piloto} - {tyres_dictionnary.get(j.tyres, 'N/A')})", fontsize=20, color='green', ha='left', va='top')
     plt.legend(loc='lower right', fontsize=8)  # legenda no canto inferior direito
-    max_volta_global =max(
-    max((v.get("volta", 0) for v in j.voltas),default=0)
-    for j in jogadores 
+    max_volta_global = max(
+        max((v.get("volta", 0) for v in j.voltas), default=0)
+        for j in jogadores
     )
-    plt.xlim(1,max_volta_global)
+    plt.xlim(1, max_volta_global)
     plt.grid(True)
     plt.savefig(nome_arquivo)
     plt.close()
