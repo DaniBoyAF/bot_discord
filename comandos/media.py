@@ -1,5 +1,3 @@
-from Bot.jogadores import get_jogadores
-from utils.dictionnaries import tyres_dictionnary
 import json
 
 async def comando_media(ctx):

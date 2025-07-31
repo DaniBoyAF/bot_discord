@@ -960,7 +960,7 @@ def start_udp_listener():
         elif header.m_packet_id == 5:  # PacketCarSetupData
             atualizar_CarSetupData(body)
         elif header.m_packet_id == 12:
-            atualizar_vida_util(body)
+           atualizar_vida_util(body)
         elif header.m_packet_id == 6:
              atualizar_speed_trap(body)
         elif header.m_packet_id == 7:  # PacketCarStatusData
@@ -972,7 +972,7 @@ def start_udp_listener():
         elif header.m_packet_id == 11:
              atualizar_setores(body)
         elif header.m_packet_id == 3:
-            event_code = bytes(body.m_event_string_code).decode('utf-8').strip("\x00") 
+            event_code = bytes(body.m_event_string_code).decode('utf-8', errors='ignore').strip("\x00")
             if event_code == "Bateu":
                 atualizar_colisao(body.m_event_details.m_collision)
             elif event_code == "OTAK":
@@ -991,51 +991,46 @@ def start_udp_listener():
                 corrida_finalizada = True
 
 def atualizar_SessionData(pacote_session):
- from Bot.Session import SESSION 
- print("Recebendo pacote SessionData!")
- SESSION.atualizar(pacote_session)
- currentLap = getattr(pacote_session, "m_currentLap", 0)
- clima = getattr(pacote_session, "m_weather", 0)
- air_temperature = getattr(pacote_session, "m_air_temperature", 0.0)
- track_temperature = getattr(pacote_session, "m_track_temperature", 0.0)
- total_laps = getattr(pacote_session, "m_total_laps", 0)
- tipo_sessao = getattr(pacote_session, "m_session_type", 0)
+    from Bot.Session import SESSION  # garantir que SESSION está correto
+    SESSION.atualizar(pacote_session)
+    currentLap = getattr(pacote_session, "m_currentLap", 0)
+    clima = getattr(pacote_session, "m_weather", 0)
+    air_temperature = getattr(pacote_session, "m_air_temperature", 0.0)
+    track_temperature = getattr(pacote_session, "m_track_temperature", 0.0)
+    total_laps = getattr(pacote_session, "m_total_laps", 0)
+    tipo_sessao = getattr(pacote_session, "m_session_type", 0)
  
 def atualizar_speed_trap(pacote_speed_trap):
     from Bot.jogadores import JOGADORES
     idx = pacote_speed_trap.m_vehicle_idx
-    for idx, pacote_speed_trap in enumerate(pacote_speed_trap.m_speed_trap_data):
+    for idx, pacote_speed_trap in enumerate(pacote_speed_trap.m_car_telemetry_data):
         piloto = JOGADORES[idx]
         piloto.speed_trap = pacote_speed_trap.m_speed_trap
         piloto.tyres_temp_inner[0:4]= pacote_speed_trap.m_tyres_inner_temperature[0:4]
         piloto.tyres_temp_surface[0:4] = pacote_speed_trap.m_tyres_surface_temperature[0:4]
 def atualizar_CarSetupData(pacote_setup):
-    from Bot.jogadores import JOGADORES
-    idx = pacote_setup.m_vehicle_idx
-    for idx, setup in enumerate(pacote_setup.m_car_setups):
-        piloto = JOGADORES[idx]
-        piloto.fuelRemainingLaps = setup.m_fuel_load
-        piloto.setup_array += [setup.m_front_wing, setup.m_rear_wing]
+   from Bot.jogadores import JOGADORES
+   for idx, setup in enumerate(pacote_setup.m_car_setups):
+       piloto = JOGADORES[idx]
+       piloto.fuelRemainingLaps = setup.m_fuel_load
+       piloto.setup_array += [setup.m_front_wing, setup.m_rear_wing]
+
 def atualizar_vida_util(pacote_tyre_life):        
    from Bot.jogadores import JOGADORES
-   idx = pacote_tyre_life.m_velhicle_idx
-   for idx , tyre_life in enumerate(pacote_tyre_life.m_tyre_life_data):
-        piloto = JOGADORES[idx]
-        piloto.tyre_life = getattr(tyre_life, "m_tyre_life", 0)
-        piloto.tyre_set_data = getattr(tyre_life, "m_usable_life", 0)
-        piloto.m_lap_delta_time = getattr(tyre_life, "m_lap_delta_time", 0)
-        piloto.tyre_set_recommended_session = getattr(tyre_life, "m_tyre_set_recommended_session", 0)
-        
+   idx = pacote_tyre_life.m_vehicle_idx
+   for idx, tyre_life in enumerate(pacote_tyre_life.m_tyre_set_data):
+       piloto = JOGADORES[idx]
+       piloto.tyre_life = tyre_life.m_usable_life
+       piloto.tyre_set_data = tyre_life.m_life_span
+       piloto.m_lap_delta_time = tyre_life.m_lap_delta_time
+       piloto.tyre_set_recommended_session = tyre_life.m_tyre_set_recommended_session
 
-    
 def atualizar_final_classification(pacote_final):
     from Bot.jogadores import JOGADORES
     for idx, data in enumerate(pacote_final.m_classification_data):
         piloto = JOGADORES[idx]
         piloto.bestLapTime = data.m_best_lap_time_in_ms / 1000
         piloto.totalRaceTime = data.m_total_race_time
-        if data.m_result_status == 1:
-            piloto = JOGADORES[idx]
 def atualizar_lapdata(pacote_lap):
     print("Atualizando lapdata")
     from Bot.jogadores import JOGADORES
@@ -1052,7 +1047,6 @@ def atualizar_lapdata(pacote_lap):
         else:
             piloto.delta_to_leader = delta_min * 60 + (delta_ms / 1000)
         piloto.pit = lap.m_pit_status != 0
-        piloto.pit = True
 
 def atualizar_participantes(pacote_participantes):
     from Bot.jogadores import JOGADORES

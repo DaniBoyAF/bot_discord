@@ -91,7 +91,8 @@ async def voltas(ctx,*,piloto: str):
             return
     await ctx.send("❌ Piloto não encontrado.")
 @bot.command()#pronto
-async def velocidade(ctx):#
+async def velocidade(ctx):#pronto
+    """Comando para mostrar o piloto mais rápido no speed trap."""
     from Bot.jogadores import get_jogadores
     jogadores = get_jogadores()
 
@@ -182,7 +183,7 @@ async def volta_salvar(bot):# pronto
     from Bot.jogadores import get_jogadores
     from utils.dictionnaries import tyres_dictionnary
     from Bot.Session import SESSION
-    currentLap = getattr(SESSION, "m_current_lap", 0)
+    
     canal_id = 1382050740922482892
     canal = bot.get_channel(canal_id)
     if not canal:
@@ -193,13 +194,17 @@ async def volta_salvar(bot):# pronto
     while TEMPO_INICIO_VOLTAS:
         jogadores = get_jogadores()
         tyres_nomes = tyres_dictionnary
+        currentLap = getattr(SESSION, "m_current_lap", 0)
         mensagens = []
         dados_salvar = []
         for j in jogadores:
             if not j.name.strip():
                 continue
             # Pega o histórico de todas as voltas/setores
+            
             todas_voltas = getattr(j, "todas_voltas_setores", [])
+            Gas = getattr(j, "fuelRemainingLaps", 0)
+
             # Salva no arquivo JSON
             dados_salvar.append({
                 "nome": j.name,
@@ -211,7 +216,7 @@ async def volta_salvar(bot):# pronto
                 "tyre_wear": j.tyre_wear[0:4],  # Pega os 4 pneus
                 "speed": j.speed_trap,
                 "avisos": j.warnings,
-                "Fuel": j.fuelRemainingLaps,
+                "Fuel": Gas,
             })
             # Monta mensagem para cada volta (opcional: só mostra a última volta se quiser)
             if todas_voltas:
@@ -267,7 +272,7 @@ async def Tabela_Qualy(ctx):
   global TEMPO_INICIO_TABELA_Q
   TEMPO_INICIO_TABELA_Q = True
   from Bot.jogadores import get_jogadores
-  from utils.dictionnaries import tyres_dictionnary , DRS_dict
+  from utils.dictionnaries import tyres_dictionnary 
   canal_id = 1373049532983804014
   canal = bot.get_channel(canal_id)
   if not canal:

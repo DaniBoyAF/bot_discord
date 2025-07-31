@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 
 def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_geral.png"):
+    from utils.dictionnaries import tyres_dictionnary
     plt.figure(figsize=(10,6))
     melhor_tempo = float('inf')
     melhor_volta = None
@@ -16,45 +17,24 @@ def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_g
                     melhor_piloto = getattr(j, "nome", getattr(j, "name", "Piloto"))
                    
     for j in jogadores:
-        # Usa o campo 'voltas' do JSON
-        voltas_validas = [
-    v for v in j.voltas
-    if "setores" in v and len(v["setores"]) == 3 and all(s > 0 for s in v["setores"])
-]
-        tempos = [v["tempo_total"] for v in voltas_validas if "tempo_total" in v]
-        voltas_idx = [v["volta"] for v in voltas_validas if "volta" in v]
-
-        plt.plot(voltas_idx, tempos, label=getattr(j, "nome", getattr(j, "name", "Piloto")))
+        plt.plot(j.voltas, label=getattr(j, "nome", getattr(j, "name", "Piloto")))
     plt.xlabel("Voltas")
     plt.ylabel("Tempo (s)")
     if total_voltas:
         plt.title(f"Tempos de Volta por Piloto (Total de Voltas: {total_voltas})")
     else:
         plt.title("Tempos de Volta por Piloto")
+    
     minutos = int(melhor_tempo // 60)
     segundos = int(melhor_tempo % 60)
     milissegundos = int((melhor_tempo - int(melhor_tempo)) * 1000)
-    j.tyres = getattr(j, 'tyres', 'N/A')  # Verifica se o atributo 'tyres' existe
-    tyres_dictionnary = {
-    0:"Macio",
-    16: "Macio",
-    17: "Médio",
-    18: "Duro",
-    7: "Intermediário",
-    8: "Molhado",
-    #F2 2024
-    11: "Supermacio",
-    12: "Macio",
-    13: "Médio",
-    14: "Duro",
-    15: "Chuva"
-        }
+    tyres_nome = tyres_dictionnary
 
     if melhor_volta is not None:
-        plt.text(0.05, 0.97, f"Melhor volta: {melhor_volta} ({melhor_piloto}) - {melhor_tempo:.3f}s Pneus - {tyres_dictionnary.get(j.tyres, 'N/A')}",
+        plt.text(0.05, 0.97, f"Melhor volta: {melhor_volta} ({melhor_piloto}) - {melhor_tempo:.3f}s Pneus - {tyres_nome.get(j.tyres, 'N/A')}",
                 fontsize=10, color='green', ha='left', va='top')
     if melhor_tempo is not None:
-        plt.figtext(0.15, 0.97, f"Melhor tempo: {minutos:02d}:{segundos:02d}.{milissegundos:03d}s ({melhor_piloto} - {tyres_dictionnary.get(j.tyres, 'N/A')})", fontsize=20, color='green', ha='left', va='top')
+        plt.figtext(0.15, 0.97, f"Melhor tempo: {minutos:02d}:{segundos:02d}.{milissegundos:03d}s ({melhor_piloto} - {tyres_nome.get(j.tyres, 'N/A')})", fontsize=20, color='green', ha='left', va='top')
     plt.legend(loc='lower right', fontsize=8)  # legenda no canto inferior direito
     max_volta_global = max(
         max((v.get("volta", 0) for v in j.voltas), default=0)
