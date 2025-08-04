@@ -20,8 +20,7 @@ Um bot para Discord que transmite dados de telemetria do F1 24 em tempo real, ge
 | `.ola`            | Saúda o usuário.                                                          |
 | `.comando`        | Lista todos os comandos disponíveis.                                      |
 | `.delta`          | Mostra o piloto mais rápido no momento.                                   |                                  
-| `.pneusv`         | Mostra pneus e voltas dos 5 mais rápidos.                                 |
-| `.pitstop`        | Lista pilotos que pararam nos boxes.                                      |
+| `.pneusv`         | Mostra pneus e voltas dos 5 mais rápidos.                                 |             
 | `.status [nome]`  | Mostra status detalhado de um piloto.                                     |
 | `.clima`          | Mostra clima, tipo de sessão e voltas completas.                          |
 | `.voltas [nome]`  | Mostra os tempos de volta de um piloto.                                   |
@@ -32,6 +31,7 @@ Um bot para Discord que transmite dados de telemetria do F1 24 em tempo real, ge
 | `.danos [nome]`   | Mostra os danos do carro de um piloto.                                    |                                           
 | `.parar_tabela`   | Para o envio automático da tabela.                                        |
 | `.parar_voltas`   | Para o envio automático de voltas.                                        |
+|  `.painel`        | Faz um html sem deley grande                                              |
 
 ---
 
@@ -78,7 +78,7 @@ Um bot para Discord que transmite dados de telemetria do F1 24 em tempo real, ge
 ## 📝 Observações
 
 - O bot precisa estar em um servidor Discord com permissões para ler e escrever mensagens.
-- Para comandos de PDF, gráficos e relatórios, os arquivos são enviados diretamente no chat.
+- Para comandos de gráficos e relatórios, os arquivos são enviados diretamente no chat.
 
 ---
 

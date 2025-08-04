@@ -957,12 +957,12 @@ def start_udp_listener():
             atualizar_participantes(body)
         elif header.m_packet_id == 2:  # PacketLapData
             atualizar_lapdata(body)
-        elif header.m_packet_id == 5:  # PacketCarSetupData
-            atualizar_CarSetupData(body)
-        elif header.m_packet_id == 12:
-           atualizar_vida_util(body)
-        elif header.m_packet_id == 6:
-             atualizar_speed_trap(body)
+       # elif header.m_packet_id == 5:  # PacketCarSetupData
+       #     atualizar_CarSetupData(body)
+      #  elif header.m_packet_id == 12:
+#           atualizar_vida_util(body)
+       # elif header.m_packet_id == 6:
+       #      atualizar_speed_trap(body)
         elif header.m_packet_id == 7:  # PacketCarStatusData
             atualizar_car_status(body)
         elif header.m_packet_id == 10:
@@ -1000,30 +1000,38 @@ def atualizar_SessionData(pacote_session):
     total_laps = getattr(pacote_session, "m_total_laps", 0)
     tipo_sessao = getattr(pacote_session, "m_session_type", 0)
  
-def atualizar_speed_trap(pacote_speed_trap):
+def atualizar_speed_trap(pacote_telemetry):
     from Bot.jogadores import JOGADORES
-    idx = pacote_speed_trap.m_vehicle_idx
-    for idx, pacote_speed_trap in enumerate(pacote_speed_trap.m_car_telemetry_data):
-        piloto = JOGADORES[idx]
-        piloto.speed_trap = pacote_speed_trap.m_speed_trap
-        piloto.tyres_temp_inner[0:4]= pacote_speed_trap.m_tyres_inner_temperature[0:4]
-        piloto.tyres_temp_surface[0:4] = pacote_speed_trap.m_tyres_surface_temperature[0:4]
+    for idx, telemetry in enumerate(pacote_telemetry.m_car_telemetry_data):
+        if idx < len(JOGADORES):
+            piloto = JOGADORES[idx]
+            piloto.speed_trap = float(telemetry.m_speed)  # Usa m_speed
+            if not hasattr(piloto, 'tyres_temp_inner'):
+                piloto.tyres_temp_inner = [0] * 4
+            if not hasattr(piloto, 'tyres_temp_surface'):
+                piloto.tyres_temp_surface = [0] * 4
+            piloto.tyres_temp_inner[0:4] = [float(t) for t in telemetry.m_tyres_inner_temperature[0:4]]
+            piloto.tyres_temp_surface[0:4] = [float(t) for t in telemetry.m_tyres_surface_temperature[0:4]]
 def atualizar_CarSetupData(pacote_setup):
-   from Bot.jogadores import JOGADORES
-   for idx, setup in enumerate(pacote_setup.m_car_setups):
-       piloto = JOGADORES[idx]
-       piloto.fuelRemainingLaps = setup.m_fuel_load
-       piloto.setup_array += [setup.m_front_wing, setup.m_rear_wing]
+    from Bot.jogadores import JOGADORES
+    for idx, setup in enumerate(pacote_setup.m_car_setups):
+        if idx < len(JOGADORES):
+            piloto = JOGADORES[idx]
+            piloto.fuelRemainingLaps = float(setup.m_fuel_load)  # Converte c_float para float
+            if not hasattr(piloto, 'setup_array'):
+                piloto.setup_array = []
+            piloto.setup_array.extend([setup.m_front_wing, setup.m_rear_wing])
 
-def atualizar_vida_util(pacote_tyre_life):        
-   from Bot.jogadores import JOGADORES
-   idx = pacote_tyre_life.m_vehicle_idx
-   for idx, tyre_life in enumerate(pacote_tyre_life.m_tyre_set_data):
-       piloto = JOGADORES[idx]
-       piloto.tyre_life = tyre_life.m_usable_life
-       piloto.tyre_set_data = tyre_life.m_life_span
-       piloto.m_lap_delta_time = tyre_life.m_lap_delta_time
-       piloto.tyre_set_recommended_session = tyre_life.m_tyre_set_recommended_session
+def atualizar_vida_util(pacote_tyre_life):
+    from Bot.jogadores import JOGADORES
+    car_idx = pacote_tyre_life.m_car_idx  # Usa m_car_idx do PacketTyreSetsData
+    if car_idx < len(JOGADORES):
+        piloto = JOGADORES[car_idx]
+        for tyre_life in pacote_tyre_life.m_tyre_set_data:
+            piloto.tyre_life = tyre_life.m_usable_life
+            piloto.tyre_set_data = tyre_life.m_life_span
+            piloto.m_lap_delta_time = tyre_life.m_lap_delta_time
+            piloto.tyre_set_recommended_session = tyre_life.m_recommended_session
 
 def atualizar_final_classification(pacote_final):
     from Bot.jogadores import JOGADORES

@@ -2,17 +2,19 @@ import discord
 from discord.ext import commands
 import asyncio
 import threading
+from pyngrok import ngrok
 from comandos.pneusv import comando_pneusv
 from comandos.delta import comando_delta  # se o nome correto for esse
-from comandos.pitstop import pitstop
 from comandos.status import comando_status
 from Bot.parser2024 import start_udp_listener
 from comandos.clima import comando_clima
 from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
 from comandos.media import comando_media
-import os
-import json
+import json                      
+from threading import Thread
+from painel.app import app
+ngrok.set_auth_token("")
 TEMPO_INICIO = False
 TEMPO_INICIO_TABELA = False
 TEMPO_INICIO_VOLTAS = False
@@ -23,6 +25,8 @@ intents.message_content=True
 bot =commands.Bot(command_prefix=".", intents=intents)
 @bot.event
 async def on_ready():
+    global TEMPO_INICIO_VOLTAS
+    TEMPO_INICIO_VOLTAS = True
     print("Bot on")
     bot.loop.create_task(volta_salvar(bot))
 @bot.event
@@ -118,11 +122,11 @@ async def grafico(ctx):# pronto
             self.__dict__ = d
 
     # Lê o JSON salvo
-    with open("dados_salvar.json", "r", encoding="utf-8") as f:
-        dados_salvos = json.load(f)
+    with open("dados_de_voltas.json", "r", encoding="utf-8") as f:
+        dados_de_voltas = json.load(f)
 
     # Cria lista de objetos temporários
-    pilotos = [PilotoTemp(d) for d in dados_salvos]
+    pilotos = [PilotoTemp(d) for d in dados_de_voltas]
 
     # Gera o gráfico
     mostra_graficos_geral(pilotos,total_voltas=total_voltas, nome_arquivo="grafico_tempos.png")
@@ -179,7 +183,6 @@ async def salvar_dados(ctx):
 
 async def volta_salvar(bot):# pronto
     global TEMPO_INICIO_VOLTAS
-    TEMPO_INICIO_VOLTAS = True
     from Bot.jogadores import get_jogadores
     from utils.dictionnaries import tyres_dictionnary
     from Bot.Session import SESSION
@@ -196,7 +199,8 @@ async def volta_salvar(bot):# pronto
         tyres_nomes = tyres_dictionnary
         currentLap = getattr(SESSION, "m_current_lap", 0)
         mensagens = []
-        dados_salvar = []
+        dados_de_voltas = []
+        dados_dos_pneus = []
         for j in jogadores:
             if not j.name.strip():
                 continue
@@ -204,19 +208,21 @@ async def volta_salvar(bot):# pronto
             
             todas_voltas = getattr(j, "todas_voltas_setores", [])
             Gas = getattr(j, "fuelRemainingLaps", 0)
-
+            dados_dos_pneus.append({
+                "nome": j.name,
+                "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
+                "tyresAgeLaps": j.tyresAgeLaps,
+                "tyre_wear":j.tyre_wear[0:4],
+                "Fuel": Gas
+            })
             # Salva no arquivo JSON
-            dados_salvar.append({
+            dados_de_voltas.append({
                 "nome": j.name,
                 "voltas": todas_voltas,
                 "laps_max": currentLap,
                 "position": j.position,
                 "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
-                "tyresAgeLaps": j.tyresAgeLaps,
-                "tyre_wear": j.tyre_wear[0:4],  # Pega os 4 pneus
-                "speed": j.speed_trap,
-                "avisos": j.warnings,
-                "Fuel": Gas,
+                "tyresAgeLaps": j.tyresAgeLaps
             })
             # Monta mensagem para cada volta (opcional: só mostra a última volta se quiser)
             if todas_voltas:
@@ -229,8 +235,10 @@ async def volta_salvar(bot):# pronto
                     f"Tyres Age: {j.tyresAgeLaps}| Pit: {j.pit}|"
                 )
                 mensagens.append(texto)
-        with open("dados_salvar.json", "w", encoding="utf-8") as f:
-            json.dump(dados_salvar, f, ensure_ascii=False, indent=4)
+        with open("dados_dos_pneus.json","w",encoding="utf-8") as f:
+            json.dump(dados_dos_pneus, f, ensure_ascii=False, indent=4)
+        with open("dados_de_voltas.json", "w", encoding="utf-8") as f:
+            json.dump(dados_de_voltas, f, ensure_ascii=False, indent=4)
         if mensagens:
             await mensagem.edit(content="📊 ** Telemetria Geral:**\n" + "\n".join(mensagens))
         await asyncio.sleep(0.5)  # Intervalo de atualização, ajuste conforme necessário
@@ -245,9 +253,6 @@ async def delta(ctx):
 @bot.command()
 async def pneusv(ctx):
     await comando_pneusv(ctx)
-@bot.command()
-async def pitstop(ctx):
-    await pitstop(ctx)
 @bot.command()
 async def status(ctx,*, piloto: str = None):
      await comando_status(ctx, piloto=piloto)
@@ -274,6 +279,7 @@ async def Tabela_Qualy(ctx):
   from Bot.jogadores import get_jogadores
   from utils.dictionnaries import tyres_dictionnary 
   canal_id = 1373049532983804014
+  bot = ctx.bot
   canal = bot.get_channel(canal_id)
   if not canal:
     await ctx.send("❌ Canal de voz não encontrado.")
@@ -287,12 +293,12 @@ async def Tabela_Qualy(ctx):
     for j in jogador:
         raw_best_time = j.bestLapTime
         raw_Last_time = j.lastLapTime
-        formatando2 = formatacao(raw_Last_time)
-        formatado = formatacao(raw_best_time)
+        formatando2 = formatacao(int((raw_Last_time or 0) * 1000))
+        formatado = formatacao(int((raw_best_time or 0) * 1000))
         nome = str(getattr(j, "name", "SemNome"))[:14]
         linhas.append(
         f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
-        f"{int(formatado):<8}  {int(formatando2):<8}"
+        f"{float(formatado):<8}  {float(formatando2):<8}"
         f"   {tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {j.tyresAgeLaps}         "
          )
     tabela = "```\n" + "\n".join(linhas) + "\n```"
@@ -311,10 +317,27 @@ async def parar_tabela_Qualy(ctx):
 @bot.command()
 async def media_lap(ctx):
   await comando_media(ctx)
+
+def iniciar_painel():
+    app.run(host="0.0.0.0", port=5000)
+def iniciar_ngrok():
+    import time
+    time.sleep(1)  # Dá tempo pro Flask subir
+    global public_url
+    public_url = ngrok.connect(5000).public_url
+    print("🔗 Painel disponível em:", public_url)
+
+# Inicia os dois em paralelo
+Thread(target=iniciar_painel).start()
+Thread(target=iniciar_ngrok).start()
+@bot.command()
+async def painel(ctx):
+    await ctx.send(f"🔗 Painel disponível em: {public_url}")
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener
     threading.Thread(target=start_udp_listener, daemon=True).start()    
+
 bot.run("") # Substitua pelo seu token do bot
  #python Bot/bot_discord.py pra ativar
 

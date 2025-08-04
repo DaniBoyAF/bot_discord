@@ -1,0 +1,27 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Painel F1</title>
+  <meta charset="UTF-8">
+  <script>
+    async function atualizar() {
+      const pneus = await fetch("/dados_pneus").then(r => r.json());
+      const voltas = await fetch("/dados_voltas").then(r => r.json());
+
+      document.getElementById("pneus").textContent = JSON.stringify(pneus, null, 2);
+      document.getElementById("voltas").textContent = JSON.stringify(voltas, null, 2);
+    }
+
+    setInterval(atualizar, 500); // Atualiza a cada 1s
+    window.onload = atualizar;
+  </script>
+</head>
+<body>
+  <h1>Painel F1</h1>
+  <h2>Pneus:</h2>
+  <pre id="pneus">Carregando...</pre>
+  <h2>Voltas:</h2>
+  <pre id="voltas">Carregando...</pre>
+</body>
+</html>

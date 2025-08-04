@@ -5,6 +5,9 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 async def comando_pneusv(ctx):
     jogadores = get_jogadores()
+    if not jogadores:
+        await ctx.send("❌ Nenhum piloto encontrado.")
+        return
     for p in jogadores:
             tipo = tyres_dictionnary.get(p.tyres, "Desconhecido")
             texto=(f"Pneus do carro de **{p.name:<14}** com o pneu **{tipo}**:\n"
@@ -18,6 +21,5 @@ async def comando_pneusv(ctx):
          f"- TyresTemp RL: {p.tyres_temp_surface[0]}°C | {p.tyres_temp_inner[0]}°C\n" 
          f"- TyresTemp RR: {p.tyres_temp_surface[1]}°C | {p.tyres_temp_inner[1]}°C\n" 
          )
-    await ctx.send(texto)
-    return
+            await ctx.send(texto)
     # Se nenhum piloto foi encontrado

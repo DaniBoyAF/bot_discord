@@ -1,7 +1,7 @@
 import json
 
 async def comando_media(ctx):
-    with open("dados_salvar.json", "r", encoding="utf-8") as f:
+    with open("dados_de_voltas.json", "r", encoding="utf-8") as f:
         dados = json.load(f)
     medias = {}
     for jogador in dados:
