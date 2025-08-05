@@ -77,6 +77,8 @@ async def comando(ctx: commands.Context):
     ".grafico        - Envia o gráfico dos tempos de volta\n"
     ".tabela         - Envia a tabela ao vivo dos pilotos\n"
     ".parartabela    - Para o envio automático da tabela\n"
+    ".painel         - Faz um html sem deley grande\n "     
+    ".pneusp         - Faz um html do pneus sem deley grande\n   "   
     "Use o comando '.comando' para ver a lista de comandos disponíveis.")
 @bot.command()
 async def sobre(ctx:commands.Context):
@@ -184,8 +186,9 @@ async def salvar_dados(ctx):
 async def volta_salvar(bot):# pronto
     global TEMPO_INICIO_VOLTAS
     from Bot.jogadores import get_jogadores
-    from utils.dictionnaries import tyres_dictionnary
+    from utils.dictionnaries import tyres_dictionnary, weather_dictionary
     from Bot.Session import SESSION
+    
     
     canal_id = 1382050740922482892
     canal = bot.get_channel(canal_id)
@@ -198,9 +201,16 @@ async def volta_salvar(bot):# pronto
         jogadores = get_jogadores()
         tyres_nomes = tyres_dictionnary
         currentLap = getattr(SESSION, "m_current_lap", 0)
+        clima = {weather_dictionary[getattr(SESSION, "m_weather", 0)]}
+        tempo_ar = getattr(SESSION, "m_air_temperature", 0)
+        tempo_pista = getattr(SESSION, "m_track_temperature", 0)
+    
         mensagens = []
         dados_de_voltas = []
         dados_dos_pneus = []
+        dados_delta = []
+        dados_pra_o_painel = []
+        dados_da_SESSION = []
         for j in jogadores:
             if not j.name.strip():
                 continue
@@ -208,22 +218,53 @@ async def volta_salvar(bot):# pronto
             
             todas_voltas = getattr(j, "todas_voltas_setores", [])
             Gas = getattr(j, "fuelRemainingLaps", 0)
+            delta = getattr(j, "delta_to_leader", "—")
+            num = getattr(j, 'numero', '--')
+            
+            dados_delta.append({
+                "delta_to_leader": delta,
+                "nome": j.name,
+                "numero": num,
+                 "Fuel": Gas
+
+            })
             dados_dos_pneus.append({
                 "nome": j.name,
+                "numero": num,
+                "position": j.position,
                 "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
                 "tyresAgeLaps": j.tyresAgeLaps,
                 "tyre_wear":j.tyre_wear[0:4],
-                "Fuel": Gas
+                "tyre_temp_i": j.tyres_temp_inner [0:4],
+                "tyre_temp_s": j.tyres_temp_surface[0:4]
             })
             # Salva no arquivo JSON
             dados_de_voltas.append({
                 "nome": j.name,
+                "numero": num ,
                 "voltas": todas_voltas,
                 "laps_max": currentLap,
                 "position": j.position,
                 "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
-                "tyresAgeLaps": j.tyresAgeLaps
+                "tyresAgeLaps": j.tyresAgeLaps,
+                
             })
+            dados_pra_o_painel.append({
+                "nome": j.name,
+                "numero": num ,
+                "position": j.position,
+                "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
+                "tyresAgeLaps": j.tyresAgeLaps,
+                "delta_to_leader": delta,
+                "num_laps": ultima_volta['volta'] if ultima_volta else 0,
+
+            })
+            dados_da_SESSION.append({
+                "clima", clima,
+                "tempo_ar",tempo_ar,
+                "tempo_pista",tempo_pista,
+            })
+
             # Monta mensagem para cada volta (opcional: só mostra a última volta se quiser)
             if todas_voltas:
                 ultima_volta = todas_voltas[-1]
@@ -235,10 +276,16 @@ async def volta_salvar(bot):# pronto
                     f"Tyres Age: {j.tyresAgeLaps}| Pit: {j.pit}|"
                 )
                 mensagens.append(texto)
+        with open("dados_delta.json","w",encoding="utf-8") as f:
+            json.dump(dados_delta, f, ensure_ascii=False, indent=4)
         with open("dados_dos_pneus.json","w",encoding="utf-8") as f:
             json.dump(dados_dos_pneus, f, ensure_ascii=False, indent=4)
         with open("dados_de_voltas.json", "w", encoding="utf-8") as f:
             json.dump(dados_de_voltas, f, ensure_ascii=False, indent=4)
+        with open("dados_pra_o_painel.json", "w", encoding="utf-8") as f:
+            json.dump(dados_de_voltas, f, ensure_ascii=False, indent=4)
+        with open("dados_da_SESSION.json","w",encoding="utf-8") as f:
+            json.dump(dados_da_SESSION, f, ensure_ascii=False, indent=4)
         if mensagens:
             await mensagem.edit(content="📊 ** Telemetria Geral:**\n" + "\n".join(mensagens))
         await asyncio.sleep(0.5)  # Intervalo de atualização, ajuste conforme necessário
@@ -333,6 +380,9 @@ Thread(target=iniciar_ngrok).start()
 @bot.command()
 async def painel(ctx):
     await ctx.send(f"🔗 Painel disponível em: {public_url}")
+@bot.command()
+async def pneusp(ctx):
+    await ctx.send(f"🔗 Painel dos pnues disponível em: {public_url}/pnues")
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener

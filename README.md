@@ -32,7 +32,7 @@ Um bot para Discord que transmite dados de telemetria do F1 24 em tempo real, ge
 | `.parar_tabela`   | Para o envio automático da tabela.                                        |
 | `.parar_voltas`   | Para o envio automático de voltas.                                        |
 |  `.painel`        | Faz um html sem deley grande                                              |
-
+| `.pneusp`         | Faz um html do pneus sem deley grande                                     |
 ---
 
 ## 📄 Relatórios

@@ -1,27 +1,157 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Painel F1</title>
   <meta charset="UTF-8">
-  <script>
-    async function atualizar() {
-      const pneus = await fetch("/dados_pneus").then(r => r.json());
-      const voltas = await fetch("/dados_voltas").then(r => r.json());
-
-      document.getElementById("pneus").textContent = JSON.stringify(pneus, null, 2);
-      document.getElementById("voltas").textContent = JSON.stringify(voltas, null, 2);
+  <title>Painel F1</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0d1117;
+      color: white;
+      margin: 20px;
     }
 
-    setInterval(atualizar, 500); // Atualiza a cada 1s
-    window.onload = atualizar;
+    h1 {
+      text-align: center;
+      color: #ff3c00;
+    }
+
+    table {
+      width: 90%;
+      margin: auto;
+      border-collapse: collapse;
+      background-color: #161b22;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 10px #000;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid #30363d;
+    }
+
+    th {
+      background-color: #21262d;
+    }
+
+    tr:hover {
+      background-color: #1c1f26;
+    }
+    .wet { color: #0051ffff; }
+    .int { color: #4cf509ff; }
+    .médio { color: #ffc400; }
+    .duro { color: #ffffff; }
+    .macio { color: #ff3c00; }
+    .SS {color: #cc00ffff }
+    
+    #clima-painel {
+    position: fixed;
+    top: 4px;
+    left: 10px;
+    background: rgba(121, 152, 201, 0.85);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 0 8px black;
+    z-index: 999;
+  }
+   #clima-painel2 {
+    position: fixed;
+    top: 47px;
+    left: 10px;
+    background: rgba(121, 152, 201, 0.85);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 0 8px black;
+    z-index: 999;
+  }
+  #clima-painel3 {
+    position: fixed;
+    top: 47px;
+    right: 10px;
+    background: rgba(121, 152, 201, 0.85);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 0 8px black;
+    z-index: 999;
+  }
+   #clima-painel4 {
+    position: fixed;
+    top: 4px;
+    right: 10px;
+    background: rgba(121, 152, 201, 0.85);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 0 8px black;
+    z-index: 999;
+  }
+  </style>
+  <script>
+async function atualizar() {
+  const dados = await fetch("/dados_completos").then(r => r.json());
+
+  const pilotos = dados.pilotos;
+  const sessao = dados.sessao;
+
+  // Atualiza clima e temperaturas no painel fixo num_laps
+  document.getElementById("clima-painel").textContent = `☁ Clima: ${sessao.clima}`;
+  document.getElementById("clima-painel2").textContent = `🌡 Pista: ${sessao.temperatura_pista}°C`;
+  document.getElementById("clima-painel3").textContent = `🌡 Ar: ${sessao.temperatura_ar}°C`;
+  document.getElementById("clima-painel4").textContent = `${num_laps/}laps`;
+
+  // Atualiza tabela de pilotos
+  const tbody = document.getElementById("tabela_pilotos");
+  tbody.innerHTML = "";
+  pilotos.forEach(p => {
+    const linha = `
+      <tr>
+        <td>${p.position}</td>
+        <td>${p.num}</td>
+        <td>${p.nome}</td>
+        <td>${p.delta}</td>
+        <td class="${p.tyres.toLowerCase()}">${p.tyres}</td>
+        <td>${p.tyresAgeLaps}</td>
+      </tr>`;
+    tbody.innerHTML += linha;
+  });
+}
+
+setInterval(atualizar, 500);
   </script>
 </head>
 <body>
-  <h1>Painel F1</h1>
-  <h2>Pneus:</h2>
-  <pre id="pneus">Carregando...</pre>
-  <h2>Voltas:</h2>
-  <pre id="voltas">Carregando...</pre>
+  <h1>🔧 Painel Dinâmico - F1 🏎️</h1>
+  <div id="clima-painel">☁ Clima: Carregando...</div>
+  <div id="clima-painel2">🌡 Pista: Carregando...</div>
+  <div id="clima-painel3">🌡 Ar: Carregando...</div>
+  <div id="clima-painel4">Laps : Carregando...</div>
+  <table>
+    <thead>
+      <tr>
+        <th>P</th>
+        <th>#</th>
+        <th>NOME</th>
+        <th>GAP</th>
+        <th>TYRES</th>
+        <th>TYRES_AGE</th>
+      </tr>
+    </thead>
+    <tbody id="tabela_pilotos">
+      <tr><td colspan="5">Carregando...</td></tr>
+    </tbody>
+  </table>
 </body>
 </html>

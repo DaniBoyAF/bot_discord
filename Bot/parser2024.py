@@ -957,12 +957,12 @@ def start_udp_listener():
             atualizar_participantes(body)
         elif header.m_packet_id == 2:  # PacketLapData
             atualizar_lapdata(body)
-       # elif header.m_packet_id == 5:  # PacketCarSetupData
-       #     atualizar_CarSetupData(body)
-      #  elif header.m_packet_id == 12:
-#           atualizar_vida_util(body)
-       # elif header.m_packet_id == 6:
-       #      atualizar_speed_trap(body)
+        elif header.m_packet_id == 5:  # PacketCarSetupData
+            atualizar_CarSetupData(body)
+        elif header.m_packet_id == 12:
+            atualizar_vida_util(body)
+        elif header.m_packet_id == 6:
+            atualizar_speed_trap(body)
         elif header.m_packet_id == 7:  # PacketCarStatusData
             atualizar_car_status(body)
         elif header.m_packet_id == 10:
@@ -1082,7 +1082,7 @@ def atualizar_damage_data(pacote_danos):
         piloto.diffuserDamage = dano.m_diffuser_damage
         piloto.sidepodDamage = dano.m_sidepod_damage
 
-def atualizar_setores(pacote_setores_history):
+def atualizar_setores(pacote_setores_history): 
     from Bot.jogadores import JOGADORES
     car_idx = pacote_setores_history.m_car_idx
     piloto = JOGADORES[car_idx]
