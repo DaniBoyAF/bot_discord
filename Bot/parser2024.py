@@ -1031,7 +1031,6 @@ def atualizar_vida_util(pacote_tyre_life):
             piloto.tyre_life = tyre_life.m_usable_life
             piloto.tyre_set_data = tyre_life.m_life_span
             piloto.m_lap_delta_time = tyre_life.m_lap_delta_time
-            piloto.tyre_set_recommended_session = tyre_life.m_recommended_session
 
 def atualizar_final_classification(pacote_final):
     from Bot.jogadores import JOGADORES

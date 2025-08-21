@@ -110,18 +110,19 @@ async function atualizar() {
   document.getElementById("clima-painel").textContent = `☁ Clima: ${sessao.clima}`;
   document.getElementById("clima-painel2").textContent = `🌡 Pista: ${sessao.temperatura_pista}°C`;
   document.getElementById("clima-painel3").textContent = `🌡 Ar: ${sessao.temperatura_ar}°C`;
-  document.getElementById("clima-painel4").textContent = `${num_laps/}laps`;
+  document.getElementById("clima-painel4").textContent = `${sessao.num_laps}`;
 
   // Atualiza tabela de pilotos
   const tbody = document.getElementById("tabela_pilotos");
   tbody.innerHTML = "";
-  pilotos.forEach(p => {
+  pilotos.sort((a,b)=> a.position - b.position)
+  (p => {
     const linha = `
       <tr>
         <td>${p.position}</td>
-        <td>${p.num}</td>
+        <td>${p.numero}</td>
         <td>${p.nome}</td>
-        <td>${p.delta}</td>
+        <td>${p.delta_to_leader}</td>
         <td class="${p.tyres.toLowerCase()}">${p.tyres}</td>
         <td>${p.tyresAgeLaps}</td>
       </tr>`;
@@ -145,12 +146,12 @@ setInterval(atualizar, 500);
         <th>#</th>
         <th>NOME</th>
         <th>GAP</th>
-        <th>TYRES</th>
+        <th>TYRES 🛞</th>
         <th>TYRES_AGE</th>
       </tr>
     </thead>
     <tbody id="tabela_pilotos">
-      <tr><td colspan="5">Carregando...</td></tr>
+      <tr><td colspan="6">Carregando...</td></tr>
     </tbody>
   </table>
 </body>

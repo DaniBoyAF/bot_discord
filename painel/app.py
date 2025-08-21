@@ -30,28 +30,11 @@ def dados_voltas():
 @app.route("/dados_delta")  
 def dados_delta():
     try: 
-        with open("dados_delta.json","r",encoding="utf-8") as f:
+        with open("dados_dados.json","r",encoding="utf-8") as f:
             data =json.load(f)
         return jsonify(data)
     except Exception as e :
         return jsonify({"erro": str(e)})
-@app.route("/dados_pra_o_painel")
-def dados_pra_o_painel():
-    try:
-        with open("dados_pra_o_painel.json","r",encoding="utf-8") as f:
-          data= json.load(f)
-        return jsonify(data)
-    except Exception as e :
-        return jsonify({"erro": str(e)})
-@app.route("/dados_da_SESSION")
-def dados_da_SESSION():
-    try:
-        with open ("dados_da_SESSION.json","r",encoding="utf-8")as f:
-             data =json.load(f)
-        return jsonify(data)
-    except Exception as e :
-        return jsonify({"erro": str(e)})
-
 @app.route("/dados_completos")
 def dados_completos():
     try:
@@ -62,10 +45,6 @@ def dados_completos():
         # Lê os dados da sessão
         with open("dados_da_SESSION.json", "r", encoding="utf-8") as f:
             dados_sessao = json.load(f)
-        
-        # Tradução do código de clima para texto
-        if isinstance(dados_sessao.get("clima"), int):
-            dados_sessao["clima"] = weather_dictionary.get(dados_sessao["clima"], "Desconhecido")
 
         # Retorna tudo junto
         return jsonify({
