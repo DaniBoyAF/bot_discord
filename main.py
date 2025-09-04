@@ -63,7 +63,6 @@ async def bem(ctx: commands.Context):
 async def comando(ctx: commands.Context):
     await ctx.reply("Os comandos são:\n"
     ".ola            - O bot cumprimenta você\n"
-    ".pitstop        - Mostra informações de pitstop dos pilotos\n"
     ".status         - Mostra o status de um piloto (ex: em pista, no pit, etc)\n"
     ".clima          - Mostra informações do clima atual\n"
     ".delta          - Mostra o delta de tempo dos pilotos\n"
@@ -217,6 +216,8 @@ async def volta_salvar(bot):# pronto
         dados_dano = []
         dados_pra_o_painel = []
         dados_da_SESSION = []
+        dados_telemetria = []
+
         for j in jogadores:
             if not j.name.strip():
                 continue
@@ -226,7 +227,14 @@ async def volta_salvar(bot):# pronto
             Gas = getattr(j, "fuelRemainingLaps", 0)
             delta = getattr(j, "delta_to_leader", "—")
             num = getattr(j, 'numero', '--')
-            
+            lateral = getattr(j, "g_force_lateral", 0)
+            longitudinal  =  getattr(j, "g_force_longitudinal", 0)
+            vertical  = getattr(j, "g_force_vertical", 0)
+            throttle = getattr(j, "throttle", 0)
+            brake = getattr(j, "brake", 0)
+            gear = getattr(j, "gear", 0)
+            rain_porcentagem = getattr(SESSION, "m_rain_percentage", 0)
+            # Salva os dados em um dicionário
             dados_dano.append({
                 "delta_to_leader": delta,
                 "nome": j.name,
@@ -268,16 +276,28 @@ async def volta_salvar(bot):# pronto
                 "tyresAgeLaps": j.tyresAgeLaps,
                 "delta_to_leader": delta,
                 "num_laps": total_voltas,
+                
 
             })
             dados_da_SESSION.append({
                 "clima": clima,
                 "tempo_ar":tempo_ar,
                 "tempo_pista":tempo_pista,
+                "rain_porcentagem": rain_porcentagem
 
             })
+            dados_telemetria.append({
+                "nome": j.name,
+                "g_lateral": lateral,
+                "g_longitudinal": longitudinal,
+                "g_vertical": vertical,
+                "piloto.throttle": throttle,
+                "piloto.brake": brake,
+                "piloto.gear": gear 
+            })
+        with open("dados_telemetria.json","w",encoding="utf-8") as f:
+            json.dump(dados_telemetria, f, ensure_ascii=False, indent=4)
 
-           
         with open("dados_dano.json","w",encoding="utf-8") as f:
             json.dump(dados_dano, f, ensure_ascii=False, indent=4)
 

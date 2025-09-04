@@ -22,6 +22,7 @@ async def comando_clima(ctx):
     clima = {weather_dictionary[getattr(SESSION, "m_weather", 0)]}
     tipo_sessao = session_dictionary.get(getattr(SESSION, "m_session_type", 0), "desconhecida")
     total_voltas = getattr(session, "m_total_laps", 0)
+    rain_porcentagem = getattr(session, "m_weather_forecast_samples", 0)
     carro_de_segurança = getattr(session, "m_safety_car_status", 0)
     if carro_de_segurança == 0:
         tipo_sessao += " (sem Safety Car)"
@@ -32,7 +33,7 @@ async def comando_clima(ctx):
     texto = (
         f"Sessão: {tipo_sessao}. Já se passaram {minutos} minutos e {segundos} segundos.\n "
         f"Temperatura do ar: {tempo_ar} graus.\n Temperatura da pista: {tempo_pista} graus. "
-        f"Clima atual: {clima}.\n Volta maximas {total_voltas}."
+        f"Clima atual: {clima}E porcentagem {rain_porcentagem}%.\n Volta maximas {total_voltas}."
         f"A sessão tem {len(session.weatherList)}% previsões de clima futuras.\n"
         f"Carro de segurança: {carro_de_segurança}.\n"
     )

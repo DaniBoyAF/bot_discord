@@ -951,6 +951,8 @@ def start_udp_listener():
         header, body = pacote
 
         # Interpreta o tipo de pacote
+        if header.m_packet_id == 0:
+           atualizar_Telemetry(body)
         if header.m_packet_id == 1:  # PacketSessionData
             session.atualizar(body)
         if header.m_packet_id == 4:
@@ -961,7 +963,7 @@ def start_udp_listener():
             atualizar_CarSetupData(body)
         elif header.m_packet_id == 12:
             atualizar_vida_util(body)
-        elif header.m_packet_id == 6:
+        elif header.m_packet_id == 6:#dados complementares de telemetria
             atualizar_speed_trap(body)
         elif header.m_packet_id == 7:  # PacketCarStatusData
             atualizar_car_status(body)
@@ -999,13 +1001,44 @@ def atualizar_SessionData(pacote_session):
     track_temperature = getattr(pacote_session, "m_track_temperature", 0.0)
     total_laps = getattr(pacote_session, "m_total_laps", 0)
     tipo_sessao = getattr(pacote_session, "m_session_type", 0)
- 
+    track_id = getattr(pacote_session, "m_track_id",0)
+    nome_pista = session.get_track_name(track_id)
+    marshalZone= getattr(pacote_session, "m_marshal_zones",[])
+    zone_start =getattr(pacote_session, "m_zone_start",[])
+    zone_flag =getattr(pacote_session, "m_zone_flag",[])
+    num_zones = getattr(pacote_session, "m_num_marshal_zones",0)
+    zone_drs = getattr(pacote_session, "m_drs_zones",[])
+    rain_porcentagem = getattr(pacote_session, "m_rain_percentage",0)
+def atualizar_Telemetry(pacote_Gforce):
+    from Bot.jogadores import JOGADORES
+    for idx,telemetry in enumerate(pacote_Gforce.m_car_motion_data):
+        if idx < len(JOGADORES):
+            piloto = JOGADORES[idx]
+            piloto.GforceLateral = float(telemetry.m_gforce_lateral)
+            piloto.Gforcelongitudinal = float(telemetry.m_gforce_longitudinal)
+            piloto.GforceVertical = float(telemetry.m_gforce_vertical)
+            piloto.worldPositionX = float(telemetry.m_world_position_x)
+            piloto.worldPositionY = float(telemetry.m_world_position_y)
+            piloto.worldPositionZ = float(telemetry.m_world_position_z)
+            piloto.worldVelocityX = float(telemetry.m_world_velocity_x)
+            piloto.worldVelocityY = float(telemetry.m_world_velocity_y)
+            piloto.worldVelocityZ = float(telemetry.m_world_velocity_z)
+            piloto.worldForwardDirX = int(telemetry.m_world_forward_dir_x)
+            piloto.worldForwardDirY = int(telemetry.m_world_forward_dir_y)
+            piloto.worldForwardDirZ = int(telemetry.m_world_forward_dir_z)
+            piloto.worldRightDirX = int(telemetry.m_world_right_dir_x)
+            piloto.worldRightDirY = int(telemetry.m_world_right_dir_y)
+            piloto.worldRightDirZ = int(telemetry.m_world_right_dir_z)
 def atualizar_speed_trap(pacote_telemetry):
     from Bot.jogadores import JOGADORES
     for idx, telemetry in enumerate(pacote_telemetry.m_car_telemetry_data):
         if idx < len(JOGADORES):
             piloto = JOGADORES[idx]
             piloto.speed_trap = float(telemetry.m_speed)  # Usa m_speed
+            piloto.throttle = float(telemetry.m_throttle)
+            piloto.brake= float(telemetry.m_brake)
+            piloto.gear = int(telemetry.m_gear)
+         
             if not hasattr(piloto, 'tyres_temp_inner'):
                 piloto.tyres_temp_inner = [0] * 4
             if not hasattr(piloto, 'tyres_temp_surface'):

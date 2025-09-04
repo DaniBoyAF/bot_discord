@@ -57,3 +57,10 @@ linestyle='--'	Estilo da linha (pontilhada, contínua, etc)
 marker='o'	Marcador nos pontos de linha
 alpha=0.5	Transparência (0 a 1)
 linewidth=2	Espessura da linha
+
+Proximos passos :
+faz uma IA rundimenta 
+arrumar bugs e
+Introdução: Contexto, problema, hipótese, justificativa, objetivos
+Produção do Título e Resumo: Técnicas de síntese, palavras-chave, impacto
+Trabalhos relacionados, revisão sistemática, bases de dados
