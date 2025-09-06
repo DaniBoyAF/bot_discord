@@ -29,7 +29,7 @@ def dados_voltas():
 @app.route("/dados_delta")  
 def dados_delta():
     try: 
-        with open("dados_dados.json","r",encoding="utf-8") as f:
+        with open("dados_dano.json","r",encoding="utf-8") as f:
             data =json.load(f)
         return jsonify(data)
     except Exception as e :

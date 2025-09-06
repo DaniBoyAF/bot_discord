@@ -98,6 +98,33 @@
     box-shadow: 0 0 8px black;
     z-index: 999;
   }
+  #nome_de_circuito-painel5 {
+    position: fixed;
+    top: 4px;
+    right: 170px;
+    background: rgba(10, 146, 128, 0.85);
+    color: white;
+    padding: 5px 30px;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 0 8px black;
+    z-index: 999;
+  }
+  #Umidade {
+   position: fixed;
+    top: 4px;
+    left: 185px;
+    background: rgba(46, 161, 190, 0.85);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    box-shadow: 0 0 8px black;
+    z-index: 999;
+  }
+  
   </style>
   <script>
 async function atualizar() {
@@ -111,7 +138,8 @@ async function atualizar() {
   document.getElementById("clima-painel2").textContent = `🌡 Pista: ${sessao.temperatura_pista}°C`;
   document.getElementById("clima-painel3").textContent = `🌡 Ar: ${sessao.temperatura_ar}°C`;
   document.getElementById("clima-painel4").textContent = `${sessao.num_laps}`;
-
+  document.getElementById("nome_de_circuito-painel5").textContent = `🗺 Track: ${sessao.nome_pista}`;
+  document.getElementById("Umidade").textContent = `🌧 PorRain: ${sessao.rain_porcentagem}%`;
   // Atualiza tabela de pilotos
   const tbody = document.getElementById("tabela_pilotos");
   tbody.innerHTML = "";
@@ -139,6 +167,8 @@ setInterval(atualizar, 500);
   <div id="clima-painel2">🌡 Pista: Carregando...</div>
   <div id="clima-painel3">🌡 Ar: Carregando...</div>
   <div id="clima-painel4">Laps : Carregando...</div>
+  <div id="nome_de_circuito-painel5">🗺 Track: Carregando...</div>
+  <div id="Umidade">🌧 PorRain: Carregando...</div>
   <table>
     <thead>
       <tr>

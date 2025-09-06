@@ -15,7 +15,7 @@ from comandos.media import comando_media
 import json                      
 from threading import Thread
 from painel.app import app
-ngrok.set_auth_token("")
+ngrok.set_auth_token("-")
 TEMPO_INICIO = False
 TEMPO_INICIO_TABELA = False
 TEMPO_INICIO_VOLTAS = False
@@ -188,7 +188,7 @@ async def salvar_dados(ctx):
 async def volta_salvar(bot):# pronto
     global TEMPO_INICIO_VOLTAS
     from Bot.jogadores import get_jogadores
-    from utils.dictionnaries import tyres_dictionnary, weather_dictionary
+    from utils.dictionnaries import tyres_dictionnary, weather_dictionary, color_flag_dict
     from Bot.Session import SESSION
     
     
@@ -234,6 +234,10 @@ async def volta_salvar(bot):# pronto
             brake = getattr(j, "brake", 0)
             gear = getattr(j, "gear", 0)
             rain_porcentagem = getattr(SESSION, "m_rain_percentage", 0)
+            track_id = SESSION.m_track_id
+            nome_pista = SESSION.get_track_name(track_id)
+            SafetyCarStatus = getattr(SESSION, "m_safety_car_status", 0)
+        
             # Salva os dados em um dicionário
             dados_dano.append({
                 "delta_to_leader": delta,
@@ -283,7 +287,9 @@ async def volta_salvar(bot):# pronto
                 "clima": clima,
                 "tempo_ar":tempo_ar,
                 "tempo_pista":tempo_pista,
-                "rain_porcentagem": rain_porcentagem
+                "rain_porcentagem": rain_porcentagem,
+                "nome_pista":nome_pista,
+                "safety_car_status": SafetyCarStatus
 
             })
             dados_telemetria.append({

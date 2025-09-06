@@ -1009,6 +1009,8 @@ def atualizar_SessionData(pacote_session):
     num_zones = getattr(pacote_session, "m_num_marshal_zones",0)
     zone_drs = getattr(pacote_session, "m_drs_zones",[])
     rain_porcentagem = getattr(pacote_session, "m_rain_percentage",0)
+    SafetyCarStatus = getattr(pacote_session, "m_safety_car_status",0)
+    
     
 def atualizar_Telemetry(pacote_Gforce):
     from Bot.jogadores import JOGADORES
