@@ -26,16 +26,15 @@ def dados_geral():
 #como tirar do json 
 # for piloto in dados["pneus"]:
     #print(piloto["nome"], piloto["tyres"], piloto["tyre_wear"])
-while True:
- def taxa_desgaste(dados):
+def taxa_desgaste(dados):
     desgaste_por_piloto = {}
     pior_piloto = None
     pior_media = -1
 
-    for piloto, info in dados["pneus","sessao"].items():
+    for piloto, info in dados["pneus"].items():
         nome = info.get("nome", piloto)
         tipo = info.get("tyres", "Desconhecido")
-        pista = info.get("nome_pista")
+
         desgaste = info.get("tyre_wear", [])  # ✅ corrigido
 
         if desgaste:
@@ -49,14 +48,27 @@ while True:
                 "media_desgaste": media,
                 "pior_pneu": pior_desgaste,
                 "valores": desgaste,
-                "pista": pista
+            
             }
 
             # verifica quem tem maior desgaste médio
             if media > pior_media:
                 pior_media = media
                 pior_piloto = piloto
-    time.sleep(10)
+
     return desgaste_por_piloto, pior_piloto, pior_media
 
+  #channel=bot.get_channel(1413993963072782436)
+    while True:
+        dados = dados_geral()
+
+        # análise de desgaste
+        pior_piloto, pior_media = taxa_desgaste(dados)
+        if pior_piloto:
+            await channel.send(
+                f"🛞 Maior desgaste: **{pior_piloto}** ({pior_media:.2f}%)"
+            )
+
+        # análise de voltas
+        await asyncio.sleep(10)  #
      

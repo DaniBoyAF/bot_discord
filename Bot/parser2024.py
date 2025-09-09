@@ -1097,7 +1097,7 @@ def atualizar_participantes(pacote_participantes):
         piloto = JOGADORES[idx]
         piloto.name = participante.m_name.decode('utf-8').strip('\x00')
         piloto.numero = participante.m_race_number
-
+        piloto.m_team_id = participante.m_team_id
 def atualizar_car_status(pacote_status):
     from Bot.jogadores import JOGADORES
     for idx, status in enumerate(pacote_status.m_car_status_data):

@@ -3,6 +3,7 @@ from discord.ext import commands
 import asyncio
 import threading
 import time
+
 from pyngrok import ngrok
 from comandos.pneusv import comando_pneusv
 from comandos.delta import comando_delta  # se o nome correto for esse
@@ -11,11 +12,14 @@ from Bot.parser2024 import start_udp_listener
 from comandos.clima import comando_clima
 from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
-from comandos.media import comando_media
+from comandos.media import comando_media 
+from dados.voltas import gerar_boxplot
+
+#from Javes.modelo_ml import dados_geral,taxa_desgaste
 import json                      
 from threading import Thread
 from painel.app import app
-ngrok.set_auth_token("-")
+ngrok.set_auth_token("")
 TEMPO_INICIO = False
 TEMPO_INICIO_TABELA = False
 TEMPO_INICIO_VOLTAS = False
@@ -32,6 +36,7 @@ async def on_ready():
     TEMPO_INICIO_VOLTAS = True
     print("Bot on")
     bot.loop.create_task(volta_salvar(bot))
+    
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
@@ -135,6 +140,14 @@ async def grafico(ctx):# pronto
     # Gera o gráfico
     mostra_graficos_geral(pilotos,total_voltas=total_voltas, nome_arquivo="grafico_tempos.png")
     await ctx.send(file=discord.File("grafico_tempos.png"))
+@bot.command()
+async def corrida(ctx):
+    # Gera o gráfico em PNG
+    arquivos = ["dados_da_SESSION.json", "dados_dano.json", "dados_de_voltas.json", "dados_dos_pneus.json","dados_pra_o_painel.json","dados_telemetria"]
+    gerar_boxplot(arquivos)  # sua função que salva "corrida.png"
+
+    # Envia no Discord
+    await ctx.send(file=discord.File("corrida.png"))
 @bot.command()
 async def tabela(ctx):  # pronto
     global TEMPO_INICIO_TABELA
@@ -265,6 +278,7 @@ async def volta_salvar(bot):# pronto
             dados_de_voltas.append({
                 "nome": j.name,
                 "numero": num ,
+                "Team": j.team_nomes.get(j.m_team_id, 'Desconhecido'),
                 "voltas": todas_voltas,
                 "laps_max": total_voltas,
                 "position": j.position,
@@ -414,6 +428,7 @@ async def painel(ctx):
 @bot.command()
 async def pneusp(ctx):
     await ctx.send(f"🔗 Painel dos pnues disponível em: {public_url}/pnues")
+
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener
