@@ -1,4 +1,4 @@
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
 
 def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_geral.png"):
     from utils.dictionnaries import tyres_dictionnary

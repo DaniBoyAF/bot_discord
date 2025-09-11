@@ -14,8 +14,7 @@ from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
 from comandos.media import comando_media 
 from dados.voltas import gerar_boxplot
-
-#from Javes.modelo_ml import dados_geral,taxa_desgaste
+from Javes.modelo_ml import dados_geral, prepara_dados_ia, analise_desgaste
 import json                      
 from threading import Thread
 from painel.app import app
@@ -351,6 +350,15 @@ async def status(ctx,*, piloto: str = None):
 @bot.command()
 async def clima(ctx):#pronto
     await comando_clima(ctx)
+@bot.command()
+async def desgaste_resumo(ctx):
+    dados = dados_geral()
+    df = prepara_dados_ia(dados)
+    resumo = analise_desgaste(df)
+    # Monta e envia a mensagem no Discord
+    for idx, row in resumo.iterrows():
+        mensagem = f"Piloto: {row['nome']} | Maior desgaste: {row['max']}% | Menor desgaste: {row['min']}%"
+        await ctx.send(mensagem)
 @bot.command()
 async def pilotos(ctx):
     await commando_piloto(ctx)
