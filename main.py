@@ -113,11 +113,29 @@ async def velocidade(ctx):#pronto
     m_rapido = max(jogadores, key=lambda j: j.speed_trap)
     await ctx.send(f"🚀 {m_rapido.name} foi o mais rápido no speed trap: {m_rapido.speed_trap:.2f} km/h")
 @bot.command()
+async def setor(ctx):
+    import json
+    from dados.setor import melhor_setor_gap
+    
+    # Classe temporária para transformar dicionário em objeto
+    class PilotoTemp:
+        def __init__(self, d):
+            self.__dict__ = d
+
+    # Lê o JSON salvo
+    with open("melhor_setor.json", "r", encoding="utf-8") as f:
+        dados_melhor_setor = json.load(f)
+
+    # Cria lista de objetos temporários
+    pilotos = [PilotoTemp(d) for d in dados_melhor_setor]
+
+    # Gera o gráfico
+    melhor_setor_gap(pilotos, nome_arquivo="grafico_melhor_setor.png")
+    await ctx.send(file=discord.File("grafico_melhor_setor.png"))
+@bot.command()
 async def grafico_midspeed(ctx):
     import json
     from dados.speed_mid import mostra_graficos_velocidade
-    from Bot.Session import SESSION
-    total_voltas = getattr(SESSION, "m_total_laps", None)
     
     # Classe temporária para transformar dicionário em objeto
     class PilotoTemp:
@@ -132,14 +150,14 @@ async def grafico_midspeed(ctx):
     pilotos = [PilotoTemp(d) for d in dados_telemetria]
 
     # Gera o gráfico
-    mostra_graficos_velocidade(pilotos,total_voltas=total_voltas, nome_arquivo="grafico_velocidade.png")
+    mostra_graficos_velocidade(pilotos, nome_arquivo="grafico_velocidade.png")
     await ctx.send(file=discord.File("grafico_velocidade.png"))
 @bot.command()
 async def grafico_maxspeed(ctx):
     import json
     from dados.max_speed import graficos_speed_max
-    from Bot.Session import SESSION
-    total_voltas = getattr(SESSION, "m_total_laps", None)
+
+
     
     # Classe temporária para transformar dicionário em objeto
     class PilotoTemp:
@@ -154,7 +172,7 @@ async def grafico_maxspeed(ctx):
     pilotos = [PilotoTemp(d) for d in dados_telemetria]
 
     # Gera o gráfico
-    graficos_speed_max(pilotos,total_voltas=total_voltas, nome_arquivo="graficos_speed_max.png")
+    graficos_speed_max(pilotos, nome_arquivo="graficos_speed_max.png")
     await ctx.send(file=discord.File("graficos_speed_max.png"))
 
 @bot.command()
