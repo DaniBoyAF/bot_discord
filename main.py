@@ -14,7 +14,7 @@ from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
 from comandos.media import comando_media 
 from dados.voltas import gerar_boxplot
-from Javes.modelo_ml import dados_geral, prepara_dados_ia, analise_desgaste
+#from Javes.modelo_ml import dados_geral, prepara_dados_ia, analise_desgaste
 import json                      
 from threading import Thread
 from painel.app import app
@@ -81,6 +81,8 @@ async def comando(ctx: commands.Context):
     ".velocidade     - Mostra o piloto mais rápido no speed trap\n"
     ".ranking        - Mostra o top 10 da corrida\n"
     ".grafico        - Envia o gráfico dos tempos de volta\n"
+    ".grafico_midspeed - Envia o gráfico da velocidade média\n"
+    ".media_lap     - Mostra a média de tempo de volta dos pilotos\n"
     ".tabela         - Envia a tabela ao vivo dos pilotos\n"
     ".parartabela    - Para o envio automático da tabela\n"
     ".painel         - Faz um html sem deley grande\n "     
@@ -110,6 +112,51 @@ async def velocidade(ctx):#pronto
 
     m_rapido = max(jogadores, key=lambda j: j.speed_trap)
     await ctx.send(f"🚀 {m_rapido.name} foi o mais rápido no speed trap: {m_rapido.speed_trap:.2f} km/h")
+@bot.command()
+async def grafico_midspeed(ctx):
+    import json
+    from dados.speed_mid import mostra_graficos_velocidade
+    from Bot.Session import SESSION
+    total_voltas = getattr(SESSION, "m_total_laps", None)
+    
+    # Classe temporária para transformar dicionário em objeto
+    class PilotoTemp:
+        def __init__(self, d):
+            self.__dict__ = d
+
+    # Lê o JSON salvo
+    with open("dados_telemetria.json", "r", encoding="utf-8") as f:
+        dados_telemetria = json.load(f)
+
+    # Cria lista de objetos temporários
+    pilotos = [PilotoTemp(d) for d in dados_telemetria]
+
+    # Gera o gráfico
+    mostra_graficos_velocidade(pilotos,total_voltas=total_voltas, nome_arquivo="grafico_velocidade.png")
+    await ctx.send(file=discord.File("grafico_velocidade.png"))
+@bot.command()
+async def grafico_maxspeed(ctx):
+    import json
+    from dados.max_speed import graficos_speed_max
+    from Bot.Session import SESSION
+    total_voltas = getattr(SESSION, "m_total_laps", None)
+    
+    # Classe temporária para transformar dicionário em objeto
+    class PilotoTemp:
+        def __init__(self, d):
+            self.__dict__ = d
+
+    # Lê o JSON salvo
+    with open("dados_telemetria.json", "r", encoding="utf-8") as f:
+        dados_telemetria = json.load(f)
+
+    # Cria lista de objetos temporários
+    pilotos = [PilotoTemp(d) for d in dados_telemetria]
+
+    # Gera o gráfico
+    graficos_speed_max(pilotos,total_voltas=total_voltas, nome_arquivo="graficos_speed_max.png")
+    await ctx.send(file=discord.File("graficos_speed_max.png"))
+
 @bot.command()
 async def ranking(ctx):# pronto
     from Bot.jogadores import get_jogadores
@@ -312,7 +359,8 @@ async def volta_salvar(bot):# pronto
                 "g_vertical": vertical,
                 "piloto.throttle": throttle,
                 "piloto.brake": brake,
-                "piloto.gear": gear 
+                "piloto.gear": gear,
+                "speed": j.speed
             })
         with open("dados_telemetria.json","w",encoding="utf-8") as f:
             json.dump(dados_telemetria, f, ensure_ascii=False, indent=4)
@@ -350,15 +398,6 @@ async def status(ctx,*, piloto: str = None):
 @bot.command()
 async def clima(ctx):#pronto
     await comando_clima(ctx)
-@bot.command()
-async def desgaste_resumo(ctx):
-    dados = dados_geral()
-    df = prepara_dados_ia(dados)
-    resumo = analise_desgaste(df)
-    # Monta e envia a mensagem no Discord
-    for idx, row in resumo.iterrows():
-        mensagem = f"Piloto: {row['nome']} | Maior desgaste: {row['max']}% | Menor desgaste: {row['min']}%"
-        await ctx.send(mensagem)
 @bot.command()
 async def pilotos(ctx):
     await commando_piloto(ctx)
