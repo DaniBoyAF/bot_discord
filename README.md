@@ -15,24 +15,34 @@ Um bot para Discord que transmite dados de telemetria do F1 24 em tempo real, ge
 
 ## 📋 Comandos Principais
 
-| Comando           | Descrição                                                                 |
-|-------------------|---------------------------------------------------------------------------|
-| `.ola`            | Saúda o usuário.                                                          |
-| `.comando`        | Lista todos os comandos disponíveis.                                      |
-| `.delta`          | Mostra o piloto mais rápido no momento.                                   |                                  
-| `.pneusv`         | Mostra pneus e voltas dos 5 mais rápidos.                                 |             
-| `.status [nome]`  | Mostra status detalhado de um piloto.                                     |
-| `.clima`          | Mostra clima, tipo de sessão e voltas completas.                          |
-| `.voltas [nome]`  | Mostra os tempos de volta de um piloto.                                   |
-| `.grafico`        | Envia o gráfico dos tempos de volta.                                      |
-| `.tabela`         | Envia a tabela ao vivo dos pilotos.                                       |
-| `.Tabela_Qualy`   | Mostra os melhores tempos da qualificação.                                |
-| `.media_lap`      | Mostra a média de tempo de volta dos pilotos.                             |
-| `.danos [nome]`   | Mostra os danos do carro de um piloto.                                    |                                           
-| `.parar_tabela`   | Para o envio automático da tabela.                                        |
-| `.parar_voltas`   | Para o envio automático de voltas.                                        |
-|  `.painel`        | Faz um html sem deley grande                                              |
-| `.pneusp`         | Faz um html do pneus sem deley grande                                     |
+| Comando               | Descrição                                                                 |
+|-----------------------|---------------------------------------------------------------------------|
+| `.ola`                | O bot cumprimenta você.                                                   |
+| `.status [nome]`      | Mostra o status de um piloto (ex: em pista, no pit, etc).                 |
+| `.clima`              | Mostra informações do clima atual.                                        |
+| `.delta`              | Mostra o delta de tempo dos pilotos.                                      |
+| `.pneusv`             | Mostra informações dos pneus dos pilotos.                                 |
+| `.danos [nome]`       | Mostra os danos do carro de um piloto.                                    |
+| `.pilotos`            | Lista os pilotos da sessão.                                               |
+| `.Tabela_Qualy`       | Mostra os melhores tempos da qualificação.                                |
+| `.sobre`              | Mostra informações sobre o bot.                                           |
+| `.voltas [nome]`      | Mostra os tempos de volta de um piloto.                                   |
+| `.salvar_dados`       | Envia mensagens automáticas com setores e pneus dos pilotos.              |
+| `.parar_salvar`       | Para o envio automático de dados.                                         |
+| `.velocidade`         | Mostra o piloto mais rápido no speed trap.                                |
+| `.ranking`            | Mostra o top 10 da corrida.                                               |
+| `.grafico`            | Envia o gráfico dos tempos de volta.                                      |
+| `.grafico_midspeed`   | Envia o gráfico da velocidade média dos pilotos.                          |
+| `.media_setor`        | Mostra a média de tempo de setor dos pilotos.                             |
+| `.grafico_maxspeed`   | Envia o gráfico da velocidade máxima dos pilotos.                         |
+| `.media_lap`          | Mostra a média de tempo de volta dos pilotos.                             |
+| `.tabela`             | Envia a tabela ao vivo dos pilotos.                                       |
+| `.parartabela`        | Para o envio automático da tabela.                                        |
+| `.painel`             | Faz um HTML do painel sem delay grande.                                   |
+| `.pneusp`             | Faz um HTML dos pneus sem delay grande.                                   |
+| `.setor`              | Envia gráfico dos melhores setores de cada piloto.                        |
+| `.melhores_setores`   | Mostra os melhores setores de cada piloto no chat.                        |
+| `.grafico_velocidade` | Envia gráfico de barras das velocidades dos pilotos.                      |
 ---
 
 ## 📄 Relatórios
@@ -72,6 +82,7 @@ Um bot para Discord que transmite dados de telemetria do F1 24 em tempo real, ge
 - [discord.py](https://github.com/Rapptz/discord.py)
 - matplotlib
 - reportlab
+- plotly
 
 ---
 

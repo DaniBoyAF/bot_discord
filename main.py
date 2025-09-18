@@ -82,6 +82,8 @@ async def comando(ctx: commands.Context):
     ".ranking        - Mostra o top 10 da corrida\n"
     ".grafico        - Envia o gráfico dos tempos de volta\n"
     ".grafico_midspeed - Envia o gráfico da velocidade média\n"
+    ".media_setor    - Mostra a média de tempo de setor dos pilotos\n"
+    ".grafico_maxspeed - Envia o gráfico da velocidade máxima\n"
     ".media_lap     - Mostra a média de tempo de volta dos pilotos\n"
     ".tabela         - Envia a tabela ao vivo dos pilotos\n"
     ".parartabela    - Para o envio automático da tabela\n"
