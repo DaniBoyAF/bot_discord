@@ -22,7 +22,7 @@ def dados_pneus():
 def dados_voltas():
     try:
         with open("dados_de_voltas.json","r",encoding="utf-8") as f:
-           data = json.load(f)
+            data = json.load(f)
         return jsonify(data)
     except Exception as e :
         return jsonify({"erro": str(e)})
@@ -30,7 +30,7 @@ def dados_voltas():
 def dados_delta():
     try: 
         with open("dados_dano.json","r",encoding="utf-8") as f:
-            data =json.load(f)
+            data = json.load(f)
         return jsonify(data)
     except Exception as e :
         return jsonify({"erro": str(e)})

@@ -14,8 +14,9 @@ from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
 from comandos.media import comando_media 
 from dados.voltas import gerar_boxplot
-#from Javes.modelo_ml import dados_geral, prepara_dados_ia, analise_desgaste
-import json                      
+
+from Javes.modelo_ml import analisar_dados_auto
+import json                   
 from threading import Thread
 from painel.app import app
 ngrok.set_auth_token("")
@@ -23,6 +24,7 @@ TEMPO_INICIO = False
 TEMPO_INICIO_TABELA = False
 TEMPO_INICIO_VOLTAS = False
 TEMPO_INICIO_TABELA_Q = False
+global public_url
 inicio= time.time()
 tempo_maximo = 600 * 60 
 # Corrige o caminho para importar módulos de fora da pasta
@@ -35,7 +37,7 @@ async def on_ready():
     TEMPO_INICIO_VOLTAS = True
     print("Bot on")
     bot.loop.create_task(volta_salvar(bot))
-    
+
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandNotFound):
@@ -63,6 +65,11 @@ async def ola(ctx: commands.Context):
 async def bem(ctx: commands.Context):
     nome=ctx.author.name
     await ctx.reply(f"Que bom {nome}! Digite '.comando' pra mais informações")
+@bot.command()
+async def analise_auto(ctx):
+    resultado = analisar_dados_auto()
+    await ctx.send(resultado)
+
 @bot.command()
 async def comando(ctx: commands.Context):
     await ctx.reply("Os comandos são:\n"
@@ -125,11 +132,11 @@ async def setor(ctx):
             self.__dict__ = d
 
     # Lê o JSON salvo
-    with open("melhor_setor.json", "r", encoding="utf-8") as f:
-        dados_melhor_setor = json.load(f)
+    with open("dados_de_voltas.json", "r", encoding="utf-8") as f:
+        dados_telemetria = json.load(f)
 
     # Cria lista de objetos temporários
-    pilotos = [PilotoTemp(d) for d in dados_melhor_setor]
+    pilotos = [PilotoTemp(d) for d in dados_telemetria]
 
     # Gera o gráfico
     melhor_setor_gap(pilotos, nome_arquivo="grafico_melhor_setor.png")
@@ -159,8 +166,6 @@ async def grafico_maxspeed(ctx):
     import json
     from dados.max_speed import graficos_speed_max
 
-
-    
     # Classe temporária para transformar dicionário em objeto
     class PilotoTemp:
         def __init__(self, d):
@@ -168,7 +173,7 @@ async def grafico_maxspeed(ctx):
 
     # Lê o JSON salvo
     with open("dados_telemetria.json", "r", encoding="utf-8") as f:
-        dados_telemetria = json.load(f)
+       dados_telemetria = json.load(f)
 
     # Cria lista de objetos temporários
     pilotos = [PilotoTemp(d) for d in dados_telemetria]
@@ -208,11 +213,25 @@ async def grafico(ctx):# pronto
     await ctx.send(file=discord.File("grafico_tempos.png"))
 @bot.command()
 async def corrida(ctx):
-    # Gera o gráfico em PNG
-    arquivos = ["dados_da_SESSION.json", "dados_dano.json", "dados_de_voltas.json", "dados_dos_pneus.json","dados_pra_o_painel.json","dados_telemetria"]
-    gerar_boxplot(arquivos)  # sua função que salva "corrida.png"
+    import json
+    from dados.voltas import gerar_boxplot
+    from Bot.Session import SESSION
+    total_voltas = getattr(SESSION, "m_total_laps", None)
+    nome_pista = getattr(SESSION, "m_track_name", "Desconhecido")
+    # Classe temporária para transformar dicionário em objeto
+    class PilotoTemp:
+        def __init__(self, d):
+            self.__dict__ = d
 
-    # Envia no Discord
+    # Lê o JSON salvo
+    with open("dados_de_voltas.json", "r", encoding="utf-8") as f:
+        dados_de_voltas = json.load(f)
+
+    # Cria lista de objetos temporários
+    pilotos = [PilotoTemp(d) for d in dados_de_voltas]
+
+    # Gera o gráfico
+    gerar_boxplot(pilotos, nome_pista=nome_pista, total_voltas=total_voltas, nome_arquivo="corrida.png")
     await ctx.send(file=discord.File("corrida.png"))
 @bot.command()
 async def tabela(ctx):  # pronto
@@ -288,7 +307,7 @@ async def volta_salvar(bot):# pronto
         tempo_ar = getattr(SESSION, "m_air_temperature", 0)
         tempo_pista = getattr(SESSION, "m_track_temperature", 0)
         total_voltas = getattr(SESSION, "m_total_laps", 0)
-
+        
 
         dados_de_voltas = []
         dados_dos_pneus = []
@@ -296,27 +315,22 @@ async def volta_salvar(bot):# pronto
         dados_pra_o_painel = []
         dados_da_SESSION = []
         dados_telemetria = []
-
+       
         for j in jogadores:
             if not j.name.strip():
                 continue
             # Pega o histórico de todas as voltas/setores
             
-            todas_voltas = getattr(j, "todas_voltas_setores", [])
+            todas_voltas = getattr(j, "todas_voltas", [])
             Gas = getattr(j, "fuelRemainingLaps", 0)
             delta = getattr(j, "delta_to_leader", "—")
             num = getattr(j, 'numero', '--')
-            lateral = getattr(j, "g_force_lateral", 0)
-            longitudinal  =  getattr(j, "g_force_longitudinal", 0)
-            vertical  = getattr(j, "g_force_vertical", 0)
-            throttle = getattr(j, "throttle", 0)
-            brake = getattr(j, "brake", 0)
-            gear = getattr(j, "gear", 0)
+            velocidade= [ v.get("trap_speed",0) for v in getattr(j, "voltas", [])]
+            velocidade_maxima=max(velocidade) if velocidade else 0
             rain_porcentagem = getattr(SESSION, "m_rain_percentage", 0)
-            track_id = SESSION.m_track_id
-            nome_pista = SESSION.get_track_name(track_id)
+            flag= color_flag_dict.get(getattr(SESSION, "m_flag", 0), "Desconhecida")
             SafetyCarStatus = getattr(SESSION, "m_safety_car_status", 0)
-        
+            
             # Salva os dados em um dicionário
             dados_dano.append({
                 "delta_to_leader": delta,
@@ -344,7 +358,6 @@ async def volta_salvar(bot):# pronto
             dados_de_voltas.append({
                 "nome": j.name,
                 "numero": num ,
-                "Team": j.team_nomes.get(j.m_team_id, 'Desconhecido'),
                 "voltas": todas_voltas,
                 "laps_max": total_voltas,
                 "position": j.position,
@@ -368,39 +381,35 @@ async def volta_salvar(bot):# pronto
                 "tempo_ar":tempo_ar,
                 "tempo_pista":tempo_pista,
                 "rain_porcentagem": rain_porcentagem,
-                "nome_pista":nome_pista,
                 "safety_car_status": SafetyCarStatus
 
             })
             dados_telemetria.append({
                 "nome": j.name,
-                "g_lateral": lateral,
-                "g_longitudinal": longitudinal,
-                "g_vertical": vertical,
-                "piloto.throttle": throttle,
-                "piloto.brake": brake,
-                "piloto.gear": gear,
-                "speed": j.speed
+                "numero": num ,
+                "position": j.position,
+                "speed": velocidade_maxima,
+                "flag": flag
             })
         with open("dados_telemetria.json","w",encoding="utf-8") as f:
-            json.dump(dados_telemetria, f, ensure_ascii=False, indent=4)
+            f.write(json.dumps(dados_telemetria, indent=2))
 
         with open("dados_dano.json","w",encoding="utf-8") as f:
-            json.dump(dados_dano, f, ensure_ascii=False, indent=4)
-
+              f.write(json.dumps(dados_dano, indent=2))
+          
         with open("dados_dos_pneus.json","w",encoding="utf-8") as f:
-            json.dump(dados_dos_pneus, f, ensure_ascii=False, indent=4)
+              f.write(json.dumps(dados_dos_pneus, indent=2))
 
         with open("dados_de_voltas.json", "w", encoding="utf-8") as f:
-            json.dump(dados_de_voltas, f, ensure_ascii=False, indent=4)
+            f.write(json.dumps(dados_de_voltas, indent=2))
 
         with open("dados_pra_o_painel.json", "w", encoding="utf-8") as f:
-            json.dump(dados_pra_o_painel, f, ensure_ascii=False, indent=4)
-
+            f.write(json.dumps(dados_pra_o_painel, indent=2))
+            
         with open("dados_da_SESSION.json","w",encoding="utf-8") as f:
-            json.dump(dados_da_SESSION, f, ensure_ascii=False, indent=4)
-      
-        await asyncio.sleep(0.5)  # Intervalo de atualização, ajuste conforme necessário
+            f.write(json.dumps(dados_da_SESSION, indent=2))
+
+        await asyncio.sleep(0.3)  # Intervalo de atualização, ajuste conforme necessário
 @bot.command()
 async def parar_salvar(ctx):#pronto
     global TEMPO_INICIO_VOLTAS
@@ -480,27 +489,31 @@ async def media_lap(ctx):
 def iniciar_painel():
     app.run(host="0.0.0.0", port=5000)
 def iniciar_ngrok():
+    from pyngrok import ngrok
     import time
     time.sleep(1)  # Dá tempo pro Flask subir
-    global public_url
-    public_url = ngrok.connect(5000).public_url
-    print("🔗 Painel disponível em:", public_url)
-
+    ngrok.kill()
+    #public_url = ngrok.connect(5000).public_url
+   
+    
 # Inicia os dois em paralelo
 Thread(target=iniciar_painel).start()
 Thread(target=iniciar_ngrok).start()
 @bot.command()
 async def painel(ctx):
+    global public_url
+    if not public_url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
     await ctx.send(f"🔗 Painel disponível em: {public_url}")
 @bot.command()
 async def pneusp(ctx):
-    await ctx.send(f"🔗 Painel dos pnues disponível em: {public_url}/pnues")
+    await ctx.send(f"🔗 Painel dos pneus disponível em: {public_url}/pnues")
 
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener
     threading.Thread(target=start_udp_listener, daemon=True).start()    
 
-bot.run("") # Substitua pelo seu token do bot
  #python Bot/bot_discord.py pra ativar
 

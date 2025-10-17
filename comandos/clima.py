@@ -20,10 +20,11 @@ async def comando_clima(ctx):
     tempo_ar = getattr(SESSION, "m_air_temperature", 0)
     tempo_pista = getattr(SESSION, "m_track_temperature", 0)
     clima = {weather_dictionary[getattr(SESSION, "m_weather", 0)]}
-    tipo_sessao = session_dictionary.get(getattr(SESSION, "m_session_type", 0), "desconhecida")
+    tipo_sessa= getattr(SESSION, "m_session_type", 0)
     total_voltas = getattr(session, "m_total_laps", 0)
-    rain_porcentagem = getattr(session, "m_weather_forecast_samples", 0)
+    rain_porcentagem = getattr(session, "rainPercentage", 0)
     carro_de_segurança = getattr(session, "m_safety_car_status", 0)
+    tipo_sessao = session_dictionary.get(tipo_sessa, "Sessão Desconhecida")
     if carro_de_segurança == 0:
         tipo_sessao += " (sem Safety Car)"
     elif carro_de_segurança == 1:
@@ -36,6 +37,7 @@ async def comando_clima(ctx):
         f"Clima atual: {clima}E porcentagem {rain_porcentagem}%.\n Volta maximas {total_voltas}."
         f"A sessão tem {len(session.weatherList)}% previsões de clima futuras.\n"
         f"Carro de segurança: {carro_de_segurança}.\n"
+        f"Bandeira amarela na pista: {session.anyYellow}."
     )
 
     await ctx.send(texto)  # Envia a mensagem no canal de texto

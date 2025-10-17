@@ -40,7 +40,7 @@ def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_g
         segundos = int(melhor_tempo % 60)
         milissegundos = int((melhor_tempo - int(melhor_tempo)) * 1000)
 
-        texto = f"Melhor volta: {melhor_volta} - {melhor_piloto} - {minutos:02}:{segundos:02}.{milissegundos:03} - {melhor_tyres}"
+        texto = f"Melhor Volta: {melhor_volta} - {melhor_piloto} - {minutos:02}:{segundos:02}.{milissegundos:03} - {melhor_tyres}"
         plt.figtext(0.15, 0.97, texto, fontsize=10, color='green', ha='left', va='top')
 
     # Ajustes finais

@@ -81,6 +81,10 @@ class SessionData:
         self.bestLapTime = 5000
         self.safetyCarStatus = 0
         self.weatherList: list[WeatherForecastSample] = []
+        self.Finished = False
+        self.anyYellow = False
+        self.rainPercentage = 0
+        
 
     def atualizar(self, packet):
         self.Seance = packet.m_session_type
@@ -88,7 +92,8 @@ class SessionData:
         self.m_air_temperature = packet.m_air_temperature
         self.m_track_temperature = packet.m_track_temperature
         self.m_total_laps = packet.m_total_laps
-
+        self.rainPercentage = getattr(packet, "m_rain_percentage", 0)
+        self.track = packet.m_track_id
 SESSION = SessionData()
 
 

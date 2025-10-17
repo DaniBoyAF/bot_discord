@@ -1,5 +1,8 @@
 import matplotlib.pyplot as plt 
+import random
 
+def gerar_cor_aleatoria():
+    return "rgb({},{},{})".format(random.randint(0,255), random.randint(0,255), random.randint(0,255))
 def mostra_graficos_velocidade(jogadores, nome_arquivo="graficos_velocidade.png"):
     nomes =[]
     velocidade=[]
@@ -13,9 +16,9 @@ def mostra_graficos_velocidade(jogadores, nome_arquivo="graficos_velocidade.png"
         else:
             nomes.append(getattr(j,"nome", getattr(j,"name","Piloto")))
             velocidade.append(media)
-
+        cores_aleatorias = [gerar_cor_aleatoria()for _ in nomes]
     plt.figure(figsize=(10, 6))
-    plt.bar(nomes, velocidade, color="blue")
+    plt.bar(nomes, velocidade, color=cores_aleatorias)
     plt.xlabel("Pilotos")
     plt.ylabel("Velocidade Média")
     plt.title("Velocidade Média dos Pilotos")

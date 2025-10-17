@@ -1,8 +1,8 @@
-import json
+import orjson
 
 async def comando_media(ctx):
     with open("dados_de_voltas.json", "r", encoding="utf-8") as f:
-        dados = json.load(f)
+        dados = orjson.loads(f.read())
     medias = {}
     for jogador in dados:
         nome = jogador["nome"]
