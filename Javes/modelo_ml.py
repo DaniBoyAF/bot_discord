@@ -1,7 +1,6 @@
 import requests
 import json
 
-API_KEY = "sk-c737f903b2eb4115bc203fb1782609ba"
 url= "https://api.deepseek.com/v1/chat/completions"
 
 headers = {
