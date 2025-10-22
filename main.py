@@ -4,7 +4,8 @@ import asyncio
 import threading
 import time
 
-from pyngrok import ngrok
+
+import threading
 from comandos.pneusv import comando_pneusv
 from comandos.delta import comando_delta  # se o nome correto for esse
 from comandos.status import comando_status
@@ -18,13 +19,20 @@ from dados.voltas import gerar_boxplot
 from Javes.modelo_ml import analisar_dados_auto
 import json                   
 from threading import Thread
+import subprocess
+import os
+import signal
+import sys
+import shutil
+import re
 from painel.app import app
-ngrok.set_auth_token("")
+
 TEMPO_INICIO = False
 TEMPO_INICIO_TABELA = False
 TEMPO_INICIO_VOLTAS = False
 TEMPO_INICIO_TABELA_Q = False
-global public_url
+public_url = None
+_cloudflared_proc = None
 inicio= time.time()
 tempo_maximo = 600 * 60 
 # Corrige o caminho para importar módulos de fora da pasta
@@ -214,7 +222,6 @@ async def grafico(ctx):# pronto
 @bot.command()
 async def corrida(ctx):
     import json
-    from dados.voltas import gerar_boxplot
     from Bot.Session import SESSION
     total_voltas = getattr(SESSION, "m_total_laps", None)
     nome_pista = getattr(SESSION, "m_track_name", "Desconhecido")
@@ -392,24 +399,24 @@ async def volta_salvar(bot):# pronto
                 "flag": flag
             })
         with open("dados_telemetria.json","w",encoding="utf-8") as f:
-            f.write(json.dumps(dados_telemetria, indent=2))
+            json.dump(dados_telemetria, f, indent=2, ensure_ascii=False)
 
         with open("dados_dano.json","w",encoding="utf-8") as f:
-              f.write(json.dumps(dados_dano, indent=2))
+            json.dump(dados_dano, f, indent=2, ensure_ascii=False)
           
         with open("dados_dos_pneus.json","w",encoding="utf-8") as f:
-              f.write(json.dumps(dados_dos_pneus, indent=2))
+            json.dump(dados_dos_pneus, f, indent=2, ensure_ascii=False)
 
         with open("dados_de_voltas.json", "w", encoding="utf-8") as f:
-            f.write(json.dumps(dados_de_voltas, indent=2))
+            json.dump(dados_de_voltas, f, indent=2, ensure_ascii=False)
 
         with open("dados_pra_o_painel.json", "w", encoding="utf-8") as f:
-            f.write(json.dumps(dados_pra_o_painel, indent=2))
-            
+             json.dump(dados_pra_o_painel, f, indent=2, ensure_ascii=False)
+             
         with open("dados_da_SESSION.json","w",encoding="utf-8") as f:
-            f.write(json.dumps(dados_da_SESSION, indent=2))
+            json.dump(dados_da_SESSION, f, indent=2, ensure_ascii=False)
 
-        await asyncio.sleep(0.3)  # Intervalo de atualização, ajuste conforme necessário
+        await asyncio.sleep(0.1)  # Intervalo de atualização, ajuste conforme necessário
 @bot.command()
 async def parar_salvar(ctx):#pronto
     global TEMPO_INICIO_VOLTAS
@@ -486,34 +493,107 @@ async def parar_tabela_Qualy(ctx):
 async def media_lap(ctx):
   await comando_media(ctx)
 
-def iniciar_painel():
-    app.run(host="0.0.0.0", port=5000)
-def iniciar_ngrok():
-    from pyngrok import ngrok
-    import time
-    time.sleep(1)  # Dá tempo pro Flask subir
-    ngrok.kill()
-    #public_url = ngrok.connect(5000).public_url
-   
-    
-# Inicia os dois em paralelo
-Thread(target=iniciar_painel).start()
-Thread(target=iniciar_ngrok).start()
+_cloudflared_proc = None
+url = None
+
+def _start_cloudflared(port=5000, cloudflared_path="cloudflared"):
+    """Inicia cloudflared e retorna o objeto subprocess e o public_url lido da saída."""
+    global _cloudflared_proc
+
+    # Verifica se o executável está acessível
+    if not shutil.which(cloudflared_path):
+        raise FileNotFoundError(f"cloudflared não encontrado em: {cloudflared_path}")
+
+    cmd = [cloudflared_path, "tunnel", "--url", f"http://localhost:{port}"]
+    _cloudflared_proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
+
+    public = None
+    logs = []
+    start = time.time()
+    url_regex = r"https://[a-zA-Z0-9\-]+\.trycloudflare\.com"
+
+    while True:
+        if _cloudflared_proc.stdout is None:
+            break
+        line = _cloudflared_proc.stdout.readline()
+        if line:
+            logs.append(line)
+            print("[cloudflared]", line.strip())
+            match = re.search(url_regex, line)
+            if match:
+                public = match.group(0)
+                break
+
+        if public or (time.time() - start) > 10:
+            break
+
+    if not public:
+        print("⚠️ Não detectei o URL público automaticamente. Verifique manualmente o output do cloudflared acima.")
+        print("🔍 Logs completos:")
+        print("".join(logs))
+
+    return _cloudflared_proc, public
+
+def _stop_cloudflared():
+    global _cloudflared_proc
+    try:
+        if _cloudflared_proc:
+            print("Encerrando cloudflared...")
+            _cloudflared_proc.terminate()
+            try:
+                _cloudflared_proc.wait(timeout=3)
+            except Exception:
+                _cloudflared_proc.kill()
+    except Exception as e:
+        print("Erro ao encerrar cloudflared:", e)
+    finally:
+        _cloudflared_proc = None
+
+def iniciar_painel_e_cloudflared():
+    from painel.app import app
+    global url
+
+    cloudflared_path = "cloudflared"  # ou caminho absoluto
+
+    try:
+        proc, url = _start_cloudflared(port=5000, cloudflared_path=cloudflared_path)
+        if url:
+            print(f"✅ Tunnel criado: {url}")
+        else:
+            print("⚠️ Não foi possível detectar URL do cloudflared automaticamente.")
+        app.run(host="0.0.0.0", port=5000, use_reloader=False)
+    except Exception as e:
+        print("❌ Erro ao iniciar painel/cloudflared:", e)
+    finally:
+        _stop_cloudflared()
+
+# Comandos do bot
 @bot.command()
 async def painel(ctx):
-    global public_url
-    if not public_url:
+    if not url:
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
-    await ctx.send(f"🔗 Painel disponível em: {public_url}")
+    await ctx.send(f"🔗 Painel disponível em: {url}")
+
 @bot.command()
 async def pneusp(ctx):
-    await ctx.send(f"🔗 Painel dos pneus disponível em: {public_url}/pnues")
+    if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+    await ctx.send(f"🔗 Painel dos pneus disponível em: {url}/pnues")
+
 
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener
-    threading.Thread(target=start_udp_listener, daemon=True).start()    
+    threading.Thread(target=start_udp_listener, daemon=True).start()
+    threading.Thread(target=iniciar_painel_e_cloudflared, daemon=True).start()    
 
  #python Bot/bot_discord.py pra ativar
 

@@ -935,6 +935,7 @@ from Bot.Session import SESSION as session
 from Bot.jogadores import get_jogadores
 from dados.telemetria_pdf import mostra_graficos_geral
 from Bot.parser2024 import Listener
+from dados.map_performance import atualizar_dados_motion, gerar_mapa_performance
 
 corrida_finalizada = False  # controle para não repetir
 
@@ -951,7 +952,7 @@ def start_udp_listener():
         header, body = pacote
 
         # Interpreta o tipo de pacote
-
+        
         if header.m_packet_id == 1:  # PacketSessionData
             session.atualizar(body)
         if header.m_packet_id == 4:
@@ -972,6 +973,11 @@ def start_udp_listener():
             atualizar_final_classification(body)
         elif header.m_packet_id == 11:
              atualizar_setores(body)
+        elif header.m_packet_id == 0:
+            for idx, car in enumerate(body.m_car_motion_data):
+        # você precisa saber o tempo da volta atual (vem do PacketLapData)
+             tempo_volta = 0  # coloque o valor certo depois
+             atualizar_dados_motion(idx, car, tempo_volta)
         elif header.m_packet_id == 3:
             event_code = bytes(body.m_event_string_code).decode('utf-8', errors='ignore').strip("\x00")
             if event_code == "Bateu":
@@ -1018,9 +1024,9 @@ def atualizar_speed_trap(pacote_telemetry):
             piloto = JOGADORES[idx]
             piloto.speed_trap = float(telemetry.m_speed)  # Usa m_speed
             piloto.throttle = float(telemetry.m_throttle)
-            piloto.brake= float(telemetry.m_brake)
+            piloto.brake = float(telemetry.m_brake)
             piloto.gear = int(telemetry.m_gear)
-         
+
             if not hasattr(piloto, 'tyres_temp_inner'):
                 piloto.tyres_temp_inner = [0] * 4
             if not hasattr(piloto, 'tyres_temp_surface'):

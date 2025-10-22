@@ -1,6 +1,5 @@
 import json
 import plotly.graph_objects as go
-from utils.dictionnaries import teams_color_dictionary
 import random
 def gerar_cor_aleatoria():
     return "rgb({},{},{})".format(random.randint(0,255), random.randint(0,255), random.randint(0,255))
