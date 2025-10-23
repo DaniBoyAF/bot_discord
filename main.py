@@ -74,9 +74,23 @@ async def bem(ctx: commands.Context):
     nome=ctx.author.name
     await ctx.reply(f"Que bom {nome}! Digite '.comando' pra mais informações")
 @bot.command()
-async def analise_auto(ctx):
+async def Jarves_on(ctx):
     resultado = analisar_dados_auto()
-    await ctx.send(resultado)
+    canal_id = 1413993963072782436
+    canal = bot.get_channel(canal_id)
+    if not canal:
+        await ctx.send("❌ Canal de texto não encontrado.")
+        return
+    await ctx.send("⚠️ Deseja continuar? Responda com `sim` ou `não`.")
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() in ["sim", "não"]
+
+    resposta = await bot.wait_for("message", check=check)
+    if resposta.content.lower() == "sim":
+        await ctx.send("✅ Continuando...")
+        await ctx.send(resultado)
+    else:
+        await ctx.send("❌ Análise cancelada.")
 
 @bot.command()
 async def comando(ctx: commands.Context):
@@ -87,6 +101,7 @@ async def comando(ctx: commands.Context):
     ".delta          - Mostra o delta de tempo dos pilotos\n"
     ".pneusv         - Mostra informações dos pneus dos pilotos\n"
     ".danos          - Mostra os danos do carro de um piloto\n"
+    ".Jarves_on      - Analisar Dados com IA!!  \n"
     ".pilotos        - Lista os pilotos da sessão\n"
     ".Tabela_Qualy   - Mostra os tempos\n"
     ".sobre          - Mostra informações sobre o bot\n"
@@ -293,7 +308,7 @@ async def salvar_dados(ctx):
 async def volta_salvar(bot):# pronto
     global TEMPO_INICIO_VOLTAS
     from Bot.jogadores import get_jogadores
-    from utils.dictionnaries import tyres_dictionnary, weather_dictionary, color_flag_dict
+    from utils.dictionnaries import tyres_dictionnary, weather_dictionary, color_flag_dict,safetyCarStatusDict,session_dictionary
     from Bot.Session import SESSION
     
     
@@ -314,7 +329,7 @@ async def volta_salvar(bot):# pronto
         tempo_ar = getattr(SESSION, "m_air_temperature", 0)
         tempo_pista = getattr(SESSION, "m_track_temperature", 0)
         total_voltas = getattr(SESSION, "m_total_laps", 0)
-        
+        sessao = session_dictionary.get(getattr(SESSION,"m_session_type",0))
 
         dados_de_voltas = []
         dados_dos_pneus = []
@@ -326,7 +341,7 @@ async def volta_salvar(bot):# pronto
         for j in jogadores:
             if not j.name.strip():
                 continue
-            # Pega o histórico de todas as voltas/setores
+            # Pega tudo
             
             todas_voltas = getattr(j, "todas_voltas", [])
             Gas = getattr(j, "fuelRemainingLaps", 0)
@@ -336,7 +351,8 @@ async def volta_salvar(bot):# pronto
             velocidade_maxima=max(velocidade) if velocidade else 0
             rain_porcentagem = getattr(SESSION, "m_rain_percentage", 0)
             flag= color_flag_dict.get(getattr(SESSION, "m_flag", 0), "Desconhecida")
-            SafetyCarStatus = getattr(SESSION, "m_safety_car_status", 0)
+            SafetyCarStatus = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0),"Desconhecida")
+
             
             # Salva os dados em um dicionário
             dados_dano.append({
@@ -349,7 +365,7 @@ async def volta_salvar(bot):# pronto
                  "Asa Traseira":j.rearWingDamage,
                  "Assoalho":j.floorDamage,
                  "Difusor":j.diffuserDamage,
-                 "Sidepods":j.sidepodDamage,
+                 "Sidepods":j.sidepodDamage
             })
             dados_dos_pneus.append({
                 "nome": j.name,
@@ -359,7 +375,10 @@ async def volta_salvar(bot):# pronto
                 "tyresAgeLaps": j.tyresAgeLaps,
                 "tyre_wear":j.tyre_wear[0:4],
                 "tyre_temp_i": j.tyres_temp_inner [0:4],
-                "tyre_temp_s": j.tyres_temp_surface[0:4]
+                "tyre_temp_s": j.tyres_temp_surface[0:4],
+                "tyre_life":j.tyre_life,
+                "tyre_set_data":j.tyre_set_data,
+                "lap_delta_time ":j.m_lap_delta_time 
             })
             # Salva no arquivo JSON
             dados_de_voltas.append({
@@ -369,7 +388,7 @@ async def volta_salvar(bot):# pronto
                 "laps_max": total_voltas,
                 "position": j.position,
                 "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
-                "tyresAgeLaps": j.tyresAgeLaps,
+                "tyresAgeLaps": j.tyresAgeLaps
                 
             })
             dados_pra_o_painel.append({
@@ -379,7 +398,7 @@ async def volta_salvar(bot):# pronto
                 "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
                 "tyresAgeLaps": j.tyresAgeLaps,
                 "delta_to_leader": delta,
-                "num_laps": total_voltas,
+                "num_laps": total_voltas
                 
 
             })
@@ -388,7 +407,9 @@ async def volta_salvar(bot):# pronto
                 "tempo_ar":tempo_ar,
                 "tempo_pista":tempo_pista,
                 "rain_porcentagem": rain_porcentagem,
-                "safety_car_status": SafetyCarStatus
+                "safety_car_status": SafetyCarStatus,
+                "Sessao": sessao
+
 
             })
             dados_telemetria.append({
@@ -426,8 +447,8 @@ async def parar_salvar(ctx):#pronto
 async def delta(ctx):
     await comando_delta(ctx)
 @bot.command()
-async def pneusv(ctx):
-    await comando_pneusv(ctx)
+async def pneusv(ctx,*, piloto: str = None):
+    await comando_pneusv(ctx, piloto=piloto)
 @bot.command()
 async def status(ctx,*, piloto: str = None):
      await comando_status(ctx, piloto=piloto)
@@ -440,55 +461,7 @@ async def pilotos(ctx):
 @bot.command()
 async def danos(ctx, piloto: str = None):
     await comandos_danos(ctx, piloto=piloto)
-def formatacao(ms):
-    if ms == "—" or ms is None:
-        return "—"
-    minutos = ms // 60000
-    segundos = (ms % 60000) // 1000
-    milissegundos = ms % 1000
-    return f"{minutos}:{segundos:02}.{milissegundos:03}"
-@bot.command()
-async def Tabela_Qualy(ctx):
-  global TEMPO_INICIO_TABELA_Q
-  TEMPO_INICIO_TABELA_Q = True
-  from Bot.jogadores import get_jogadores
-  from utils.dictionnaries import tyres_dictionnary 
-  canal_id = 1373049532983804014
-  bot = ctx.bot
-  canal = bot.get_channel(canal_id)
-  if not canal:
-    await ctx.send("❌ Canal de voz não encontrado.")
-    return
-  mensagem = await canal.send("🔄 Iniciando o envio de mensagens da tabela ao vivo...")  
-  while TEMPO_INICIO_TABELA_Q:
-    jogador = get_jogadores()
-    tyres_nomes = tyres_dictionnary
-    jogador = sorted(jogador, key=lambda j: j.position)
-    linhas = ["P  #  NAME           BEST_LAP  LAST_LAP   TYRES     TYRES_AGE     "]
-    for j in jogador:
-        raw_best_time = j.bestLapTime
-        raw_Last_time = j.lastLapTime
-        formatando2 = formatacao(int((raw_Last_time or 0) * 1000))
-        formatado = formatacao(int((raw_best_time or 0) * 1000))
-        nome = str(getattr(j, "name", "SemNome"))[:14]
-        linhas.append(
-        f"{j.position:<2} {getattr(j, 'numero', '--'):<2} {nome:<14} "
-        f"{float(formatado):<8}  {float(formatando2):<8}"
-        f"   {tyres_nomes.get(j.tyres, 'Desconhecido'):<12} {j.tyresAgeLaps}         "
-         )
-    tabela = "```\n" + "\n".join(linhas) + "\n```"
-    try:
-            await mensagem.edit(content=tabela)
-    except Exception as e:
-            print(f"Erro ao atualizar tabela: {e}")
-            break
 
-    await asyncio.sleep(0.5)
-@bot.command()
-async def parar_tabela_Qualy(ctx):
-    global TEMPO_INICIO_TABELA_Q
-    TEMPO_INICIO_TABELA_Q = False
-    await ctx.send("🛑 Envio automático da tabela parado.")
 @bot.command()
 async def media_lap(ctx):
   await comando_media(ctx)

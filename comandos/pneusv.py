@@ -1,16 +1,15 @@
 from utils.dictionnaries import tyres_dictionnary  
 from Bot.jogadores import get_jogadores
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-async def comando_pneusv(ctx):
+async def comando_pneusv(ctx,*, piloto: str = None):
     jogadores = get_jogadores()
-    if not jogadores:
+   
+    if not piloto:
         await ctx.send("❌ Nenhum piloto encontrado.")
         return
     for p in jogadores:
-            tipo = tyres_dictionnary.get(p.tyres, "Desconhecido")
-            texto=(f"Pneus do carro de **{p.name:<14}** com o pneu **{tipo}**:\n"
+            if piloto.lower() in p.name.lower():
+             tipo = tyres_dictionnary.get(p.tyres, "Desconhecido")
+             texto=(f"Pneus do carro de **{p.name:<14}** com o pneu **{tipo}**:\n"
          f"- TyresAge: {p.tyresAgeLaps} Laps\n" #[FL, FR, RL, RR]
          f"- Porcentagem de desgaste dos pneus:\n"
          f"- TyresWear FL: {p.tyre_wear[2]:.2f}% | TyresWear FR: {p.tyre_wear[3]:.2f}%\n" 
@@ -22,4 +21,6 @@ async def comando_pneusv(ctx):
          f"- TyresTemp RR: {p.tyres_temp_surface[1]}°C | {p.tyres_temp_inner[1]}°C\n" 
          )
             await ctx.send(texto)
+            return
+    await ctx.send("❌ Piloto não encontrado.")
     # Se nenhum piloto foi encontrado

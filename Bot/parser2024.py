@@ -1043,7 +1043,7 @@ def atualizar_CarSetupData(pacote_setup):
                 piloto.setup_array = []
             piloto.setup_array.extend([setup.m_front_wing, setup.m_rear_wing])
 
-def atualizar_vida_util(pacote_tyre_life):
+def atualizar_vida_util(pacote_tyre_life):#12:Dados dos conjuntos de pneus disponíveis e usados (composto, desgaste, vida útil, etc).
     from Bot.jogadores import JOGADORES
     car_idx = pacote_tyre_life.m_car_idx  # Usa m_car_idx do PacketTyreSetsData
     if car_idx < len(JOGADORES):
@@ -1089,6 +1089,7 @@ def atualizar_car_status(pacote_status):
         piloto = JOGADORES[idx]
         piloto.tyres = status.m_actual_tyre_compound
         piloto.tyresAgeLaps = status.m_tyres_age_laps
+        
 
 def atualizar_damage_data(pacote_danos):
     from Bot.jogadores import JOGADORES
