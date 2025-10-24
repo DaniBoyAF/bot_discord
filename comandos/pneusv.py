@@ -4,7 +4,7 @@ async def comando_pneusv(ctx,*, piloto: str = None):
     jogadores = get_jogadores()
    
     if not piloto:
-        await ctx.send("❌ Nenhum piloto encontrado.")
+        await ctx.send("❌ Nenhum piloto encontrado. Ex: pneusv. Nome do jogador")
         return
     for p in jogadores:
             if piloto.lower() in p.name.lower():

@@ -24,7 +24,6 @@ Um bot para Discord que transmite dados de telemetria do F1 24 em tempo real, ge
 | `.pneusv`             | Mostra informações dos pneus dos pilotos.                                 |
 | `.danos [nome]`       | Mostra os danos do carro de um piloto.                                    |
 | `.pilotos`            | Lista os pilotos da sessão.                                               |
-| `.Tabela_Qualy`       | Mostra os melhores tempos da qualificação.                                |
 | `.sobre`              | Mostra informações sobre o bot.                                           |
 | `.voltas [nome]`      | Mostra os tempos de volta de um piloto.                                   |
 | `.salvar_dados`       | Envia mensagens automáticas com setores e pneus dos pilotos.              |

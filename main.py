@@ -82,7 +82,7 @@ async def Jarves_on(ctx):
         await ctx.send("❌ Canal de texto não encontrado.")
         return
     await ctx.send("⚠️ Deseja continuar? Responda com `sim` ou `não`.")
-    def check(m):
+    def check(m):# isso ver a mensagem sim ou não
         return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() in ["sim", "não"]
 
     resposta = await bot.wait_for("message", check=check)
@@ -103,7 +103,6 @@ async def comando(ctx: commands.Context):
     ".danos          - Mostra os danos do carro de um piloto\n"
     ".Jarves_on      - Analisar Dados com IA!!  \n"
     ".pilotos        - Lista os pilotos da sessão\n"
-    ".Tabela_Qualy   - Mostra os tempos\n"
     ".sobre          - Mostra informações sobre o bot\n"
     ".voltas         - Mostra os tempos de volta de um piloto\n"
     ".salvar_dados     - Envia mensagens automáticas com setores e pneus dos pilotos\n"
@@ -378,7 +377,8 @@ async def volta_salvar(bot):# pronto
                 "tyre_temp_s": j.tyres_temp_surface[0:4],
                 "tyre_life":j.tyre_life,
                 "tyre_set_data":j.tyre_set_data,
-                "lap_delta_time ":j.m_lap_delta_time 
+                "lap_delta_time ":j.m_lap_delta_time,
+                "ERS_pourcentage":j.ERS_pourcentage
             })
             # Salva no arquivo JSON
             dados_de_voltas.append({
