@@ -562,8 +562,18 @@ async def pneusp(ctx):
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
     await ctx.send(f"🔗 Painel dos pneus disponível em: {url}/pnues")
-
-
+@bot.command()
+async def grafico1(ctx):
+    if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+    await ctx.send(f"🔗 Painel dos pneus disponível em: {url}/Graf")
+@bot.command()
+async def grafico2(ctx):
+    if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+    await ctx.send(f"🔗 Painel dos pneus disponível em: {url}/Graf2")
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener

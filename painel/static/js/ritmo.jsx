@@ -24,7 +24,6 @@ const GPDashboard = () => {
       setRaceData(Array.isArray(data) ? data : [data]);
     } catch (error) {
       console.error('Erro ao carregar JSON da URL:', error);
-      // Não mostrar alert, apenas logar o erro
     } finally {
       setIsLoading(false);
     }
@@ -32,6 +31,8 @@ const GPDashboard = () => {
 
   // Processar dados dos pilotos
   const processRacerData = (racer) => {
+    if (!racer || !racer.voltas) return null;
+    
     const validLaps = racer.voltas.filter(lap => {
       if (!lap.setores || lap.setores.length !== 3) return false;
       const allSectorsValid = lap.setores.every(setor => setor >= 15);

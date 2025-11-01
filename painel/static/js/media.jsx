@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, Flag } from 'lucide-react';
 
 const GPLaptimeAnalysis = () => {
@@ -7,16 +7,10 @@ const GPLaptimeAnalysis = () => {
   const [trafficFilter, setTrafficFilter] = useState('all');
   const [sortBy, setSortBy] = useState('mean');
 
-  // OPÇÃO 1: Carrega JSON automaticamente quando o componente monta
-  // Descomente as linhas abaixo e coloque a URL do seu JSON
-  
+  // Carrega JSON automaticamente quando o componente monta
   useEffect(() => {
     loadJsonFromUrl('/dados_de_voltas.json');
-    loadJsonFromUrl('/dados_da_SESSION.json');
-    loadJsonFromUrl('/dados_dano.json')
-
   }, []);
-  
 
   // Função para carregar JSON de uma URL
   const loadJsonFromUrl = async (url) => {
@@ -27,13 +21,12 @@ const GPLaptimeAnalysis = () => {
       setRaceData(Array.isArray(data) ? data : [data]);
     } catch (error) {
       console.error('Erro ao carregar JSON da URL:', error);
-      alert('Erro ao carregar dados. Verifique a URL!');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // OPÇÃO 2: Upload manual de arquivo
+  // Upload manual de arquivo
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -51,20 +44,41 @@ const GPLaptimeAnalysis = () => {
     }
   };
 
+  // Função auxiliar para detectar safety car (períodos com 2+ voltas consecutivas lentas)
+  const countConsecutiveSafetyCarLaps = (validLaps, meanTime) => {
+    let consecutiveCount = 0;
+    let totalSafetyLaps = 0;
+    
+    validLaps.forEach(lap => {
+      if (lap.tempo_total > meanTime + 15) {
+        consecutiveCount++;
+      } else {
+        // Se tinha 2+ voltas consecutivas, conta como safety car
+        if (consecutiveCount > 1) {
+          totalSafetyLaps += consecutiveCount;
+        }
+        consecutiveCount = 0;
+      }
+    });
+    
+    // Verifica o último período
+    if (consecutiveCount > 1) {
+      totalSafetyLaps += consecutiveCount;
+    }
+    
+    return totalSafetyLaps;
+  };
+
   const processDriverData = (driver) => {
-    // Filtrar voltas válidas:
-    // 1. Todos os setores devem ser >= 15s
-    // 2. Setores devem ter exatamente 3 elementos (completos)
-    // 3. Soma dos setores deve corresponder ao tempo_total (tolerância de 0.1s)
+    if (!driver || !driver.voltas) return null;
+
+    // Filtrar voltas válidas
     const validLaps = driver.voltas.filter(lap => {
-      // Verificar se tem 3 setores
       if (!lap.setores || lap.setores.length !== 3) return false;
       
-      // Verificar se todos os setores são >= 15s
       const allSectorsValid = lap.setores.every(setor => setor >= 15);
       if (!allSectorsValid) return false;
       
-      // Verificar se a soma dos setores corresponde ao tempo_total
       const sectorsSum = lap.setores.reduce((a, b) => a + b, 0);
       const diff = Math.abs(sectorsSum - lap.tempo_total);
       return diff < 0.1;
@@ -76,8 +90,18 @@ const GPLaptimeAnalysis = () => {
     const meanTime = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
     const bestLap = Math.min(...lapTimes);
 
-    // Identificar stops (voltas com tempo > média + 10s)
-    const stops = validLaps.filter(lap => lap.tempo_total > meanTime + 10).length;
+    // Identificar pit stops (voltas isoladas muito lentas > média + 22s)
+    const pitStops = validLaps.filter((lap, idx) => {
+      const isSlow = lap.tempo_total > meanTime + 22;
+      const prevSlow = idx > 0 && validLaps[idx - 1].tempo_total > meanTime + 15;
+      const nextSlow = idx < validLaps.length - 1 && validLaps[idx + 1].tempo_total > meanTime + 15;
+      
+      // É pit stop se for lenta mas não tem voltas lentas adjacentes
+      return isSlow && !prevSlow && !nextSlow;
+    }).length;
+
+    // Identificar safety car (apenas períodos com 2+ voltas consecutivas lentas)
+    const safetyCarLaps = countConsecutiveSafetyCarLaps(validLaps, meanTime);
 
     return {
       nome: driver.nome,
@@ -88,7 +112,8 @@ const GPLaptimeAnalysis = () => {
       validLaps: validLaps,
       meanTime: meanTime,
       bestLap: bestLap,
-      stops: stops,
+      pitStops: pitStops,
+      safetyCarLaps: safetyCarLaps,
       totalLaps: driver.voltas.length,
       validLapsCount: validLaps.length
     };
@@ -96,7 +121,7 @@ const GPLaptimeAnalysis = () => {
 
   const processedDrivers = raceData
     .map(processDriverData)
-    .filter(d => d !== null && d.validLapsCount >= 30) // Apenas pilotos com 30+ voltas válidas
+    .filter(d => d !== null && d.validLapsCount >= 5) // Apenas pilotos com 5+ voltas válidas
     .sort((a, b) => {
       switch(sortBy) {
         case 'best':
@@ -159,7 +184,6 @@ const GPLaptimeAnalysis = () => {
   const allLapTimes = processedDrivers.flatMap(d => d.lapTimes);
   const minTime = Math.min(...allLapTimes);
   const maxTime = Math.max(...allLapTimes);
-  const timeRange = maxTime - minTime;
   const yMin = Math.floor((minTime - 2) / 5) * 5;
   const yMax = Math.ceil((maxTime + 2) / 5) * 5;
   const chartHeight = 500;
@@ -176,7 +200,7 @@ const GPLaptimeAnalysis = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold text-gray-800 mb-2">
-                2025 Mexico City GP 🇲🇽
+                Mexico GP 2025 🇲🇽
               </h1>
               <p className="text-gray-600">
                 Race pace ordered by {
@@ -335,7 +359,8 @@ const GPLaptimeAnalysis = () => {
                       {formatTime(driver.meanTime)}
                     </div>
                     <div className="text-[10px] text-gray-500">
-                      {driver.stops} stop{driver.stops !== 1 ? 's' : ''}
+                      {driver.pitStops} stop{driver.pitStops !== 1 ? 's' : ''}
+                      {driver.safetyCarLaps > 0 && ` | 🚩 ${driver.safetyCarLaps} SC`}
                     </div>
                   </div>
                 );
