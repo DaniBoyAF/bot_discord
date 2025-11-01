@@ -3,7 +3,7 @@ import json
 import random
 def gerar_cor_aleatoria():
     return "rgb({},{},{})".format(random.randint(0,255), random.randint(0,255), random.randint(0,255))
-def melhor_setor_gap(json_path, nome_arquivo_prefix="grafico_melhor_setor"):
+def melhor_setor_gap(json_path="dados_de_voltas.json", nome_arquivo_prefix="grafico_melhor_setor"):
     with open(json_path, "r", encoding="utf-8") as f:
         dados = json.load(f)
 

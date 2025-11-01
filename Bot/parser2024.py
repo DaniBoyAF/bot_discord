@@ -1089,7 +1089,7 @@ def atualizar_car_status(pacote_status):
         piloto = JOGADORES[idx]
         piloto.tyres = status.m_actual_tyre_compound
         piloto.tyresAgeLaps = status.m_tyres_age_laps
-        piloto.ERS_pourcentage = status.m_ERS_pourcentage
+       
         
 
 def atualizar_damage_data(pacote_danos):

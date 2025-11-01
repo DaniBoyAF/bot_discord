@@ -4,140 +4,200 @@
   <meta charset="UTF-8">
   <title>Painel F1</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background-color: #0d1117;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0a0e17 0%, #1a1f2e 100%);
       color: white;
-      margin: 20px;
+      padding: 20px;
+      min-height: 100vh;
     }
 
     h1 {
       text-align: center;
-      color: #ff3c00;
+      background: linear-gradient(90deg, #ff3c00, #ff6b00, #ff3c00);
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-size: 2.5em;
+      margin-bottom: 20px;
+      text-shadow: 0 0 30px rgba(255, 60, 0, 0.3);
+      animation: gradientShift 3s ease infinite;
+      letter-spacing: 2px;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
     }
 
     table {
       width: 90%;
-      margin: auto;
-      border-collapse: collapse;
-      background-color: #161b22;
-      border-radius: 10px;
+      max-width: 1200px;
+      margin: 80px auto 20px;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: linear-gradient(145deg, #1a1f2e, #141821);
+      border-radius: 15px;
       overflow: hidden;
-      box-shadow: 0 0 10px #000;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5),
+                  0 0 0 1px rgba(255, 255, 255, 0.1);
     }
 
     th, td {
-      padding: 12px;
+      padding: 16px;
       text-align: center;
-      border-bottom: 1px solid #30363d;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     th {
-      background-color: #21262d;
+      background: linear-gradient(135deg, #252b3a, #1e2330);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 0.85em;
+      color: #a8b2d1;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
-    tr:hover {
-      background-color: #1c1f26;
+    tbody tr {
+      transition: all 0.3s ease;
     }
-    .wet { color: #0051ffff; }
-    .int { color: #4cf509ff; }
-    .médio { color: #ffc400; }
-    .duro { color: #ffffff; }
-    .macio { color: #ff3c00; }
-    .SS {color: #cc00ffff }
+
+    tbody tr:hover {
+      background: linear-gradient(90deg, rgba(255, 60, 0, 0.1), rgba(255, 107, 0, 0.05));
+      transform: scale(1.01);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Cores dos pneus com brilho */
+    .wet { 
+      color: #0095ff;
+      text-shadow: 0 0 10px rgba(0, 149, 255, 0.5);
+      font-weight: 600;
+    }
+    .int { 
+      color: #4cf509;
+      text-shadow: 0 0 10px rgba(76, 245, 9, 0.5);
+      font-weight: 600;
+    }
+    .médio { 
+      color: #ffd700;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+      font-weight: 600;
+    }
+    .duro { 
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+      font-weight: 600;
+    }
+    .macio { 
+      color: #ff3c00;
+      text-shadow: 0 0 10px rgba(255, 60, 0, 0.5);
+      font-weight: 600;
+    }
+    .ss {
+      color: #cc00ff;
+      text-shadow: 0 0 10px rgba(204, 0, 255, 0.5);
+      font-weight: 600;
+    }
     
-    #clima-painel {
-    position: fixed;
-    top: 4px;
-    left: 10px;
-    background: rgba(121, 152, 201, 0.85);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    box-shadow: 0 0 8px black;
-    z-index: 999;
-  }
-   #clima-painel2 {
-    position: fixed;
-    top: 47px;
-    left: 10px;
-    background: rgba(121, 152, 201, 0.85);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    box-shadow: 0 0 8px black;
-    z-index: 999;
-  }
-  #clima-painel3 {
-    position: fixed;
-    top: 47px;
-    right: 10px;
-    background: rgba(121, 152, 201, 0.85);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    box-shadow: 0 0 8px black;
-    z-index: 999;
-  }
-   #clima-painel4 {
-    position: fixed;
-    top: 4px;
-    right: 10px;
-    background: rgba(121, 152, 201, 0.85);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    box-shadow: 0 0 8px black;
-    z-index: 999;
-  }
-  #nome_de_circuito-painel5 {
-    position: fixed;
-    top: 4px;
-    right: 170px;
-    background: rgba(46, 161, 190, 0.85);
-    color: white;
-    padding: 5px 30px;
-    border-radius: 8px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    box-shadow: 0 0 8px black;
-    z-index: 999;
-  }
-  #Umidade {
-   position: fixed;
-    top: 4px;
-    left: 185px;
-    background: rgba(46, 161, 190, 0.85);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 8px;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    box-shadow: 0 0 8px black;
-    z-index: 999;
-  }
-    #Flag {
-    position: fixed;
-      top: 47px;
-      left: 185px;
-       background: rgba(46, 161, 190, 0.85);
+    /* Painéis informativos */
+    .info-panel {
+      position: fixed;
+      background: linear-gradient(135deg, rgba(26, 31, 46, 0.95), rgba(20, 24, 33, 0.95));
+      backdrop-filter: blur(10px);
       color: white;
-      padding: 4px 12px;
-      border-radius: 8px;
-      font-family: Arial, sans-serif;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-family: 'Segoe UI', sans-serif;
       font-size: 14px;
-      box-shadow: 0 0 8px black;
+      font-weight: 500;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                  0 0 0 1px rgba(255, 255, 255, 0.1),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.1);
       z-index: 999;
+      transition: all 0.3s ease;
     }
-  
+
+    .info-panel:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5),
+                  0 0 0 1px rgba(255, 255, 255, 0.2);
+    }
+
+    #clima-painel { top: 10px; left: 10px; }
+    #clima-painel2 { top: 60px; left: 10px; }
+    #clima-painel3 { top: 60px; right: 10px; }
+    #clima-painel4 { 
+      top: 10px; 
+      right: 10px;
+      background: linear-gradient(135deg, rgba(255, 60, 0, 0.2), rgba(255, 107, 0, 0.1));
+      border: 1px solid rgba(255, 60, 0, 0.3);
+      font-weight: 700;
+      font-size: 16px;
+    }
+    #nome_de_circuito-painel5 { 
+      top: 10px; 
+      right: 200px;
+      background: linear-gradient(135deg, rgba(46, 161, 190, 0.3), rgba(31, 108, 128, 0.3));
+      padding: 10px 24px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    #Umidade { top: 10px; left: 200px; }
+    #Flag { 
+      top: 60px; 
+      left: 200px;
+      font-weight: 600;
+    }
+
+    /* Animação de entrada */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    tbody tr {
+      animation: fadeIn 0.5s ease;
+    }
+
+    /* Destaque para posição */
+    td:first-child {
+      font-weight: 700;
+      font-size: 1.1em;
+      color: #ff6b00;
+    }
+
+    /* Estilo para o número do piloto */
+    td:nth-child(2) {
+      font-weight: 600;
+      color: #a8b2d1;
+    }
+
+    /* Destaque para nome do piloto */
+    td:nth-child(3) {
+      font-weight: 600;
+      text-align: left;
+      padding-left: 30px;
+    }
   </style>
   <script>
 async function atualizar() {
@@ -146,19 +206,17 @@ async function atualizar() {
   const pilotos = dados.pilotos;
   const sessao = dados.sessao;
 
-  // Atualiza clima e temperaturas no painel fixo num_laps
   document.getElementById("clima-painel").textContent = `☁ Clima: ${sessao.clima}`;
   document.getElementById("clima-painel2").textContent = `🌡 Pista: ${sessao.temperatura_pista}°C`;
   document.getElementById("clima-painel3").textContent = `🌡 Ar: ${sessao.temperatura_ar}°C`;
-  document.getElementById("clima-painel4").textContent = `${sessao.num_laps}`;
-  document.getElementById("nome_de_circuito-painel5").textContent = `🗺 Track: ${sessao.nome_pista}`;
+  document.getElementById("clima-painel4").textContent = `🏁 ${sessao.num_laps}`;
+  document.getElementById("nome_de_circuito-painel5").textContent = `🗺 ${sessao.nome_pista}`;
   document.getElementById("Umidade").textContent = `🌧 PorRain: ${sessao.rain_porcentagem}%`;
-  document.getElementById("Flag").textContent = `🚩 Bandeira: ${sessao.flag_sessao}`;
-  // Atualiza tabela de pilotos
+  document.getElementById("Flag").textContent = `🚩 ${sessao.flag_sessao}`;
+
   const tbody = document.getElementById("tabela_pilotos");
   tbody.innerHTML = "";
-  pilotos.sort((a,b)=> a.position - b.position)
-  (p => {
+  pilotos.sort((a,b)=> a.position - b.position).forEach(p => {
     const linha = `
       <tr>
         <td>${p.position}</td>
@@ -176,14 +234,16 @@ setInterval(atualizar, 500);
   </script>
 </head>
 <body>
-  <h1>🔧 Painel Dinâmico - F1 🏎️</h1>
-  <div id="clima-painel">☁ Clima: Carregando...</div>
-  <div id="clima-painel2">🌡 Pista: Carregando...</div>
-  <div id="clima-painel3">🌡 Ar: Carregando...</div>
-  <div id="clima-painel4">Laps : Carregando...</div>
-  <div id="nome_de_circuito-painel5">🗺 Track: Carregando...</div>
-  <div id="Umidade">🌧 PorRain: Carregando...</div>
-  <div id="Flag">🚩 Bandeira: Carregando...</div>
+  <h1>🔧 Painel Dinâmico F1 🏎️</h1>
+  
+  <div id="clima-painel" class="info-panel">☁ Clima: Carregando...</div>
+  <div id="clima-painel2" class="info-panel">🌡 Pista: Carregando...</div>
+  <div id="clima-painel3" class="info-panel">🌡 Ar: Carregando...</div>
+  <div id="clima-painel4" class="info-panel">🏁 Carregando...</div>
+  <div id="nome_de_circuito-painel5" class="info-panel">🗺 Track: Carregando...</div>
+  <div id="Umidade" class="info-panel">🌧 PorRain: Carregando...</div>
+  <div id="Flag" class="info-panel">🚩 Bandeira: Carregando...</div>
+  
   <table>
     <thead>
       <tr>

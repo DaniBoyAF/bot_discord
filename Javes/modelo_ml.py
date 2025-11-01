@@ -15,7 +15,7 @@ def analisar_dados_auto():
         dano_data =json.load(f)
     with open("dados_telemetria.json","r", encoding="utf-8")as f:
         telemetria_data =json.load(f)
-    with open("dados_voltas.json","r", encoding="utf-8")as f:
+    with open("dados_de_voltas.json","r", encoding="utf-8")as f:
         voltas_data =json.load(f)
     with open("dados_da_SESSION.json","r",encoding="utf-8")as f:
       session_data =json.load(f)

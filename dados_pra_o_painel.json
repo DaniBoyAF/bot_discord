@@ -1,1 +1,128 @@
-[]
+[
+  {
+    "nome": "PDK_GANSO_JP_PB",
+    "numero": 12,
+    "position": 3,
+    "tyres": "Macio",
+    "tyresAgeLaps": 3,
+    "delta_to_leader": 3.823,
+    "num_laps": 36
+  },
+  {
+    "nome": "FIG kakajr08",
+    "numero": 8,
+    "position": 6,
+    "tyres": "Macio",
+    "tyresAgeLaps": 4,
+    "delta_to_leader": 11.915,
+    "num_laps": 36
+  },
+  {
+    "nome": "xBRFox",
+    "numero": 12,
+    "position": 11,
+    "tyres": "Duro",
+    "tyresAgeLaps": 18,
+    "delta_to_leader": 0.0,
+    "num_laps": 36
+  },
+  {
+    "nome": "JohnnyCitta",
+    "numero": 8,
+    "position": 9,
+    "tyres": "Macio",
+    "tyresAgeLaps": 2,
+    "delta_to_leader": 6.606,
+    "num_laps": 36
+  },
+  {
+    "nome": "S_pilgrim05",
+    "numero": 12,
+    "position": 10,
+    "tyres": "Duro",
+    "tyresAgeLaps": 12,
+    "delta_to_leader": 0.0,
+    "num_laps": 36
+  },
+  {
+    "nome": "Fig Marcos5449",
+    "numero": 28,
+    "position": 8,
+    "tyres": "Duro",
+    "tyresAgeLaps": 23,
+    "delta_to_leader": 6.106,
+    "num_laps": 36
+  },
+  {
+    "nome": "Lek2929",
+    "numero": 29,
+    "position": 4,
+    "tyres": "Macio",
+    "tyresAgeLaps": 3,
+    "delta_to_leader": 6.22,
+    "num_laps": 36
+  },
+  {
+    "nome": "FIG Philip",
+    "numero": 15,
+    "position": 1,
+    "tyres": "Duro",
+    "tyresAgeLaps": 23,
+    "delta_to_leader": 0.0,
+    "num_laps": 36
+  },
+  {
+    "nome": "Vitinhx10",
+    "numero": 5,
+    "position": 5,
+    "tyres": "Duro",
+    "tyresAgeLaps": 22,
+    "delta_to_leader": 9.242,
+    "num_laps": 36
+  },
+  {
+    "nome": "Rafaelj746",
+    "numero": 21,
+    "position": 2,
+    "tyres": "Médio",
+    "tyresAgeLaps": 23,
+    "delta_to_leader": 1.78,
+    "num_laps": 36
+  },
+  {
+    "nome": "FDT ADRIANO",
+    "numero": 87,
+    "position": 13,
+    "tyres": "Médio",
+    "tyresAgeLaps": 11,
+    "delta_to_leader": 0.0,
+    "num_laps": 36
+  },
+  {
+    "nome": "Mike-OutraaViiDa",
+    "numero": 5,
+    "position": 14,
+    "tyres": "Médio",
+    "tyresAgeLaps": 17,
+    "delta_to_leader": 0.0,
+    "num_laps": 36
+  },
+  {
+    "nome": "Pessoa",
+    "numero": 5,
+    "position": 12,
+    "tyres": "Duro",
+    "tyresAgeLaps": 11,
+    "delta_to_leader": 0.0,
+    "num_laps": 36
+  },
+  {
+    "nome": "LLsilveira",
+    "numero": 88,
+    "position": 7,
+    "tyres": "Macio",
+    "tyresAgeLaps": 4,
+    "delta_to_leader": 24.211,
+    "num_laps": 36
+  }
+]

@@ -8,7 +8,7 @@ async def comando_media(ctx):
         nome = jogador["nome"]
         voltas = jogador["voltas"]
         # Só considera voltas completas (3 setores preenchidos e > 0)
-        voltas_completas = [v for v in voltas if len(v.get("setores", [])) == 3 and all(s > 0 for s in v.get("setores", []))]
+        voltas_completas = [v for v in voltas if len(v.get("setores", [])) == 3 and all(s > 0 for s in v.get("setores", []))and v["setores"][0]>25 and v["setores"][1]>25 and v["setores"][2]>15]
         tempos = [v["tempo_total"] for v in voltas_completas if "tempo_total" in v]
         if tempos:
             medias[nome] = sum(tempos) / len(tempos)

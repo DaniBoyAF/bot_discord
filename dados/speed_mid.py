@@ -3,7 +3,7 @@ import random
 
 def gerar_cor_aleatoria():
     return "rgb({},{},{})".format(random.randint(0,255), random.randint(0,255), random.randint(0,255))
-def mostra_graficos_velocidade(jogadores, nome_arquivo="graficos_velocidade.png"):
+def mostra_graficos_velocidade(jogadores, nome_arquivo=""):
     nomes =[]
     velocidade=[]
     for j in jogadores:

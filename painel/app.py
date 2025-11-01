@@ -1,14 +1,21 @@
 from flask import Flask, render_template, jsonify
 import json
-app = Flask(__name__)
 
+app = Flask(__name__)
+#carregar pagina
 @app.route("/")
 def home():
     return render_template("painel.html")
-
 @app.route("/pnues")
 def pneus():
     return render_template("Tyre_hub.html")
+@app.route("/G1")
+def Graf():
+    return render_template("/graficos1.html")
+@app.route("/G2")
+def Graf2():
+    return render_template("/graficos2.html")
+#carregar json 
 @app.route("/dados_pneus")
 def dados_pneus():
     try:
@@ -53,3 +60,4 @@ def dados_completos():
 
     except Exception as e:
         return jsonify({"erro": str(e)})
+

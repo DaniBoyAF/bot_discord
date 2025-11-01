@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 import random
 def gerar_cor_aleatoria():
     return "rgb({},{},{})".format(random.randint(0,255), random.randint(0,255), random.randint(0,255))
-def gerar_boxplot(arquivos_json , nome_pista=""):
+def gerar_boxplot(arquivos_json="dados_de_voltas.json"):
     fig = go.Figure()
     pilotos = []
     melhores_voltas = []
@@ -69,5 +69,5 @@ def gerar_boxplot(arquivos_json , nome_pista=""):
         margin=dict(l=40, r=40, t=60, b=120),
         xaxis=dict(tickangle=0)
     )
-
+    
     fig.write_image("corrida.png")

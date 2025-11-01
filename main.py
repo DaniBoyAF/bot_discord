@@ -342,17 +342,17 @@ async def volta_salvar(bot):# pronto
                 continue
             # Pega tudo
             
-            todas_voltas = getattr(j, "todas_voltas", [])
+            todas_voltas = getattr(j, "todas_voltas_setores", [])
             Gas = getattr(j, "fuelRemainingLaps", 0)
             delta = getattr(j, "delta_to_leader", "—")
             num = getattr(j, 'numero', '--')
-            velocidade= [ v.get("trap_speed",0) for v in getattr(j, "voltas", [])]
-            velocidade_maxima=max(velocidade) if velocidade else 0
             rain_porcentagem = getattr(SESSION, "m_rain_percentage", 0)
             flag= color_flag_dict.get(getattr(SESSION, "m_flag", 0), "Desconhecida")
             SafetyCarStatus = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0),"Desconhecida")
+            maior_speed_geral=max(j.speed_trap for j in jogadores)
+            maior_speed = max(j.speed_trap) if isinstance(j.speed_trap, list) else j.speed_trap
 
-            
+
             # Salva os dados em um dicionário
             dados_dano.append({
                 "delta_to_leader": delta,
@@ -378,7 +378,6 @@ async def volta_salvar(bot):# pronto
                 "tyre_life":j.tyre_life,
                 "tyre_set_data":j.tyre_set_data,
                 "lap_delta_time ":j.m_lap_delta_time,
-                "ERS_pourcentage":j.ERS_pourcentage
             })
             # Salva no arquivo JSON
             dados_de_voltas.append({
@@ -408,7 +407,10 @@ async def volta_salvar(bot):# pronto
                 "tempo_pista":tempo_pista,
                 "rain_porcentagem": rain_porcentagem,
                 "safety_car_status": SafetyCarStatus,
-                "Sessao": sessao
+                "Sessao": sessao,
+                "flag": flag,
+                "maior_speed_geral":maior_speed_geral
+
 
 
             })
@@ -416,8 +418,8 @@ async def volta_salvar(bot):# pronto
                 "nome": j.name,
                 "numero": num ,
                 "position": j.position,
-                "speed": velocidade_maxima,
-                "flag": flag
+                "speed": maior_speed
+
             })
         with open("dados_telemetria.json","w",encoding="utf-8") as f:
             json.dump(dados_telemetria, f, indent=2, ensure_ascii=False)
@@ -437,7 +439,7 @@ async def volta_salvar(bot):# pronto
         with open("dados_da_SESSION.json","w",encoding="utf-8") as f:
             json.dump(dados_da_SESSION, f, indent=2, ensure_ascii=False)
 
-        await asyncio.sleep(0.1)  # Intervalo de atualização, ajuste conforme necessário
+        await asyncio.sleep(0.5)  # Intervalo de atualização, ajuste conforme necessário
 @bot.command()
 async def parar_salvar(ctx):#pronto
     global TEMPO_INICIO_VOLTAS
