@@ -9,12 +9,15 @@ def home():
 @app.route("/pnues")
 def pneus():
     return render_template("Tyre_hub.html")
-@app.route("/G1")
-def Graf():
-    return render_template("/graficos1.html")
-@app.route("/G2")
-def Graf2():
-    return render_template("/graficos2.html")
+@app.route("/graf")
+def grafico1():
+    return render_template("Media_lap.html")#certo
+@app.route("/g")
+def media_HD():
+    return render_template("Race_Pace.html")#certo
+@app.route("/pit")
+def pit():
+    return render_template("pit_stop.html")
 #carregar json 
 @app.route("/dados_pneus")
 def dados_pneus():

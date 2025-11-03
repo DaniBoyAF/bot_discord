@@ -8,13 +8,13 @@ import time
 import threading
 from comandos.pneusv import comando_pneusv
 from comandos.delta import comando_delta  # se o nome correto for esse
-from comandos.status import comando_status
 from Bot.parser2024 import start_udp_listener
 from comandos.clima import comando_clima
 from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
 from comandos.media import comando_media 
 from dados.voltas import gerar_boxplot
+from comandos.salvar import salvar
 
 from Javes.modelo_ml import analisar_dados_auto
 import json                   
@@ -116,8 +116,11 @@ async def comando(ctx: commands.Context):
     ".media_lap     - Mostra a média de tempo de volta dos pilotos\n"
     ".tabela         - Envia a tabela ao vivo dos pilotos\n"
     ".parartabela    - Para o envio automático da tabela\n"
+    "Web tudo pra baixou é na net\n"
     ".painel         - Faz um html sem deley grande\n "     
     ".pneusp         - Faz um html do pneus sem deley grande\n   "   
+    ".grafico_web    - Faz uma media e mostra de deferença\n "  
+    ".media_HD       - Faz uma media e mostra de deferença de outras forma\n "   
     "Use o comando '.comando' para ver a lista de comandos disponíveis.")
 @bot.command()
 async def sobre(ctx:commands.Context):
@@ -329,7 +332,7 @@ async def volta_salvar(bot):# pronto
         tempo_pista = getattr(SESSION, "m_track_temperature", 0)
         total_voltas = getattr(SESSION, "m_total_laps", 0)
         sessao = session_dictionary.get(getattr(SESSION,"m_session_type",0))
-
+        pit_quant={}
         dados_de_voltas = []
         dados_dos_pneus = []
         dados_dano = []
@@ -351,8 +354,10 @@ async def volta_salvar(bot):# pronto
             SafetyCarStatus = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0),"Desconhecida")
             maior_speed_geral=max(j.speed_trap for j in jogadores)
             maior_speed = max(j.speed_trap) if isinstance(j.speed_trap, list) else j.speed_trap
-
-
+            if j.name not in  pit_quant:
+                pit_quant[j.name] = 0
+            if j.pit:
+                pit_quant[j.name] += 1
             # Salva os dados em um dicionário
             dados_dano.append({
                 "delta_to_leader": delta,
@@ -397,7 +402,8 @@ async def volta_salvar(bot):# pronto
                 "tyres": tyres_nomes.get(j.tyres, 'Desconhecido'),
                 "tyresAgeLaps": j.tyresAgeLaps,
                 "delta_to_leader": delta,
-                "num_laps": total_voltas
+                "num_laps": total_voltas,
+                "pit_stop": pit_quant[j.name]
                 
 
             })
@@ -452,9 +458,6 @@ async def delta(ctx):
 async def pneusv(ctx,*, piloto: str = None):
     await comando_pneusv(ctx, piloto=piloto)
 @bot.command()
-async def status(ctx,*, piloto: str = None):
-     await comando_status(ctx, piloto=piloto)
-@bot.command()
 async def clima(ctx):#pronto
     await comando_clima(ctx)
 @bot.command()
@@ -467,7 +470,10 @@ async def danos(ctx, piloto: str = None):
 @bot.command()
 async def media_lap(ctx):
   await comando_media(ctx)
-
+@bot.command()
+async def salvar(ctx):
+    await salvar(ctx)
+#coisa HTTP e html pra baixo
 _cloudflared_proc = None
 url = None
 
@@ -563,17 +569,23 @@ async def pneusp(ctx):
         return
     await ctx.send(f"🔗 Painel dos pneus disponível em: {url}/pnues")
 @bot.command()
-async def grafico1(ctx):
+async def grafico_web(ctx):
     if not url:
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
-    await ctx.send(f"🔗 Painel dos pneus disponível em: {url}/Graf")
+    await ctx.send(f"🔗 Painel disponível em: {url}/graf")
 @bot.command()
-async def grafico2(ctx):
+async def media_HD(ctx):
     if not url:
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
-    await ctx.send(f"🔗 Painel dos pneus disponível em: {url}/Graf2")
+    await ctx.send(f"🔗 Painel disponível em: {url}/g")
+@bot.command()
+async def pit_stop(ctx):
+    if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+    await ctx.send(f"🔗 Painel disponível em: {url}/pit")
 if __name__ == "__main__":
     import threading
     from Bot.parser2024 import start_udp_listener

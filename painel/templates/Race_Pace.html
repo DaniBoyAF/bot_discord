@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GP Dashboard - Race Pace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #root { min-height: 100vh; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 2s linear infinite; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root">
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(to bottom right, #1f2937, #991b1b, #1f2937); color: white;">
+            <div style="text-align: center;">
+                <div style="font-size: 4rem; margin-bottom: 1rem;" class="animate-spin">🏎️</div>
+                <h2 style="font-size: 2rem; font-weight: bold;">Carregando Dashboard...</h2>
+            </div>
+        </div>
+    </div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+    {% raw %}
+    <script type="text/babel" data-type="module">
+        const { useState, useEffect } = React;
+        
+        const Trophy = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                <path d="M4 22h16"/>
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+            </svg>
+        );
+
+        const Zap = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+        );
+
+        const Flag = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                <line x1="4" y1="22" x2="4" y2="15"/>
+            </svg>
+        );
+
+        const Clock = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+        );
+
+        const GPDashboard = () => {
+            const [easterEggActive, setEasterEggActive] = useState(false);
+            const [keySequence, setKeySequence] = useState([]);
+            const [showSecret, setShowSecret] = useState(false);
+            const [raceData, setRaceData] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+            
+            const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight'];
+
+            useEffect(() => {
+                const fetchDados = async () => {
+                    try {
+                        const response = await fetch("/dados_completos");
+                        const dados = await response.json();
+                        
+                        if (dados.pilotos && Array.isArray(dados.pilotos)) {
+                            setRaceData(dados.pilotos);
+                        } else {
+                            setRaceData([]);
+                        }
+                    } catch (error) {
+                        console.error("Erro ao buscar dados:", error);
+                        setRaceData([]);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                };
+
+                fetchDados();
+            }, []);
+
+            const processRacerData = (racer) => {
+                if (!racer || !racer.voltas) return null;
+                
+                const validLaps = racer.voltas.filter(lap => {
+                    if (!lap.setores || lap.setores.length !== 3) return false;
+                    const allSectorsValid = lap.setores.every(setor => setor >= 15);
+                    if (!allSectorsValid) return false;
+                    const sectorsSum = lap.setores.reduce((a, b) => a + b, 0);
+                    const diff = Math.abs(sectorsSum - lap.tempo_total);
+                    return diff < 0.1;
+                });
+
+                if (validLaps.length === 0) return null;
+
+                const lapTimes = validLaps.map(lap => lap.tempo_total);
+                const avgTime = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
+                const bestLap = Math.min(...lapTimes);
+
+                return {
+                    nome: racer.nome,
+                    numero: racer.numero,
+                    position: racer.position,
+                    tyres: racer.tyres,
+                    bestLap: bestLap,
+                    avgTime: avgTime,
+                    color: `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`
+                };
+            };
+
+            const racers = raceData.map(processRacerData).filter(r => r !== null);
+
+            const calculateWeightedAvg = (racer) => {
+                return (racer.avgTime * 0.7 + racer.bestLap * 0.3).toFixed(3);
+            };
+
+            const sortedRacers = [...racers].sort((a, b) => 
+                parseFloat(calculateWeightedAvg(a)) - parseFloat(calculateWeightedAvg(b))
+            );
+
+            const formatTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = (seconds % 60).toFixed(3);
+                return `${mins}:${secs.padStart(6, '0')}`;
+            };
+
+            useEffect(() => {
+                const handleKeyPress = (e) => {
+                    const newSequence = [...keySequence, e.key].slice(-8);
+                    setKeySequence(newSequence);
+                    
+                    if (JSON.stringify(newSequence) === JSON.stringify(konamiCode)) {
+                        setEasterEggActive(true);
+                        setShowSecret(true);
+                        setTimeout(() => setShowSecret(false), 5000);
+                    }
+                };
+
+                window.addEventListener('keydown', handleKeyPress);
+                return () => window.removeEventListener('keydown', handleKeyPress);
+            }, [keySequence]);
+
+            if (isLoading) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-900 to-gray-900 flex items-center justify-center">
+                        <div className="text-center text-white">
+                            <div className="text-6xl mb-4 animate-bounce">🏎️</div>
+                            <h2 className="text-3xl font-bold">Carregando dados...</h2>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (sortedRacers.length === 0) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-900 to-gray-900 flex items-center justify-center">
+                        <div className="text-center text-white">
+                            <Flag className="mx-auto mb-4" size={64} />
+                            <h2 className="text-3xl font-bold mb-4">Aguardando dados da corrida</h2>
+                            <p className="text-xl text-gray-400">Verifique se os dados estão disponíveis</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            const maxWeighted = Math.max(...sortedRacers.map(r => parseFloat(calculateWeightedAvg(r))));
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-900 to-gray-900 p-4 md:p-8 relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-10">
+                        <div className="absolute inset-0" style={{
+                            backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,.05) 10px, rgba(255,255,255,.05) 20px)'
+                        }}/>
+                    </div>
+
+                    {showSecret && (
+                        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-80 animate-pulse">
+                            <div className="bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 p-8 rounded-lg text-center transform rotate-3 animate-bounce">
+                                <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">🏎️ BOX BOX BOX! 🏎️</h1>
+                                <p className="text-2xl md:text-3xl text-white mb-2">CÓDIGO KONAMI ATIVADO!</p>
+                                <p className="text-lg md:text-xl text-white">Você achou o Easter Egg! 🎉</p>
+                                <p className="text-base md:text-lg text-white mt-4">S🅱️innala! 🌀</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="relative z-10 max-w-7xl mx-auto">
+                        <div className="text-center mb-8 md:mb-12">
+                            <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 flex items-center justify-center gap-2 md:gap-4 flex-wrap">
+                                <Flag className="text-red-500" size={48} />
+                                <span>GP 2025 🇲🇽</span>
+                                <Flag className="text-green-500" size={48} />
+                            </h1>
+                            <p className="text-lg md:text-2xl text-gray-300">Race Pace (Média Ponderada: 70% avg + 30% best)</p>
+                            <p className="text-xs md:text-sm text-gray-400 mt-2">💡 Dica: Tente o código Konami... ↑↑↓↓←→←→</p>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 md:gap-4 mb-8 md:mb-12 max-w-4xl mx-auto">
+                            {[1, 0, 2].map((sortIdx) => {
+                                if (!sortedRacers[sortIdx]) return null;
+                                const racer = sortedRacers[sortIdx];
+                                const actualPosition = sortIdx;
+                                const heights = ['h-40 md:h-56', 'h-32 md:h-48', 'h-28 md:h-40'];
+                                const colors = [
+                                    'from-yellow-600 to-yellow-400',
+                                    'from-gray-600 to-gray-400', 
+                                    'from-orange-600 to-orange-400'
+                                ];
+                                
+                                return (
+                                    <div key={racer.nome} className="text-center">
+                                        <div className={`${heights[actualPosition]} bg-gradient-to-t ${colors[actualPosition]} rounded-t-lg flex items-center justify-center flex-col shadow-2xl transform hover:scale-105 transition-transform`}>
+                                            <Trophy size={32} className="text-white mb-1 md:mb-2 md:w-12 md:h-12" />
+                                            <span className="text-2xl md:text-4xl font-bold text-white">P{actualPosition + 1}</span>
+                                            <span className="text-sm md:text-xl font-semibold text-white mt-1 md:mt-2 px-1">{racer.nome}</span>
+                                            <span className="text-xs md:text-lg text-white">{formatTime(parseFloat(calculateWeightedAvg(racer)))}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="bg-gray-800 bg-opacity-90 rounded-lg p-4 md:p-8 shadow-2xl backdrop-blur-sm">
+                            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4 md:mb-6 flex items-center gap-2">
+                                <Zap className="text-yellow-400" />
+                                Ritmo de Corrida
+                            </h2>
+                            
+                            <div className="space-y-2 md:space-y-3">
+                                {sortedRacers.map((racer, idx) => {
+                                    const weighted = parseFloat(calculateWeightedAvg(racer));
+                                    const leaderTime = parseFloat(calculateWeightedAvg(sortedRacers[0]));
+                                    const diff = weighted - leaderTime;
+                                    const barWidth = (weighted / maxWeighted) * 100;
+                                    
+                                    return (
+                                        <div key={racer.nome} className="group">
+                                            <div className="flex items-center gap-2 md:gap-3 mb-1 text-xs md:text-base">
+                                                <span className="font-bold text-white w-6 md:w-8">{idx + 1}.</span>
+                                                <span className="text-white font-semibold flex-1 truncate">{racer.nome}</span>
+                                                <span className="text-gray-400">#{racer.numero}</span>
+                                                <span className="px-2 py-1 bg-gray-700 rounded text-white text-xs">{racer.tyres}</span>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2 md:gap-3 ml-7 md:ml-11">
+                                                <div className="flex-1 bg-gray-700 rounded-full h-6 md:h-8 relative overflow-hidden">
+                                                    <div 
+                                                        className="h-full rounded-full transition-all duration-1000 flex items-center justify-end pr-2 md:pr-3 group-hover:brightness-125"
+                                                        style={{
+                                                            width: `${barWidth}%`,
+                                                            background: `linear-gradient(to right, ${racer.color}, ${racer.color}dd)`
+                                                        }}
+                                                    >
+                                                        <span className="text-white font-bold text-xs md:text-sm">{formatTime(weighted)}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2 md:gap-3 text-xs md:text-sm min-w-[120px] md:min-w-[180px]">
+                                                    <span className={`font-semibold w-12 md:w-16 ${idx === 0 ? 'text-green-400' : 'text-yellow-400'}`}>
+                                                        {idx === 0 ? '—' : `+${diff.toFixed(3)}`}
+                                                    </span>
+                                                    <div className="flex items-center gap-1 text-gray-400 text-xs">
+                                                        <Clock size={10} className="md:w-3 md:h-3" />
+                                                        <span className="hidden md:inline">Best: {formatTime(racer.bestLap)}</span>
+                                                        <span className="md:hidden">{formatTime(racer.bestLap)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="mt-6 md:mt-8 grid grid-cols-3 gap-2 md:gap-4 text-center">
+                            <div className="bg-gray-800 bg-opacity-90 p-3 md:p-4 rounded-lg">
+                                <p className="text-gray-400 text-xs md:text-sm">Mais Rápido</p>
+                                <p className="text-lg md:text-2xl font-bold text-green-400 truncate">{sortedRacers[0]?.nome}</p>
+                            </div>
+                            <div className="bg-gray-800 bg-opacity-90 p-3 md:p-4 rounded-lg">
+                                <p className="text-gray-400 text-xs md:text-sm">Total de Pilotos</p>
+                                <p className="text-lg md:text-2xl font-bold text-blue-400">{racers.length}</p>
+                            </div>
+                            <div className="bg-gray-800 bg-opacity-90 p-3 md:p-4 rounded-lg">
+                                <p className="text-gray-400 text-xs md:text-sm">Melhor Volta</p>
+                                <p className="text-lg md:text-2xl font-bold text-yellow-400">
+                                    {racers.length > 0 ? formatTime(Math.min(...racers.map(r => r.bestLap))) : '-'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {easterEggActive && (
+                            <div className="mt-6 md:mt-8 text-center">
+                                <p className="text-green-400 text-base md:text-xl animate-pulse">
+                                    🏆 Achievement Unlocked: Racing Fan Supreme! 🏆
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', renderApp);
+        } else {
+            renderApp();
+        }
+
+        function renderApp() {
+            const rootElement = document.getElementById('root');
+            if (rootElement) {
+                const root = ReactDOM.createRoot(rootElement);
+                root.render(<GPDashboard />);
+            }
+        }
+    </script>
+    {% endraw %}
+</body>
+</html>

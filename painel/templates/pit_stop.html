@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Pit Stops - Pirelli Style</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #0a1628;
+            font-family: 'Formula1', Arial, sans-serif;
+        }
+        .stripe-pattern {
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 2px,
+                rgba(255,255,255,0.1) 2px,
+                rgba(255,255,255,0.1) 4px
+            );
+        }
+        .pirelli-logo {
+            background: linear-gradient(90deg, #ffd700 0%, #ffed4e 100%);
+            color: #e30613;
+            font-weight: 900;
+            padding: 8px 20px;
+            border-radius: 4px;
+            display: inline-block;
+            letter-spacing: 2px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .driver-row {
+            animation: fadeIn 0.5s ease forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; color: white;">
+            <div style="text-align: center;">
+                <div style="font-size: 4rem; margin-bottom: 1rem; animation: spin 2s linear infinite;">🏎️</div>
+                <h2 style="font-size: 2rem; font-weight: bold;">Carregando Pit Stops...</h2>
+            </div>
+        </div>
+    </div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+    {% raw %}
+    <script type="text/babel" data-type="module">
+        const { useState, useEffect } = React;
+
+        const TyreIcon = ({ compound }) => {
+            const colors = {
+                'HARD': '#ffffff',
+                'MEDIUM': '#ffd700',
+                'SOFT': '#ff1744',
+                'INTERMEDIATE': '#4caf50',
+                'WET': '#2196f3',
+                'DESCONHECIDO': '#999999'
+            };
+
+            return (
+                <svg width="40" height="40" viewBox="0 0 40 40">
+                    <circle cx="20" cy="20" r="18" fill="#1a1a1a" stroke="#444" strokeWidth="1"/>
+                    <circle cx="20" cy="20" r="12" fill="#e0e0e0"/>
+                    <path d="M 20,2 A 18,18 0 0,1 32,12" fill="none" stroke={colors[compound] || '#fff'} strokeWidth="4" strokeLinecap="round"/>
+                    <path d="M 8,28 A 18,18 0 0,1 2,20" fill="none" stroke={colors[compound] || '#fff'} strokeWidth="4" strokeLinecap="round"/>
+                </svg>
+            );
+        };
+
+        const PitStopsChart = () => {
+            const [driversData, setDriversData] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+            const [totalPitStops, setTotalPitStops] = useState(0);
+
+            useEffect(() => {
+                fetchData();
+                const interval = setInterval(fetchData, 500); // Atualiza a cada 500ms
+                return () => clearInterval(interval);
+            }, []);
+
+            const fetchData = async () => {
+                try {
+                    const response = await fetch('/dados_pra_o_painel');
+                    const data = await response.json();
+                    
+                    if (data.pilotos && Array.isArray(data.pilotos)) {
+                        processDriverData(data.pilotos);
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar dados:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const processDriverData = (pilotos) => {
+                const processed = pilotos
+                    .map((pilot) => {
+                        const pitStops = [];
+                        const pitCount = pilot.pit_count || 0;
+
+                        // Usa o tipo de pneu real do JSON
+                        const compound = pilot.tyres ? pilot.tyres.toUpperCase() : "DESCONHECIDO";
+
+                        // Calcula o tamanho de cada stint baseado no número de pit stops
+                        const totalLaps = pilot.num_laps || 0;
+                        const stintLength = pitCount > 0 ? Math.floor(totalLaps / (pitCount + 1)) : totalLaps;
+
+                        for (let i = 0; i <= pitCount; i++) {
+                            pitStops.push({
+                                lap: i + 1,
+                                length: i === pitCount ? totalLaps - (stintLength * i) : stintLength, // Último stint pega as voltas restantes
+                                compound: compound,
+                                isUsed: i < pitCount // Todos menos o último são usados
+                            });
+                        }
+
+                        return {
+                            nome: pilot.nome,
+                            numero: pilot.numero,
+                            position: pilot.position,
+                            pit_stop: pitStops,
+                            totalLaps: totalLaps,
+                            tyres: compound,
+                            tyresAgeLaps: tyresAgeLaps,
+                        };
+                    })
+                    .sort((a, b) => a.position - b.position);
+
+                const total = processed.reduce((sum, d) => sum + Math.max(0, d.pitStops.length - 1), 0);
+
+                setTotalPitStops(total);
+                setDriversData(processed);
+            };
+
+            if (isLoading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1628' }}>
+                        <div className="text-center text-white">
+                            <div className="text-6xl mb-4 animate-bounce">🏎️</div>
+                            <h2 className="text-3xl font-bold">Carregando Pit Stops...</h2>
+                        </div>
+                    </div>
+                );
+            }
+
+            const maxLaps = Math.max(...driversData.map(d => d.totalLaps), 57);
+
+            return (
+                <div className="min-h-screen p-4 md:p-8" style={{ background: '#0a1628' }}>
+                    <div className="max-w-7xl mx-auto">
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
+                            <div className="flex items-center gap-4">
+                                <img src="https://www.formula1.com/etc/designs/fom-website/images/f1_logo.svg" alt="F1" className="h-12" style={{ filter: 'brightness(0) invert(1)' }}/>
+                                <div className="pirelli-logo">PIRELLI</div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-gray-400 text-sm uppercase tracking-wider">Formula 1 Grand Prix</div>
+                                <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight">PIT STOPS</h1>
+                            </div>
+                        </div>
+
+                        {/* Total Pit Stops */}
+                        <div className="text-right mb-8">
+                            <div className="text-gray-400 text-sm uppercase">Total Pit Stops</div>
+                            <div className="text-6xl font-bold text-red-600">{totalPitStops}</div>
+                        </div>
+
+                        {/* Tyre Legend */}
+                        <div className="flex justify-end gap-6 mb-6 flex-wrap">
+                            <div className="flex items-center gap-2">
+                                <TyreIcon compound="HARD" />
+                                <span className="text-white font-bold text-sm">HARD</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <TyreIcon compound="MEDIUM" />
+                                <span className="text-white font-bold text-sm">MEDIUM</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <TyreIcon compound="SOFT" />
+                                <span className="text-white font-bold text-sm">SOFT</span>
+                            </div>
+                        </div>
+
+                        {/* Drivers Chart */}
+                        <div className="space-y-2">
+                            {driversData.map((driver, idx) => {
+                                return (
+                                    <div key={driver.name} className="driver-row" style={{ animationDelay: `${idx * 0.05}s` }}>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <div className="text-white font-bold text-sm w-32 uppercase truncate">
+                                                {driver.name}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-6 relative" style={{ background: '#1a2332' }}>
+                                                {driver.pitStops.map((stint, stintIdx) => {
+                                                    const widthPercent = (stint.length / maxLaps) * 100;
+                                                    const colors = {
+                                                        'HARD': '#ffffff',
+                                                        'MEDIUM': '#ffd700',
+                                                        'SOFT': '#ff1744',
+                                                        'INTERMEDIATE': '#4caf50',
+                                                        'WET': '#2196f3',
+                                                        'DESCONHECIDO': '#999999'
+                                                    };
+                                                    
+                                                    const leftPosition = (driver.pitStops.slice(0, stintIdx).reduce((sum, s) => sum + s.length, 0) / maxLaps) * 100;
+                                                    
+                                                    return (
+                                                        <div
+                                                            key={stintIdx}
+                                                            className={`absolute h-full ${stint.isUsed ? 'stripe-pattern' : ''}`}
+                                                            style={{
+                                                                left: `${leftPosition}%`,
+                                                                width: `${widthPercent}%`,
+                                                                background: colors[stint.compound] || '#fff',
+                                                                borderRight: stintIdx < driver.pitStops.length - 1 ? '2px solid #0a1628' : 'none',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                color: stint.compound === 'MEDIUM' ? '#000' : '#fff',
+                                                                fontWeight: 'bold',
+                                                                fontSize: '11px'
+                                                            }}
+                                                            title={`Stint ${stintIdx + 1}: ${stint.length} voltas - ${stint.compound} ${stint.isUsed ? 'USADO' : 'NOVO'}`}
+                                                        >
+                                                            {stint.length > 5 && stint.length}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            
+                                            <div className="text-white font-bold text-sm w-8 text-right">
+                                                {driver.totalLaps}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Legend */}
+                        <div className="mt-8 flex items-center justify-between text-xs text-gray-400 flex-wrap gap-4">
+                            <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-4 stripe-pattern" style={{ background: '#ff1744' }}></div>
+                                    <span>USED</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-4" style={{ background: '#ff1744' }}></div>
+                                    <span>NEW</span>
+                                </div>
+                            </div>
+                            <div>Copyright © Pirelli 2024. Rights free for media use.</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', renderApp);
+        } else {
+            renderApp();
+        }
+
+        function renderApp() {
+            const rootElement = document.getElementById('root');
+            if (rootElement) {
+                const root = ReactDOM.createRoot(rootElement);
+                root.render(<PitStopsChart />);
+            }
+        }
+    </script>
+    {% endraw %}
+</body>
+</html>
