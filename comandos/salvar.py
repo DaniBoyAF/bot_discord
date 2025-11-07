@@ -1,35 +1,42 @@
-import sys
+import json
 import os
 import time
-import json
+from datetime import datetime
+
 async def salvar(ctx):
-   texto="salvos com sucesso!"
-   try:
-     with open("dados_dos_pneus.json", "r", encoding="utf-8") as f:
-       pneu_data = json.load(f)
-     with open("dados_dano.json", "r", encoding="utf-8")as f:
-        dano_data =json.load(f)
-     with open("dados_telemetria.json","r", encoding="utf-8")as f:
-        telemetria_data =json.load(f)
-     with open("dados_de_voltas.json","r", encoding="utf-8")as f:
-        voltas_data =json.load(f)
-     with open("dados_da_SESSION.json","r",encoding="utf-8")as f:
-      session_data =json.load(f)
-     with open("dados_pra_o_painel.json","r",encoding="utf-8")as f:
-      painel_data =json.load(f)
-     dados_completos ={
-      "pneus": pneu_data,
-      "dano": dano_data,
-      "telemetria": telemetria_data,
-       "voltas": voltas_data,
-      "session": session_data,
-      "painel": painel_data
-     }
-     with open("dados_Zip.json", "w", encoding="utf-8") as f:
-        json.dump(dados_completos, f, indent=2, ensure_ascii=False)
-     await ctx.send(texto)
-   except json.JSONDecodeError as e:
-        return f"❌ Erro ao ler arquivos JSON: {e}"
-   except Exception as e:
-        return f"⚠️ Erro inesperado: {e}"
-  
+    try:
+        # 📁 Cria pasta "salvamentos" se ainda não existir
+        pasta_salvamentos = "salvamentos"
+        os.makedirs(pasta_salvamentos, exist_ok=True)
+
+        # 🕒 Nome com data/hora para evitar sobrescrita
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # 🗂️ Lista de arquivos a salvar
+        arquivos = [
+            "dados_dos_pneus.json",
+            "dados_dano.json",
+            "dados_telemetria.json",
+            "dados_de_voltas.json",
+            "dados_da_SESSION.json",
+            "dados_pra_o_painel.json"
+        ]
+
+        # 🧠 Salva cópia de cada um
+        for nome_arquivo in arquivos:
+            if os.path.exists(nome_arquivo):
+                with open(nome_arquivo, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+
+                novo_nome = f"{pasta_salvamentos}/salvamento_{timestamp}_{nome_arquivo}"
+                with open(novo_nome, "w", encoding="utf-8") as f:
+                    json.dump(dados, f, indent=2, ensure_ascii=False)
+            else:
+                await ctx.send(f"⚠️ Arquivo não encontrado: {nome_arquivo}")
+
+        await ctx.send("✅ Todos os dados foram salvos com sucesso!")
+
+    except json.JSONDecodeError as e:
+        await ctx.send(f"❌ Erro ao ler arquivos JSON: {e}")
+    except Exception as e:
+        await ctx.send(f"⚠️ Erro inesperado: {e}")

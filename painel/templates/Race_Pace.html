@@ -59,7 +59,7 @@
                 <polyline points="12 6 12 12 16 14"/>
             </svg>
         );
-
+        
         const GPDashboard = () => {
             const [easterEggActive, setEasterEggActive] = useState(false);
             const [keySequence, setKeySequence] = useState([]);
@@ -72,7 +72,7 @@
             useEffect(() => {
                 const fetchDados = async () => {
                     try {
-                        const response = await fetch("/dados_completos");
+                        const response = await fetch("/dados_pra_o_painel");
                         const dados = await response.json();
                         
                         if (dados.pilotos && Array.isArray(dados.pilotos)) {
@@ -93,7 +93,7 @@
 
             const processRacerData = (racer) => {
                 if (!racer || !racer.voltas) return null;
-                
+                .filter(d => d !== null && d.validLapsCount >= 12)
                 const validLaps = racer.voltas.filter(lap => {
                     if (!lap.setores || lap.setores.length !== 3) return false;
                     const allSectorsValid = lap.setores.every(setor => setor >= 15);

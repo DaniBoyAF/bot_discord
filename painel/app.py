@@ -64,3 +64,11 @@ def dados_completos():
     except Exception as e:
         return jsonify({"erro": str(e)})
 
+@app.route("/dados_pra_o_painel")
+def dados_painel():
+    try:
+        with open("dados_pra_o_painel.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"erro": str(e)})

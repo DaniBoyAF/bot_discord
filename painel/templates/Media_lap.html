@@ -52,7 +52,7 @@
             useEffect(() => {
                 const fetchDados = async () => {
                     try {
-                        const response = await fetch("/dados_completos");
+                        const response = await fetch("/dados_de_voltas");
                         const dados = await response.json();
                         
                         if (dados.pilotos && Array.isArray(dados.pilotos)) {
@@ -126,14 +126,7 @@
                 const lapTimes = validLaps.map(lap => lap.tempo_total);
                 const meanTime = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
                 const bestLap = Math.min(...lapTimes);
-
-                const pitStops = validLaps.filter((lap, idx) => {
-                    const isSlow = lap.tempo_total > meanTime + 22;
-                    const prevSlow = idx > 0 && validLaps[idx - 1].tempo_total > meanTime + 15;
-                    const nextSlow = idx < validLaps.length - 1 && validLaps[idx + 1].tempo_total > meanTime + 15;
-                    return isSlow && !prevSlow && !nextSlow;
-                }).length;
-
+                const pitStops = driver.pit_stop || 0;
                 const safetyCarLaps = countConsecutiveSafetyCarLaps(validLaps, meanTime);
 
                 return {
@@ -152,7 +145,7 @@
 
             const processedDrivers = raceData
                 .map(processDriverData)
-                .filter(d => d !== null && d.validLapsCount >= 5)
+                .filter(d => d !== null && d.validLapsCount >= 30)
                 .sort((a, b) => {
                     switch(sortBy) {
                         case 'best': return a.bestLap - b.bestLap;

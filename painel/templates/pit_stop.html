@@ -82,7 +82,7 @@
 
             useEffect(() => {
                 fetchData();
-                const interval = setInterval(fetchData, 500); // Atualiza a cada 500ms
+                const interval = setInterval(fetchData, 500);
                 return () => clearInterval(interval);
             }, []);
 
@@ -91,8 +91,12 @@
                     const response = await fetch('/dados_pra_o_painel');
                     const data = await response.json();
                     
-                    if (data.pilotos && Array.isArray(data.pilotos)) {
-                        processDriverData(data.pilotos);
+                    console.log('Dados recebidos:', data); // ✅ DEBUG
+                    
+                    if (Array.isArray(data)) {
+                        processDriverData(data);
+                    } else {
+                        console.error('Formato inesperado:', data);
                     }
                 } catch (error) {
                     console.error('Erro ao carregar dados:', error);
@@ -106,36 +110,34 @@
                     .map((pilot) => {
                         const pitStops = [];
                         const pitCount = pilot.pit_count || 0;
-
-                        // Usa o tipo de pneu real do JSON
-                        const compound = pilot.tyres ? pilot.tyres.toUpperCase() : "DESCONHECIDO";
-
-                        // Calcula o tamanho de cada stint baseado no número de pit stops
+                        const compound = pilot.tyres ? pilot.tyres.toUpperCase() : "MEDIUM";
                         const totalLaps = pilot.num_laps || 0;
                         const stintLength = pitCount > 0 ? Math.floor(totalLaps / (pitCount + 1)) : totalLaps;
 
                         for (let i = 0; i <= pitCount; i++) {
                             pitStops.push({
                                 lap: i + 1,
-                                length: i === pitCount ? totalLaps - (stintLength * i) : stintLength, // Último stint pega as voltas restantes
+                                length: i === pitCount ? totalLaps - (stintLength * i) : stintLength,
                                 compound: compound,
-                                isUsed: i < pitCount // Todos menos o último são usados
+                                isUsed: i < pitCount
                             });
                         }
 
                         return {
-                            nome: pilot.nome,
-                            numero: pilot.numero,
+                            name: pilot.nome,
+                            number: pilot.numero,
                             position: pilot.position,
-                            pit_stop: pitStops,
+                            pitStops: pitStops,
                             totalLaps: totalLaps,
-                            tyres: compound,
-                            tyresAgeLaps: tyresAgeLaps,
+                            currentTyre: compound,
                         };
                     })
                     .sort((a, b) => a.position - b.position);
 
                 const total = processed.reduce((sum, d) => sum + Math.max(0, d.pitStops.length - 1), 0);
+
+                console.log('Dados processados:', processed); // ✅ DEBUG
+                console.log('Total pit stops:', total); // ✅ DEBUG
 
                 setTotalPitStops(total);
                 setDriversData(processed);
@@ -152,13 +154,24 @@
                 );
             }
 
-            const maxLaps = Math.max(...driversData.map(d => d.totalLaps), 57);
+            if (driversData.length === 0) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1628' }}>
+                        <div className="text-center text-white">
+                            <div className="text-6xl mb-4">⚠️</div>
+                            <h2 className="text-3xl font-bold mb-4">Sem dados disponíveis</h2>
+                            <p className="text-gray-400">Verifique se o arquivo JSON existe e está no formato correto</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            const maxLaps = Math.max(...driversData.map(d => d.totalLaps);
 
             return (
-                <div className="min-h-screen p-4 md:p-8" style={{ background: '#0a1628' }}>
+               <div className="min-h-screen p-4 md:p-8" style={{ background: '#0a1628' }}>
                     <div className="max-w-7xl mx-auto">
-                        {/* Header */}
-                        <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
+                        <div className="fl ex items-start justify-between mb-6 flex-wrap gap-4">
                             <div className="flex items-center gap-4">
                                 <img src="https://www.formula1.com/etc/designs/fom-website/images/f1_logo.svg" alt="F1" className="h-12" style={{ filter: 'brightness(0) invert(1)' }}/>
                                 <div className="pirelli-logo">PIRELLI</div>
@@ -169,13 +182,11 @@
                             </div>
                         </div>
 
-                        {/* Total Pit Stops */}
                         <div className="text-right mb-8">
                             <div className="text-gray-400 text-sm uppercase">Total Pit Stops</div>
                             <div className="text-6xl font-bold text-red-600">{totalPitStops}</div>
                         </div>
 
-                        {/* Tyre Legend */}
                         <div className="flex justify-end gap-6 mb-6 flex-wrap">
                             <div className="flex items-center gap-2">
                                 <TyreIcon compound="HARD" />
@@ -189,9 +200,12 @@
                                 <TyreIcon compound="SOFT" />
                                 <span className="text-white font-bold text-sm">SOFT</span>
                             </div>
+                            <div className="flex items-center gap-2">
+                                <TyreIcon compound="SS" />
+                                <span className="text-white font-bold text-sm">SS</span>
+                            </div>
                         </div>
 
-                        {/* Drivers Chart */}
                         <div className="space-y-2">
                             {driversData.map((driver, idx) => {
                                 return (
@@ -210,6 +224,7 @@
                                                         'HARD': '#ffffff',
                                                         'MEDIUM': '#ffd700',
                                                         'SOFT': '#ff1744',
+                                                        'SUPER SOFT': '#9306f1ff';
                                                         'INTERMEDIATE': '#4caf50',
                                                         'WET': '#2196f3',
                                                         'DESCONHECIDO': '#999999'
@@ -250,7 +265,6 @@
                             })}
                         </div>
 
-                        {/* Legend */}
                         <div className="mt-8 flex items-center justify-between text-xs text-gray-400 flex-wrap gap-4">
                             <div className="flex items-center gap-6">
                                 <div className="flex items-center gap-2">
