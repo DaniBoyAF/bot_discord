@@ -18,8 +18,11 @@ class WeatherForecastSample:
         return f"{self.time}m : {weather_dictionary[self.weather]}, Track : {self.trackTemp}°C, " \
                f"Air : {self.airTemp}°C, Humidity : {self.rainPercentage}% "
 
+
 class Session:
     def __init__(self):
+        self.m_track_id = -1
+        self.m_track_name = "Desconhecida"
         self.airTemperature = 0
         self.trackTemperature = 0
         self.nbLaps = 0
@@ -70,7 +73,7 @@ class Session:
         for i in range(len(self.segments)):
             map_canvas.itemconfig(self.segments[i], fill=color_flag_dict[self.marshalZones[i].m_zone_flag])
 
-
+SESSION = Session()
 class SessionData:
     def __init__(self):
         self.Seance = 0
@@ -84,7 +87,6 @@ class SessionData:
         self.Finished = False
         self.anyYellow = False
         self.rainPercentage = 0
-        
 
     def atualizar(self, packet):
         self.Seance = packet.m_session_type
@@ -94,6 +96,56 @@ class SessionData:
         self.m_total_laps = packet.m_total_laps
         self.rainPercentage = getattr(packet, "m_rain_percentage", 0)
         self.track = packet.m_track_id
-SESSION = SessionData()
+
+    def get_track_name(self, track_id):
+        tracks = {
+            0: "Melbourne",
+            1: "Paul Ricard",
+            2: "Shanghai",
+            3: "Sakhir (Bahrain)",
+            4: "Catalunya",
+            5: "Monaco",
+            6: "Montreal",
+            7: "Silverstone",
+            8: "Hockenheim",
+            9: "Hungaroring",
+            10: "Spa",
+            11: "Monza",
+            12: "Singapore",
+            13: "Suzuka",
+            14: "Abu Dhabi",
+            15: "Texas",
+            16: "Brazil",
+            17: "Austria",
+            18: "Sochi",
+            19: "Mexico",
+            20: "Baku (Azerbaijan)",
+            21: "Sakhir Short",
+            22: "Silverstone Short",
+            23: "Texas Short",
+            24: "Suzuka Short",
+            25: "Hanoi",
+            26: "Zandvoort",
+            27: "Imola",
+            28: "Portimão",
+            29: "Jeddah",
+            30: "Miami",
+            31: "Las Vegas",
+            32: "Losail (Qatar)",
+        }
+        return tracks.get(track_id, "Unknown Track")
+
+
+def atualizar_SessionData(pacote_session):
+    from Bot.Session import SESSION
+    SESSION.atualizar(pacote_session)
+    
+    track_id = pacote_session.m_track_id
+    nome_pista = SESSION.get_track_name(track_id)
+    
+    print(f"🏁 Pista: {nome_pista} (ID: {track_id})")
+    
+    # Salva na sessão
+    SESSION.m_track_name = nome_pista
 
 

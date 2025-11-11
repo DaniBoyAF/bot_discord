@@ -1,6 +1,7 @@
 import ctypes
 import socket
 import pprint
+from time import time
 
 pp = pprint.PrettyPrinter()
 
@@ -998,25 +999,62 @@ def start_udp_listener():
                 corrida_finalizada = True
 
 def atualizar_SessionData(pacote_session):
-    from Bot.Session import SESSION  # garantir que SESSION está correto
+    from Bot.Session import SESSION 
+    from utils.dictionnaries import (
+        color_flag_dict, 
+        safetyCarStatusDict, 
+        session_dictionary,
+        weather_dictionary
+    )
+    
+    # Atualiza sessão
     SESSION.atualizar(pacote_session)
-    currentLap = getattr(pacote_session, "m_currentLap", 0)
+    
+    # 📊 Dados básicos da sessão
+    currentLap = getattr(pacote_session, "m_current_lap_num", 0)
     clima = getattr(pacote_session, "m_weather", 0)
     air_temperature = getattr(pacote_session, "m_air_temperature", 0.0)
     track_temperature = getattr(pacote_session, "m_track_temperature", 0.0)
     total_laps = getattr(pacote_session, "m_total_laps", 0)
     track_id = getattr(pacote_session, "m_track_id", 0)
-    nome_pista = session.get_track_name(track_id)
-    marshalZone = getattr(pacote_session, "m_marshal_zones", [])
-    zone_start = getattr(pacote_session, "m_zone_start", [])
-    zone_flag = getattr(pacote_session, "m_zone_flag", [])
-    num_zones = getattr(pacote_session, "m_num_marshal_zones", 0)
-    zone_drs = getattr(pacote_session, "m_drs_zones", [])
-    rainPercentage = getattr(pacote_session, "m_rain_percentage", 0)
-    SafetyCarStatus = getattr(pacote_session, "m_safety_car_status", 0)
-    Seance = getattr(pacote_session, "m_session_type", 0)
     
-
+    # 🏁 Nome da pista
+    nome_pista = SESSION.get_track_name(track_id)
+    SESSION.track_name = nome_pista
+    
+    # 🌧️ Porcentagem de chuva (previsto)
+    if pacote_session.m_num_weather_forecast_samples > 0:
+        forecast = pacote_session.m_weather_forecast_samples[0]
+        rain_percent = forecast.m_rain_percentage
+    else:
+        rain_percent = 0
+    SESSION.rainPercentage = rain_percent
+    
+    # 🏁 Bandeira (pega da primeira zona de comissários)
+    if pacote_session.m_num_marshal_zones > 0:
+        flag = pacote_session.m_marshal_zones[0].m_zone_flag
+        flag_nome = color_flag_dict.get(flag, "Verde")
+    else:
+        flag_nome = "Verde"
+    SESSION.flag = flag_nome  # ← CORRIGIDO (estava "flag_nom")
+    
+    # 🚗 Safety Car Status
+    safety_status = getattr(pacote_session, "m_safety_car_status", 0)
+    SESSION.SafetyCarStatus = safetyCarStatusDict.get(safety_status, "Nenhum")
+    
+    # 🏎️ Tipo de Sessão
+    session_type = getattr(pacote_session, "m_session_type", 0)
+    SESSION.Seance = session_dictionary.get(session_type, "Desconhecida")
+    
+    # 🌡️ Clima
+    SESSION.weather = weather_dictionary.get(clima, "Limpo")
+    
+    # 🔢 Outros dados
+    SESSION.currentLap = currentLap
+    SESSION.air_temperature = air_temperature
+    SESSION.track_temperature = track_temperature
+    SESSION.total_laps = total_laps
+    
 def atualizar_speed_trap(pacote_telemetry):
     from Bot.jogadores import JOGADORES
     for idx, telemetry in enumerate(pacote_telemetry.m_car_telemetry_data):
@@ -1075,6 +1113,12 @@ def atualizar_lapdata(pacote_lap):
         else:
             piloto.delta_to_leader = delta_min * 60 + (delta_ms / 1000)
         piloto.pit = lap.m_pit_status != 0
+           # ⚠️ AVISOS E PUNIÇÕES
+        piloto.warnings = lap.m_total_warnings
+        piloto.corner_cutting_warnings = lap.m_corner_cutting_warnings
+        piloto.penalties_time = lap.m_penalties
+        piloto.drive_through_pens = lap.m_num_unserved_drive_through_pens
+        piloto.stop_go_pens = lap.m_num_unserved_stop_go_pens
 
 def atualizar_participantes(pacote_participantes):
     from Bot.jogadores import JOGADORES
@@ -1106,6 +1150,7 @@ def atualizar_damage_data(pacote_danos):
 
 def atualizar_setores(pacote_setores_history): 
     from Bot.jogadores import JOGADORES
+    from utils.dictionnaries import tyres_dictionnary
     car_idx = pacote_setores_history.m_car_idx
     piloto = JOGADORES[car_idx]
     num_laps = pacote_setores_history.m_num_laps
@@ -1148,7 +1193,37 @@ def atualizar_setores(pacote_setores_history):
                 "tempo_total": tempo_total,
                 "setores": setores
             })
-
+             # 🔧 CAPTURA DE STINTS DE PNEUS
+    num_stints = pacote_setores_history.m_num_tyre_stints
+    tyre_stints = pacote_setores_history.m_tyre_stints_history_data
+    
+    piloto.pneu_stints = []
+    volta_inicio = 1
+    
+    for i in range(num_stints):
+        stint = tyre_stints[i]
+        volta_fim = stint.m_end_lap
+        
+        # Se volta_fim = 255, significa que é o stint atual (ainda em uso)
+        if volta_fim == 255:
+            volta_fim = num_laps  # Usa a última volta registrada
+        
+        total_voltas = volta_fim - volta_inicio + 1
+        
+        # Pega o nome do composto
+        composto_real = stint.m_tyre_actual_compound
+        tipo_pneu = tyres_dictionnary.get(composto_real, "Desconhecido")
+        
+        piloto.pneu_stints.append({
+            'stint_numero': i + 1,
+            'tipo_pneu': tipo_pneu,
+            'composto_real': composto_real,
+            'volta_inicio': volta_inicio,
+            'volta_fim': volta_fim,
+            'total_voltas': total_voltas
+        })
+        
+        volta_inicio = volta_fim + 1
 def atualizar_colisao(pacote_colisao):
     from Bot.jogadores import JOGADORES
     idx1 = pacote_colisao.m_vehicle1Idx
@@ -1164,26 +1239,70 @@ def atualizar_colisao(pacote_colisao):
 
 def atualizar_ultrapassagem(pacote_ultrapassagem):
     from Bot.jogadores import JOGADORES
-    idx1 = pacote_ultrapassagem.m_overtakingVehicleIdx
-    idx2 = pacote_ultrapassagem.m_beingOvertakenVehicleIdx
-    if idx1 < len(JOGADORES):
+    
+    # Pega os índices dos pilotos envolvidos
+    idx1 = pacote_ultrapassagem.m_event_details.m_overtake.m_overtakingVehicleIdx
+    idx2 = pacote_ultrapassagem.m_event_details.m_overtake.m_beingOvertakenVehicleIdx
+    
+    if idx1 < len(JOGADORES) and idx2 < len(JOGADORES):
         piloto1 = JOGADORES[idx1]
+        piloto2 = JOGADORES[idx2]
+        
+        # Piloto que ultrapassou
         piloto1.ultrapassou = True
         piloto1.ultrapassou_idx = idx2
-    if idx2 < len(JOGADORES):
-        piloto2 = JOGADORES[idx2]
+        piloto1.ultrapassou_nome = getattr(piloto2, 'name', f'Piloto {idx2}')
+        
+        # Contador de ultrapassagens
+        if not hasattr(piloto1, 'total_ultrapassagens'):
+            piloto1.total_ultrapassagens = 0
+        piloto1.total_ultrapassagens += 1
+        
+        # Piloto que foi ultrapassado
         piloto2.ultrapassado = True
         piloto2.ultrapassado_idx = idx1
-
+        piloto2.ultrapassado_nome = getattr(piloto1, 'name', f'Piloto {idx1}')
+        
+        # Contador de vezes ultrapassado
+        if not hasattr(piloto2, 'total_ultrapassado'):
+            piloto2.total_ultrapassado = 0
+        piloto2.total_ultrapassado += 1
+def resetar_flags_ultrapassagem():
+    """Reseta os flags de ultrapassagem após processar"""
+    from Bot.jogadores import JOGADORES
+    
+    for piloto in JOGADORES:
+        piloto.ultrapassou = False
+        piloto.ultrapassado = False
+        piloto.ultrapassou_idx = None
+        piloto.ultrapassado_idx = None
+        piloto.ultrapassou_nome = ""
+        piloto.ultrapassado_nome = ""
 def atualizar_pit_stop_served(pacote_pit_stop_served):
     from Bot.jogadores import JOGADORES
-    idx = pacote_pit_stop_served.m_vehicle_idx
+    
+    # Pega o índice do piloto que saiu do pit
+    idx = pacote_pit_stop_served.m_event_details.m_stop_go_penalty_served.m_vehicle_idx
+    
     if idx < len(JOGADORES):
         piloto = JOGADORES[idx]
+        
+        # Marca que saiu do pit
         piloto.pit = False
         piloto.pit_stop = False
         piloto.pit_lap = None
-        piloto.pit_stops = getattr(piloto, "pit_stops", 0) + 1
+        
+        # Incrementa contador de pit stops
+        if not hasattr(piloto, 'pit_stops'):
+            piloto.pit_stops = 0
+        piloto.pit_stops += 1
+        
+        # Salva informações do último pit stop
+        piloto.ultimo_pit_stop = {
+            'volta': getattr(piloto, 'current_lap_num', 0),
+            'tempo_parado': getattr(piloto, 'pit_stop_time', 0),
+            'timestamp': time.time()
+        }
 
 def atualizar_punicao(pacote_punicao):
     from Bot.jogadores import JOGADORES

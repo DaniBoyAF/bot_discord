@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico de Sessões</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto p-8">
+        <h1 class="text-4xl font-bold mb-8 text-center">📊 Histórico de Sessões F1</h1>
+        
+        <div id="sessoes-lista" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="text-center py-20 col-span-full">
+                <div class="text-6xl mb-4 animate-bounce">🏎️</div>
+                <p class="text-xl">Carregando sessões...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function carregarSessoes() {
+            try {
+                const response = await fetch('/historico_sessoes');
+                const sessoes = await response.json();
+                
+                const container = document.getElementById('sessoes-lista');
+                
+                if (!sessoes || sessoes.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-20 col-span-full">
+                            <p class="text-xl text-gray-400">Nenhuma sessão encontrada</p>
+                        </div>`;
+                    return;
+                }
+                
+                container.innerHTML = sessoes.map(s => `
+                    <div class="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition cursor-pointer border-2 border-gray-700 hover:border-red-500"
+                         onclick="verAnalise(${s.id})">
+                        <div class="flex justify-between items-start mb-4">
+                            <h2 class="text-2xl font-bold text-red-500">#${s.id}</h2>
+                            <span class="text-sm text-gray-400">${new Date(s.data_hora).toLocaleString('pt-BR')}</span>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-2">🏁 ${s.nome_pista || 'Pista Desconhecida'}</h3>
+                        <p class="text-gray-300 mb-1">📋 ${s.tipo_sessao || 'Sessão'}</p>
+                        <p class="text-gray-300 mb-1">🔄 ${s.total_voltas || 0} voltas</p>
+                        <p class="text-gray-300">⚡ ${s.velocidade_maxima_geral ? s.velocidade_maxima_geral.toFixed(0) + ' km/h' : 'N/A'}</p>
+                        <button class="mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded w-full">
+                            Ver Análise →
+                        </button>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Erro ao carregar sessões:', error);
+                document.getElementById('sessoes-lista').innerHTML = `
+                    <div class="text-center py-20 col-span-full">
+                        <p class="text-xl text-red-500">Erro ao carregar dados</p>
+                    </div>`;
+            }
+        }
+        
+        function verAnalise(sessaoId) {
+            window.location.href = `/graf?sessao=${sessaoId}`;
+        }
+        
+        carregarSessoes();
+    </script>
+</body>
+</html>

@@ -3,86 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>F1 Pit Stops - Pirelli Style</title>
+    <title>F1 Pit Stops - Official Style</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap');
+        
         body {
-            background: #0a1628;
-            font-family: 'Formula1', Arial, sans-serif;
+            background: #000;
+            font-family: 'Titillium Web', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
         }
-        .stripe-pattern {
-            background: repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 2px,
-                rgba(255,255,255,0.1) 2px,
-                rgba(255,255,255,0.1) 4px
-            );
+        
+        .f1-header {
+            background: linear-gradient(90deg, #000 0%, #1a1a1a 100%);
+            border-bottom: 3px solid #e10600;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .pirelli-logo {
-            background: linear-gradient(90deg, #ffd700 0%, #ffed4e 100%);
-            color: #e30613;
+        
+        .pirelli-badge {
+            background: #ffd700;
+            color: #000;
             font-weight: 900;
             padding: 8px 20px;
             border-radius: 4px;
-            display: inline-block;
+            letter-spacing: 3px;
+            font-size: 18px;
+        }
+        
+        .driver-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 40px;
+            border-bottom: 1px solid #222;
+            transition: all 0.3s;
+        }
+        
+        .driver-row:hover {
+            background: #0a0a0a;
+        }
+        
+        .driver-name {
+            width: 200px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stint-bar {
+            flex: 1;
+            height: 28px;
+            position: relative;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            display: flex;
+        }
+        
+        .stint-segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            position: relative;
+            border-right: 2px solid #000;
+        }
+        
+        .stint-segment.used::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 3px,
+                rgba(0,0,0,0.2) 3px,
+                rgba(0,0,0,0.2) 6px
+            );
+        }
+        
+        .lap-count {
+            width: 60px;
+            text-align: center;
+            color: #fff;
+            font-weight: 700;
+            font-size: 18px;
+            margin-left: 15px;
+        }
+        
+        .tyre-legend {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            padding: 30px 40px;
+            background: #0a0a0a;
+        }
+        
+        .tyre-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .tyre-circle {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            border: 3px solid #333;
+            position: relative;
+        }
+        
+        .tyre-circle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+        }
+        
+        .tyre-label {
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
+        .total-pitstops {
+            position: absolute;
+            top: 80px;
+            right: 40px;
+            text-align: right;
+        }
+        
+        .total-pitstops-label {
+            color: #999;
+            font-size: 14px;
+            text-transform: uppercase;
             letter-spacing: 2px;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
+        
+        .total-pitstops-value {
+            color: #e10600;
+            font-size: 72px;
+            font-weight: 900;
+            line-height: 1;
         }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
         .driver-row {
-            animation: fadeIn 0.5s ease forwards;
+            animation: slideIn 0.5s ease forwards;
         }
     </style>
 </head>
 <body>
-    <div id="root">
-        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; color: white;">
-            <div style="text-align: center;">
-                <div style="font-size: 4rem; margin-bottom: 1rem; animation: spin 2s linear infinite;">🏎️</div>
-                <h2 style="font-size: 2rem; font-weight: bold;">Carregando Pit Stops...</h2>
-            </div>
-        </div>
-    </div>
+    <div id="root"></div>
 
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 
     {% raw %}
-    <script type="text/babel" data-type="module">
+    <script type="text/babel">
         const { useState, useEffect } = React;
-
-        const TyreIcon = ({ compound }) => {
-            const colors = {
-                'HARD': '#ffffff',
-                'MEDIUM': '#ffd700',
-                'SOFT': '#ff1744',
-                'INTERMEDIATE': '#4caf50',
-                'WET': '#2196f3',
-                'DESCONHECIDO': '#999999'
-            };
-
-            return (
-                <svg width="40" height="40" viewBox="0 0 40 40">
-                    <circle cx="20" cy="20" r="18" fill="#1a1a1a" stroke="#444" strokeWidth="1"/>
-                    <circle cx="20" cy="20" r="12" fill="#e0e0e0"/>
-                    <path d="M 20,2 A 18,18 0 0,1 32,12" fill="none" stroke={colors[compound] || '#fff'} strokeWidth="4" strokeLinecap="round"/>
-                    <path d="M 8,28 A 18,18 0 0,1 2,20" fill="none" stroke={colors[compound] || '#fff'} strokeWidth="4" strokeLinecap="round"/>
-                </svg>
-            );
-        };
 
         const PitStopsChart = () => {
             const [driversData, setDriversData] = useState([]);
             const [isLoading, setIsLoading] = useState(true);
             const [totalPitStops, setTotalPitStops] = useState(0);
+            const [sessionInfo, setSessionInfo] = useState({ track: 'CIRCUIT', laps: 0 });
 
             useEffect(() => {
                 fetchData();
-                const interval = setInterval(fetchData, 500);
+                const interval = setInterval(fetchData, 2000);
                 return () => clearInterval(interval);
             }, []);
 
@@ -91,64 +207,75 @@
                     const response = await fetch('/dados_pra_o_painel');
                     const data = await response.json();
                     
-                    console.log('Dados recebidos:', data); // ✅ DEBUG
-                    
                     if (Array.isArray(data)) {
                         processDriverData(data);
-                    } else {
-                        console.error('Formato inesperado:', data);
                     }
                 } catch (error) {
-                    console.error('Erro ao carregar dados:', error);
+                    console.error('Erro:', error);
                 } finally {
                     setIsLoading(false);
                 }
             };
 
             const processDriverData = (pilotos) => {
-                const processed = pilotos
-                    .map((pilot) => {
-                        const pitStops = [];
-                        const pitCount = pilot.pit_count || 0;
-                        const compound = pilot.tyres ? pilot.tyres.toUpperCase() : "MEDIUM";
-                        const totalLaps = pilot.num_laps || 0;
-                        const stintLength = pitCount > 0 ? Math.floor(totalLaps / (pitCount + 1)) : totalLaps;
+                const processed = pilotos.map((pilot) => {
+                    const stints = pilot.stints || [];
+                    const totalLaps = pilot.num_laps || 0;
 
-                        for (let i = 0; i <= pitCount; i++) {
-                            pitStops.push({
-                                lap: i + 1,
-                                length: i === pitCount ? totalLaps - (stintLength * i) : stintLength,
-                                compound: compound,
-                                isUsed: i < pitCount
-                            });
-                        }
+                    // Se não houver stints, cria um padrão
+                    const pitStops = stints.length > 0 
+                        ? stints.map((stint, idx) => ({
+                            length: stint.total_voltas,
+                            compound: stint.tipo_pneu.toUpperCase().replace(' ', '_'),
+                            isUsed: idx < stints.length - 1,
+                            voltaInicio: stint.volta_inicio,
+                            voltaFim: stint.volta_fim
+                          }))
+                        : [{
+                            length: totalLaps,
+                            compound: (pilot.tyres || 'MEDIUM').toUpperCase(),
+                            isUsed: false,
+                            voltaInicio: 1,
+                            voltaFim: totalLaps
+                          }];
 
-                        return {
-                            name: pilot.nome,
-                            number: pilot.numero,
-                            position: pilot.position,
-                            pitStops: pitStops,
-                            totalLaps: totalLaps,
-                            currentTyre: compound,
-                        };
-                    })
-                    .sort((a, b) => a.position - b.position);
+                    return {
+                        name: pilot.nome,
+                        number: pilot.numero,
+                        position: pilot.position,
+                        pitStops: pitStops,
+                        totalLaps: totalLaps
+                    };
+                }).sort((a, b) => a.position - b.position);
 
                 const total = processed.reduce((sum, d) => sum + Math.max(0, d.pitStops.length - 1), 0);
-
-                console.log('Dados processados:', processed); // ✅ DEBUG
-                console.log('Total pit stops:', total); // ✅ DEBUG
-
                 setTotalPitStops(total);
                 setDriversData(processed);
             };
 
+            const getTyreColor = (compound) => {
+                const colors = {
+                    'SOFT': '#ff1744',
+                    'MEDIUM': '#ffd700',
+                    'HARD': '#ffffff',
+                    'INTERMEDIATE': '#4caf50',
+                    'WET': '#2196f3',
+                    'C5': '#ff1744',
+                    'C4': '#ff6b6b',
+                    'C3': '#ffd700',
+                    'C2': '#e8e8e8',
+                    'C1': '#ffffff',
+                    'SUPER_SOFT': '#9306f1'
+                };
+                return colors[compound] || '#999';
+            };
+
             if (isLoading) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1628' }}>
-                        <div className="text-center text-white">
-                            <div className="text-6xl mb-4 animate-bounce">🏎️</div>
-                            <h2 className="text-3xl font-bold">Carregando Pit Stops...</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'white' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏎️</div>
+                            <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Loading...</h2>
                         </div>
                     </div>
                 );
@@ -156,146 +283,112 @@
 
             if (driversData.length === 0) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a1628' }}>
-                        <div className="text-center text-white">
-                            <div className="text-6xl mb-4">⚠️</div>
-                            <h2 className="text-3xl font-bold mb-4">Sem dados disponíveis</h2>
-                            <p className="text-gray-400">Verifique se o arquivo JSON existe e está no formato correto</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'white' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚠️</div>
+                            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>No Data Available</h2>
+                            <a href="/selecionar_sessao" style={{ display: 'inline-block', background: '#e10600', color: 'white', padding: '12px 24px', borderRadius: '4px', fontWeight: 'bold', textDecoration: 'none' }}>
+                                📊 View History
+                            </a>
                         </div>
                     </div>
                 );
             }
 
-            const maxLaps = Math.max(...driversData.map(d => d.totalLaps);
+            const maxLaps = Math.max(...driversData.map(d => d.totalLaps));
 
             return (
-               <div className="min-h-screen p-4 md:p-8" style={{ background: '#0a1628' }}>
-                    <div className="max-w-7xl mx-auto">
-                        <div className="fl ex items-start justify-between mb-6 flex-wrap gap-4">
-                            <div className="flex items-center gap-4">
-                                <img src="https://www.formula1.com/etc/designs/fom-website/images/f1_logo.svg" alt="F1" className="h-12" style={{ filter: 'brightness(0) invert(1)' }}/>
-                                <div className="pirelli-logo">PIRELLI</div>
+                <div style={{ background: '#000', minHeight: '100vh' }}>
+                    {/* Header */}
+                    <div className="f1-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f9/F1_logo.svg" alt="F1" style={{ height: '50px' }} />
+                            <div className="pirelli-badge">PIRELLI</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ color: '#999', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '2px' }}>
+                                FORMULA 1 GRAND PRIX
                             </div>
-                            <div className="text-right">
-                                <div className="text-gray-400 text-sm uppercase tracking-wider">Formula 1 Grand Prix</div>
-                                <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight">PIT STOPS</h1>
+                            <div style={{ color: '#fff', fontSize: '36px', fontWeight: '900', letterSpacing: '3px' }}>
+                                PIT STOPS
                             </div>
                         </div>
+                    </div>
 
-                        <div className="text-right mb-8">
-                            <div className="text-gray-400 text-sm uppercase">Total Pit Stops</div>
-                            <div className="text-6xl font-bold text-red-600">{totalPitStops}</div>
+                    {/* Total Pit Stops */}
+                    <div className="total-pitstops">
+                        <div className="total-pitstops-label">Total Pit Stops</div>
+                        <div className="total-pitstops-value">{totalPitStops}</div>
+                    </div>
+
+                    {/* Tyre Legend */}
+                    <div className="tyre-legend">
+                        <div className="tyre-item">
+                            <div className="tyre-circle" style={{ background: getTyreColor('SOFT') }}></div>
+                            <div className="tyre-label">Soft</div>
                         </div>
-
-                        <div className="flex justify-end gap-6 mb-6 flex-wrap">
-                            <div className="flex items-center gap-2">
-                                <TyreIcon compound="HARD" />
-                                <span className="text-white font-bold text-sm">HARD</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <TyreIcon compound="MEDIUM" />
-                                <span className="text-white font-bold text-sm">MEDIUM</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <TyreIcon compound="SOFT" />
-                                <span className="text-white font-bold text-sm">SOFT</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <TyreIcon compound="SS" />
-                                <span className="text-white font-bold text-sm">SS</span>
-                            </div>
+                        <div className="tyre-item">
+                            <div className="tyre-circle" style={{ background: getTyreColor('MEDIUM') }}></div>
+                            <div className="tyre-label">Medium</div>
                         </div>
+                        <div className="tyre-item">
+                            <div className="tyre-circle" style={{ background: getTyreColor('HARD') }}></div>
+                            <div className="tyre-label">Hard</div>
+                        </div>
+                        <div className="tyre-item">
+                            <div className="tyre-circle" style={{ background: getTyreColor('INTERMEDIATE') }}></div>
+                            <div className="tyre-label">Intermediate</div>
+                        </div>
+                        <div className="tyre-item">
+                            <div className="tyre-circle" style={{ background: getTyreColor('WET') }}></div>
+                            <div className="tyre-label">Wet</div>
+                        </div>
+                    </div>
 
-                        <div className="space-y-2">
-                            {driversData.map((driver, idx) => {
-                                return (
-                                    <div key={driver.name} className="driver-row" style={{ animationDelay: `${idx * 0.05}s` }}>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <div className="text-white font-bold text-sm w-32 uppercase truncate">
-                                                {driver.name}
-                                            </div>
-                                        </div>
+                    {/* Drivers */}
+                    <div style={{ marginTop: '40px' }}>
+                        {driversData.map((driver, idx) => (
+                            <div key={driver.name} className="driver-row" style={{ animationDelay: `${idx * 0.03}s` }}>
+                                <div className="driver-name">{driver.name}</div>
+                                <div className="stint-bar">
+                                    {driver.pitStops.map((stint, stintIdx) => {
+                                        const widthPercent = (stint.length / maxLaps) * 100;
+                                        const color = getTyreColor(stint.compound);
+                                        const textColor = stint.compound === 'MEDIUM' ? '#000' : '#fff';
                                         
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex-1 h-6 relative" style={{ background: '#1a2332' }}>
-                                                {driver.pitStops.map((stint, stintIdx) => {
-                                                    const widthPercent = (stint.length / maxLaps) * 100;
-                                                    const colors = {
-                                                        'HARD': '#ffffff',
-                                                        'MEDIUM': '#ffd700',
-                                                        'SOFT': '#ff1744',
-                                                        'SUPER SOFT': '#9306f1ff';
-                                                        'INTERMEDIATE': '#4caf50',
-                                                        'WET': '#2196f3',
-                                                        'DESCONHECIDO': '#999999'
-                                                    };
-                                                    
-                                                    const leftPosition = (driver.pitStops.slice(0, stintIdx).reduce((sum, s) => sum + s.length, 0) / maxLaps) * 100;
-                                                    
-                                                    return (
-                                                        <div
-                                                            key={stintIdx}
-                                                            className={`absolute h-full ${stint.isUsed ? 'stripe-pattern' : ''}`}
-                                                            style={{
-                                                                left: `${leftPosition}%`,
-                                                                width: `${widthPercent}%`,
-                                                                background: colors[stint.compound] || '#fff',
-                                                                borderRight: stintIdx < driver.pitStops.length - 1 ? '2px solid #0a1628' : 'none',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                color: stint.compound === 'MEDIUM' ? '#000' : '#fff',
-                                                                fontWeight: 'bold',
-                                                                fontSize: '11px'
-                                                            }}
-                                                            title={`Stint ${stintIdx + 1}: ${stint.length} voltas - ${stint.compound} ${stint.isUsed ? 'USADO' : 'NOVO'}`}
-                                                        >
-                                                            {stint.length > 5 && stint.length}
-                                                        </div>
-                                                    );
-                                                })}
+                                        return (
+                                            <div
+                                                key={stintIdx}
+                                                className={`stint-segment ${stint.isUsed ? 'used' : ''}`}
+                                                style={{
+                                                    width: `${widthPercent}%`,
+                                                    background: color,
+                                                    color: textColor
+                                                }}
+                                                title={`${stint.compound}: ${stint.length} laps (${stint.voltaInicio}-${stint.voltaFim}) ${stint.isUsed ? 'USED' : 'NEW'}`}
+                                            >
+                                                {stint.length > 4 && <span style={{ position: 'relative', zIndex: 1 }}>{stint.length}</span>}
                                             </div>
-                                            
-                                            <div className="text-white font-bold text-sm w-8 text-right">
-                                                {driver.totalLaps}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <div className="mt-8 flex items-center justify-between text-xs text-gray-400 flex-wrap gap-4">
-                            <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-4 stripe-pattern" style={{ background: '#ff1744' }}></div>
-                                    <span>USED</span>
+                                        );
+                                    })}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-4" style={{ background: '#ff1744' }}></div>
-                                    <span>NEW</span>
-                                </div>
+                                <div className="lap-count">{driver.totalLaps}</div>
                             </div>
-                            <div>Copyright © Pirelli 2024. Rights free for media use.</div>
-                        </div>
+                        ))}
+                    </div>
+
+                    {/* Footer */}
+                    <div style={{ padding: '40px', textAlign: 'right' }}>
+                        <a href="/selecionar_sessao" style={{ background: '#e10600', color: 'white', padding: '12px 30px', borderRadius: '4px', fontWeight: 'bold', textDecoration: 'none', display: 'inline-block' }}>
+                            📊 SESSION HISTORY
+                        </a>
                     </div>
                 </div>
             );
         };
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', renderApp);
-        } else {
-            renderApp();
-        }
-
-        function renderApp() {
-            const rootElement = document.getElementById('root');
-            if (rootElement) {
-                const root = ReactDOM.createRoot(rootElement);
-                root.render(<PitStopsChart />);
-            }
-        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<PitStopsChart />);
     </script>
     {% endraw %}
 </body>

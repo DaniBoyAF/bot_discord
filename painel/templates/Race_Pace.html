@@ -72,14 +72,17 @@
             useEffect(() => {
                 const fetchDados = async () => {
                     try {
-                        const response = await fetch("/dados_pra_o_painel");
-                        const dados = await response.json();
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const sessaoId = urlParams.get('sessao');
                         
-                        if (dados.pilotos && Array.isArray(dados.pilotos)) {
-                            setRaceData(dados.pilotos);
-                        } else {
-                            setRaceData([]);
+                        let url = '/dados_voltas';
+                        if (sessaoId) {
+                            url = `/dados_voltas/${sessaoId}`;
                         }
+                        
+                        const response = await fetch(url);
+                        const dados = await response.json();
+                        setRaceData(Array.isArray(dados) ? dados : []);
                     } catch (error) {
                         console.error("Erro ao buscar dados:", error);
                         setRaceData([]);
@@ -89,21 +92,25 @@
                 };
 
                 fetchDados();
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessaoId = urlParams.get('sessao');
+                
+                if (!sessaoId) {
+                    const interval = setInterval(fetchDados, 2000);
+                    return () => clearInterval(interval);
+                }
             }, []);
 
             const processRacerData = (racer) => {
                 if (!racer || !racer.voltas) return null;
-                .filter(d => d !== null && d.validLapsCount >= 12)
+
                 const validLaps = racer.voltas.filter(lap => {
-                    if (!lap.setores || lap.setores.length !== 3) return false;
-                    const allSectorsValid = lap.setores.every(setor => setor >= 15);
-                    if (!allSectorsValid) return false;
-                    const sectorsSum = lap.setores.reduce((a, b) => a + b, 0);
-                    const diff = Math.abs(sectorsSum - lap.tempo_total);
-                    return diff < 0.1;
+                    if (!lap.tempo_total || lap.tempo_total <= 0) return false;
+                    return lap.tempo_total > 15 && lap.tempo_total < 300;
                 });
 
-                if (validLaps.length === 0) return null;
+                if (validLaps.length < 3) return null;
 
                 const lapTimes = validLaps.map(lap => lap.tempo_total);
                 const avgTime = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
@@ -170,6 +177,9 @@
                             <Flag className="mx-auto mb-4" size={64} />
                             <h2 className="text-3xl font-bold mb-4">Aguardando dados da corrida</h2>
                             <p className="text-xl text-gray-400">Verifique se os dados estão disponíveis</p>
+                            <a href="/selecionar_sessao" className="mt-6 inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg">
+                                📊 Ver Histórico de Sessões
+                            </a>
                         </div>
                     </div>
                 );
@@ -205,6 +215,9 @@
                             </h1>
                             <p className="text-lg md:text-2xl text-gray-300">Race Pace (Média Ponderada: 70% avg + 30% best)</p>
                             <p className="text-xs md:text-sm text-gray-400 mt-2">💡 Dica: Tente o código Konami... ↑↑↓↓←→←→</p>
+                            <a href="/selecionar_sessao" className="mt-4 inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg text-sm">
+                                📊 Histórico de Sessões
+                            </a>
                         </div>
 
                         <div className="grid grid-cols-3 gap-2 md:gap-4 mb-8 md:mb-12 max-w-4xl mx-auto">

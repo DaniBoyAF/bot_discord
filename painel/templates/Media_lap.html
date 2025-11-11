@@ -52,14 +52,18 @@
             useEffect(() => {
                 const fetchDados = async () => {
                     try {
-                        const response = await fetch("/dados_de_voltas");
-                        const dados = await response.json();
+                        // Pega ID da sessão da URL (se existir)
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const sessaoId = urlParams.get('sessao');
                         
-                        if (dados.pilotos && Array.isArray(dados.pilotos)) {
-                            setRaceData(dados.pilotos);
-                        } else {
-                            setRaceData([]);
+                        let url = '/dados_voltas';
+                        if (sessaoId) {
+                            url = `/dados_voltas/${sessaoId}`;
                         }
+                        
+                        const response = await fetch(url);
+                        const dados = await response.json();
+                        setRaceData(Array.isArray(dados) ? dados : []);
                     } catch (error) {
                         console.error("Erro ao buscar dados:", error);
                         setRaceData([]);
@@ -69,6 +73,15 @@
                 };
 
                 fetchDados();
+                
+                // Atualiza automaticamente apenas se NÃO houver sessão selecionada
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessaoId = urlParams.get('sessao');
+                
+                if (!sessaoId) {
+                    const interval = setInterval(fetchDados, 2000);
+                    return () => clearInterval(interval);
+                }
             }, []);
 
             const handleFileUpload = async (event) => {
@@ -360,5 +373,12 @@
         }
     </script>
     {% endraw %}
+
+    <div class="header">
+        <h1>🏎️ F1 Telemetria - Painel em Tempo Real</h1>
+        <a href="/selecionar_sessao" class="btn-historico" style="background: #e10600; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; margin-top: 10px;">
+            📊 Ver Histórico de Sessões
+        </a>
+    </div>
 </body>
 </html>
