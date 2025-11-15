@@ -21,59 +21,105 @@ class WeatherForecastSample:
 
 class Session:
     def __init__(self):
+        self.m_weather = 0
+        self.m_track_temperature = 0
+        self.m_air_temperature = 0
+        self.m_total_laps = 0
+        self.m_track_length = 0
+        self.m_session_type = 0
         self.m_track_id = -1
         self.m_track_name = "Desconhecida"
-        self.airTemperature = 0
-        self.trackTemperature = 0
-        self.nbLaps = 0
+        self.m_formula = 0
+        self.m_session_time_left = 0
+        self.m_session_duration = 0
+        self.m_pit_speed_limit = 0
+        self.m_game_paused = 0
+        self.m_is_spectating = 0
+        self.m_spectator_car_index = 0
+        self.m_sli_pro_native_support = 0
+        self.m_num_marshal_zones = 0
+        self.m_marshal_zones = []
+        self.m_safety_car_status = 0
+        self.m_network_game = 0
+        self.m_num_weather_forecast_samples = 0
+        self.m_forecast_accuracy = 0
+        self.m_ai_difficulty = 0
+        self.m_season_link_identifier = 0
+        self.m_weekend_link_identifier = 0
+        self.m_session_link_identifier = 0
+        self.m_pit_stop_window_ideal_lap = 0
+        self.m_pit_stop_window_latest_lap = 0
+        self.m_pit_stop_rejoin_position = 0
+        self.m_steering_assist = 0
+        self.m_braking_assist = 0
+        self.m_gearbox_assist = 0
+        self.m_pit_assist = 0
+        self.m_pit_release_assist = 0
+        self.m_ersassist = 0
+        self.m_drsassist = 0
+        self.m_dynamic_racing_line = 0
+        self.m_dynamic_racing_line_type = 0
+        self.m_game_mode = 0
+        self.m_rule_set = 0
+        self.m_time_of_day = 0
+        self.m_session_length = 0
+        self.m_speed_units_lead_player = 0
+        self.m_temperature_units_lead_player = 0
+        self.m_speed_units_secondary_player = 0
+        self.m_temperature_units_secondary_player = 0
+        self.m_num_safety_car_periods = 0
+        self.m_num_virtual_safety_car_periods = 0
+        self.m_num_red_flag_periods = 0
+
+        # Atributos extras
+        self.flag = "Verde"
+        self.SafetyCarStatus = "Nenhum"
+        self.rainPercentage = 0
+        self.Seance = "Desconhecida"
+        self.weather = "Limpo"
+        self.track_name = "Desconhecida"
         self.currentLap = 0
-        self.tour_precedent = 0
-        self.Seance = 0
-        self.Finished = False
-        self.time_left = 0
-        self.legende = ""
-        self.track = -1
-        self.marshalZones = []
-        self.idxBestLapTime = -1
-        self.bestLapTime = 5000
-        self.safetyCarStatus = 0
-        self.trackLength = 0
-        self.weatherList: list[WeatherForecastSample] = []
-        self.nb_weatherForecastSamples = 0
-        self.weatherForecastAccuracy = 0
-        self.startTime = 0
-        self.nb_players = 22
-        self.formationLapDone = False
-        self.circuit_changed = False
-        self.segments = []
-        self.num_marshal_zones = 0
-        self.packet_received = [0]*14
-        self.anyYellow = False
 
-    def add_slot(self, slot):
-        self.weatherList.append(WeatherForecastSample(slot.m_time_offset, slot.m_weather, slot.m_track_temperature,
-                                                      slot.m_air_temperature, slot.m_rain_percentage))
+    def get_track_name(self, track_id):
+        """Retorna o nome da pista baseado no ID"""
+        tracks = {
+            0: "Melbourne", 1: "Paul Ricard", 2: "Shanghai",
+            3: "Sakhir (Bahrain)", 4: "Catalunya", 5: "Monaco",
+            6: "Montreal", 7: "Silverstone", 8: "Hockenheim",
+            9: "Hungaroring", 10: "Spa", 11: "Monza",
+            12: "Singapore", 13: "Suzuka", 14: "Abu Dhabi",
+            15: "Texas", 16: "Brazil", 17: "Austria",
+            18: "Sochi", 19: "Mexico", 20: "Baku (Azerbaijan)",
+            21: "Sakhir Short", 22: "Silverstone Short",
+            23: "Texas Short", 24: "Suzuka Short", 25: "Hanoi",
+            26: "Zandvoort", 27: "Imola", 28: "Portimão",
+            29: "Jeddah", 30: "Miami", 31: "Las Vegas",
+            32: "Losail (Qatar)"
+        }
+        return tracks.get(track_id, "Unknown Track")
 
-    def clear_slot(self):
-        self.weatherList = []
+    def atualizar(self, pacote_session):
+        """Atualiza os dados da sessão com base no pacote recebido"""
+        for attr in dir(pacote_session):
+            if not attr.startswith('_'):
+                setattr(self, attr, getattr(pacote_session, attr))
 
-    def title_display(self):
-        if self.Seance == 18:
-            string = f"Time Trial : {track_dictionary[self.track][0]}"
-        elif self.Seance in [15,16,17]:
-            string = f"Session : {session_dictionary[self.Seance]}, Lap : {self.currentLap}/{self.nbLaps}, " \
-                        f"Air : {self.airTemperature}°C / Track : {self.trackTemperature}°C"
-        elif self.Seance in [5,6,7,8,9]:
-            string = f" Qualy : {conversion(self.time_left, 1)}"
-        else:
-            string = f" FP : {conversion(self.time_left, 1)}"
-        return string
+        self.m_track_name = self.get_track_name(self.m_track_id)
+        self.track_name = self.m_track_name
+        self.rainPercentage = getattr(pacote_session, "m_rain_percentage",)
+        if getattr(self, "m_num_marshal_zones", 0) > 0:
+            mz = getattr(self, "m_marshal_zones", [])
+            if mz:
+                flag_id = mz[0].m_zone_flag
+                self.flag = color_flag_dict.get(flag_id, "Verde")
+        self.weather = weather_dictionary.get(self.m_weather, "Desconhecido")
+        self.weather = weather_dictionary.get(self.m_weather, "Desconhecido")
 
-    def update_marshal_zones(self, map_canvas):
-        for i in range(len(self.segments)):
-            map_canvas.itemconfig(self.segments[i], fill=color_flag_dict[self.marshalZones[i].m_zone_flag])
 
+# Instância global
 SESSION = Session()
+
+
 class SessionData:
     def __init__(self):
         self.Seance = 0
@@ -137,15 +183,7 @@ class SessionData:
 
 
 def atualizar_SessionData(pacote_session):
-    from Bot.Session import SESSION
     SESSION.atualizar(pacote_session)
-    
-    track_id = pacote_session.m_track_id
-    nome_pista = SESSION.get_track_name(track_id)
-    
-    print(f"🏁 Pista: {nome_pista} (ID: {track_id})")
-    
-    # Salva na sessão
-    SESSION.m_track_name = nome_pista
+    print(f"🏁 Pista: {SESSION.track_name} (ID: {pacote_session.m_track_id})")
 
 

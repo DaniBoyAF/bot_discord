@@ -14,14 +14,12 @@ from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
 from comandos.media import comando_media 
 from dados.voltas import gerar_boxplot
-from Bot.Session import SESSION
 
 
 from Javes.modelo_ml import analisar_dados_auto
 
-import PyPDF2
 
-import json                   
+                 
 from threading import Thread
 import subprocess
 import os
@@ -41,6 +39,7 @@ tempo_maximo = 600 * 60
 # Corrige o caminho para importar módulos de fora da pasta
 intents =discord.Intents.default()
 intents.message_content=True
+intents.members = True
 bot =commands.Bot(command_prefix=".", intents=intents)
 @bot.event
 async def on_ready():
@@ -59,15 +58,34 @@ async def on_command_error(ctx, error):
         await ctx.send(f"⏳ Este comando está em cooldown. Tente novamente em {error.retry_after:.2f} segundos.")
     else:
         await ctx.send(f"❌ Ocorreu um erro: {error}")
+async def get_text_channel(channel_id: int) -> discord.abc.Messageable | None:
+    canal = bot.get_channel(channel_id)
+    if canal is None:
+        canal = await bot.fetch_channel(channel_id)
+    if isinstance(canal, (discord.TextChannel, discord.Thread, discord.DMChannel)):
+        return canal
+    return None
+
 @bot.event
-async def on_member_join(membro:discord.Member):
-    canal = bot.get_channel(1375265281630539846)
-    await canal.send(f"{membro.mention} entrou no servidor !!")
+async def on_member_join(membro: discord.Member):
+    canal = await get_text_channel(1375265281630539846)
+    if canal:
+        await canal.send(f"{membro.mention} entrou no servidor !!")
 
 @bot.event
 async def on_member_remove(membro: discord.Member):
     canal = bot.get_channel(1375265281630539846)
-    await canal.send(f"{membro.mention} Saiu do servidor !!")
+    if canal is None:
+        try:
+            canal = await bot.fetch_channel(1375265281630539846)
+        except Exception:
+            canal = None
+    if isinstance(canal, (discord.TextChannel, discord.Thread, discord.DMChannel, discord.GroupChannel)):
+        await canal.send(f"{membro.mention} Saiu do servidor !!")
+    else:
+        # Fallback: tenta o canal do sistema do servidor
+        if membro.guild and membro.guild.system_channel:
+            await membro.guild.system_channel.send(f"{membro.mention} Saiu do servidor !!")
 @bot.command()
 async def ola(ctx: commands.Context):
     nome= ctx.author.name
@@ -357,7 +375,7 @@ async def corrida(ctx):
     pilotos_obj = [PilotoTemp(p) for p in pilotos]
     
     # Gera gráfico boxplot
-    from dados.voltas import gerar_boxplot
+    
     gerar_boxplot(pilotos_obj, nome_pista=nome_pista or "Unknown Track", 
                  total_voltas=total_voltas or 0, nome_arquivo="corrida.png")
     await ctx.send(file=discord.File("corrida.png"))
@@ -369,8 +387,11 @@ async def tabela(ctx):  # pronto
     from utils.dictionnaries import tyres_dictionnary
     canal_id = 1381831375006601328
     canal = bot.get_channel(canal_id)
-    if not canal:
-        await ctx.send("❌ Canal de voz não encontrado.")
+    if canal is None:
+        canal = await bot.fetch_channel(canal_id)
+
+    if not isinstance(canal, (discord.TextChannel, discord.Thread)):
+        await ctx.send("❌ Configure um canal de texto válido para a tabela.")
         return
 
     mensagem = await canal.send("🔄 Iniciando o envio de mensagens da tabela ao vivo...")
@@ -406,6 +427,24 @@ async def parar_tabela(ctx):
     global TEMPO_INICIO_TABELA
     TEMPO_INICIO_TABELA = False
     await ctx.send("🛑 Envio automático da tabela parado.")
+def get_track_name(track_id):
+    """Retorna o nome da pista baseado no ID"""
+    tracks = {
+        0: "Melbourne", 1: "Paul Ricard", 2: "Shanghai",
+        3: "Sakhir (Bahrain)", 4: "Catalunya", 5: "Monaco",
+        6: "Montreal", 7: "Silverstone", 8: "Hockenheim",
+        9: "Hungaroring", 10: "Spa", 11: "Monza",
+        12: "Singapore", 13: "Suzuka", 14: "Abu Dhabi",
+        15: "Texas", 16: "Brazil", 17: "Austria",
+        18: "Sochi", 19: "Mexico", 20: "Baku (Azerbaijan)",
+        21: "Sakhir Short", 22: "Silverstone Short",
+        23: "Texas Short", 24: "Suzuka Short", 25: "Hanoi",
+        26: "Zandvoort", 27: "Imola", 28: "Portimão",
+        29: "Jeddah", 30: "Miami", 31: "Las Vegas",
+        32: "Losail (Qatar)"
+    }
+    return tracks.get(track_id, "Unknown Track")
+
 @bot.command()
 async def salvar_dados(ctx):
     await ctx.send("🔄 Salvando dados dos pilotos...")
@@ -431,15 +470,15 @@ async def volta_salvar(bot):
         
         # Pega dados da sessão atual
         track_id = getattr(SESSION, 'm_track_id', -1)
-        nome_pista = SESSION.get_track_name(track_id)
+        nome_pista = get_track_name(track_id)
         tipo_sessao = session_dictionary.get(getattr(SESSION, 'm_session_type', 0), 'Desconhecido')
         total_voltas = getattr(SESSION, 'm_total_laps', 0)
         clima = weather_dictionary.get(getattr(SESSION, 'm_weather', 0), 'Desconhecido')
         temp_ar = getattr(SESSION, 'm_air_temperature', 0)
         temp_pista = getattr(SESSION, 'm_track_temperature', 0)
-        chuva = getattr(SESSION, 'm_rain_percentage', 0)
-        safety = safetyCarStatusDict.get(getattr(SESSION, 'm_safety_car_status', 0), 'Desconhecido')
-        flag = color_flag_dict.get(getattr(SESSION, 'm_flag', 0), 'Desconhecido')
+        chuva = getattr(SESSION, "rainPercentage", 0)
+        safety = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
+        flag = getattr(SESSION, "flag", "Verde")
         
         cursor.execute('''
         INSERT INTO sessoes (nome_pista, tipo_sessao, total_voltas, clima, 
@@ -480,7 +519,7 @@ async def volta_salvar(bot):
                 speed = getattr(j, 'speed_trap', 0)
                 if isinstance(speed, list) and speed:
                     speed = max(speed)
-                if speed > maior_speed_geral:
+                if isinstance(speed, (int, float)) and speed > maior_speed_geral:
                     maior_speed_geral = speed
             
             cursor.execute('UPDATE sessoes SET velocidade_maxima_geral = ? WHERE id = ?',
@@ -488,8 +527,8 @@ async def volta_salvar(bot):
             
             # 📊 Salva dados de cada piloto
             for j in jogadores:
+                nome = getattr(j, 'name', '').strip()
                 try:
-                    nome = getattr(j, 'name', '').strip()
                     if not nome:
                         continue
                     
@@ -602,7 +641,7 @@ async def volta_salvar(bot):
                         ))
                 
                 except Exception as e:
-                    print(f"❌ Erro ao salvar piloto {nome}: {e}")
+                    print(f"❌ Erro ao salvar piloto {nome or 'Desconhecido'}: {e}")
                     continue
             
             # ✅ Commit APÓS processar todos os pilotos
@@ -629,7 +668,7 @@ async def parar_salvar(ctx):#pronto
 async def delta(ctx):
     await comando_delta(ctx)
 @bot.command()
-async def pneusv(ctx,*, piloto: str = None):
+async def pneusv(ctx,*, piloto: str | None=None):
     await comando_pneusv(ctx, piloto=piloto)
 @bot.command()
 async def clima(ctx):#pronto
@@ -638,7 +677,7 @@ async def clima(ctx):#pronto
 async def pilotos(ctx):
     await commando_piloto(ctx)
 @bot.command()
-async def danos(ctx, piloto: str = None):
+async def danos(ctx, piloto: str | None=None):
     await comandos_danos(ctx, piloto=piloto)
 
 @bot.command()
@@ -648,7 +687,7 @@ def salvar_sessao_no_banco(pacote_session):
     import sqlite3
     
     track_id = pacote_session.m_track_id
-    nome_pista = SESSION.get_track_name(track_id)
+    nome_pista = get_track_name(track_id)  # ← USE A FUNÇÃO
     total_laps = pacote_session.m_total_laps
     clima = pacote_session.m_weather
     
@@ -822,7 +861,7 @@ def criar_tabelas():
         piloto_id INTEGER,
         stint_numero INTEGER,
         tipo_pneu TEXT,
-        composto_real INTEGER,  # ← ERA TEXT, CORRIJA PARA INTEGER
+        composto_real INTEGER,
         volta_inicio INTEGER,
         volta_fim INTEGER,
         total_voltas INTEGER,
@@ -980,6 +1019,7 @@ async def clip(ctx):
     )
 @bot.command()
 async def regras(ctx):
+    import PyPDF2
     if not ctx.message.attachments:
         await ctx.send("📄 Envie o PDF das regras junto com o comando `.regras`")
         return

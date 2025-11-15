@@ -1,30 +1,38 @@
-import orjson
+import sqlite3
 
 async def comando_media(ctx):
-    with open("dados_de_voltas.json", "r", encoding="utf-8") as f:
-        dados = orjson.loads(f.read())
-    medias = {}
-    for jogador in dados:
-        nome = jogador["nome"]
-        voltas = jogador["voltas"]
-        # Só considera voltas completas (3 setores preenchidos e > 0)
-        voltas_completas = [v for v in voltas if len(v.get("setores", [])) == 3 and all(s > 0 for s in v.get("setores", []))and v["setores"][0]>25 and v["setores"][1]>25 and v["setores"][2]>15]
-        tempos = [v["tempo_total"] for v in voltas_completas if "tempo_total" in v]
-        if tempos:
-            medias[nome] = sum(tempos) / len(tempos)
-    if not medias:
+    conn = sqlite3.connect("f1_telemetry.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM sessoes ORDER BY id DESC LIMIT 1")
+    row = cursor.fetchone()
+    if not row:
+        await ctx.send("Nenhuma sessão encontrada no banco.")
+        conn.close()
+        return
+    sessao_id = row[0]
+
+    cursor.execute("""
+        SELECT p.nome, v.tempo_volta, v.setor1, v.setor2, v.setor3
+        FROM voltas v
+        JOIN pilotos p ON p.id = v.piloto_id
+        WHERE v.sessao_id = ? AND v.tempo_volta > 0
+    """, (sessao_id,))
+    tempos = {}
+    for nome, total, s1, s2, s3 in cursor.fetchall():
+        if min(s1, s2, s3) <= 0:
+            continue
+        tempos.setdefault(nome, []).append(total)
+    conn.close()
+
+    if not tempos:
         await ctx.send("Nenhum dado de média encontrado.")
         return
-    medias_ordenadas = sorted(medias.items(), key=lambda x: x[1])
-    melhor_media = medias_ordenadas[0][1]
 
+    medias = {n: sum(ts)/len(ts) for n, ts in tempos.items()}
+    medias_ordenadas = sorted(medias.items(), key=lambda x: x[1])
+    melhor = medias_ordenadas[0][1]
     linhas = []
     for idx, (nome, media) in enumerate(medias_ordenadas, 1):
-        if idx == 1:
-            linhas.append(f"{idx}) {nome:<15} Quickest")
-        else:
-            diff = media - melhor_media
-            linhas.append(f"{idx}) {nome:<15} +{diff:.2f} s/lap")
-
-    mensagem = "```\n" + "\n".join(linhas) + "\n```"
-    await ctx.send(mensagem)
+        label = "Quickest" if idx == 1 else f"+{media - melhor:.2f} s/lap"
+        linhas.append(f"{idx}) {nome:<15} {label}")
+    await ctx.send("```\n" + "\n".join(linhas) + "\n```")

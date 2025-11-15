@@ -32,109 +32,22 @@ def selecionar_sessao():
     return render_template("selecionar_sessao.html")
 
 #carregar json
-@app.route("/dados_pneus")
-def dados_pneus():
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        sessao_id = get_last_session_id(cur)
-        if not sessao_id:
-            conn.close()
-            return jsonify([])
-        cur.execute("""
-          SELECT p.nome, p.numero, p.posicao AS position,
-                 pn.tipo_pneu AS tyres,
-                 pn.idade_voltas AS tyresAgeLaps,
-                 pn.desgaste_RL, pn.desgaste_RR, pn.desgaste_FL, pn.desgaste_FR,
-                 pn.temp_interna_RL, pn.temp_interna_RR, pn.temp_interna_FL, pn.temp_interna_FR,
-                 pn.temp_superficie_RL, pn.temp_superficie_RR, pn.temp_superficie_FL, pn.temp_superficie_FR,
-                 pn.vida_util AS tyre_life,
-                 pn.tyre_set_data,
-                 pn.lap_delta_time,
-                 pn.pit_stops
-          FROM pilotos p
-          LEFT JOIN pneus pn ON p.id = pn.piloto_id
-          WHERE p.sessao_id = ?
-          ORDER BY p.posicao
-        """, (sessao_id,))
-        rows = cur.fetchall()
-        conn.close()
-        data = []
-        for r in rows:
-            tyre_wear = [r["desgaste_RL"], r["desgaste_RR"], r["desgaste_FL"], r["desgaste_FR"]]
-            tyre_temp_i = [r["temp_interna_RL"], r["temp_interna_RR"], r["temp_interna_FL"], r["temp_interna_FR"]]
-            tyre_temp_s = [r["temp_superficie_RL"], r["temp_superficie_RR"], r["temp_superficie_FL"], r["temp_superficie_FR"]]
-            data.append({
-                "nome": r["nome"],
-                "numero": r["numero"],
-                "position": r["position"],
-                "tyres": r["tyres"],
-                "tyresAgeLaps": r["tyresAgeLaps"],
-                "tyre_wear": tyre_wear,
-                "tyre_temp_i": tyre_temp_i,
-                "tyre_temp_s": tyre_temp_s,
-                "tyre_life": r["tyre_life"],
-                "tyre_set_data": r["tyre_set_data"],
-                "lap_delta_time": r["lap_delta_time"],
-                "pit_stop": r["pit_stops"]
-            })
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"erro": str(e)})
-
-@app.route("/dados_voltas")
-def dados_voltas():
-    try:
-        conn = get_db()
-        cur = conn.cursor()
-        sessao_id = get_last_session_id(cur)
-        if not sessao_id:
-            conn.close()
-            return jsonify([])
-        cur.execute("""
-          SELECT p.id AS piloto_id, p.nome, p.numero, p.posicao,
-                 COALESCE(pn.tipo_pneu,'') AS tyres,
-                 COALESCE(pn.idade_voltas,0) AS tyresAgeLaps,
-                 s.total_voltas
-          FROM pilotos p
-          LEFT JOIN pneus pn ON p.id = pn.piloto_id
-          JOIN sessoes s ON p.sessao_id = s.id
-          WHERE p.sessao_id = ?
-          ORDER BY p.posicao
-        """, (sessao_id,))
-        pilotos_base = cur.fetchall()
-        resultado = []
-        for pb in pilotos_base:
-            cur.execute("""
-              SELECT numero_volta, tempo_volta, setor1, setor2, setor3
-              FROM voltas
-              WHERE sessao_id = ? AND piloto_id = ?
-              ORDER BY numero_volta
-            """, (sessao_id, pb["piloto_id"]))
-            voltas_rows = cur.fetchall()
-            lista_voltas = []
-            for v in voltas_rows:
-                lista_voltas.append({
-                    "volta": v["numero_volta"],
-                    "tempo_total": v["tempo_volta"],
-                    "setor1": v["setor1"],
-                    "setor2": v["setor2"],
-                    "setor3": v["setor3"]
-                })
-            resultado.append({
-                "nome": pb["nome"],
-                "numero": pb["numero"],
-                "position": pb["posicao"],
-                "tyres": pb["tyres"],
-                "tyresAgeLaps": pb["tyresAgeLaps"],
-                "laps_max": pb["total_voltas"],
-                "voltas": lista_voltas
-            })
-        conn.close()
-        return jsonify(resultado)
-    except Exception as e:
-        return jsonify({"erro": str(e)})
-
+@app.route("/dados_pneus_live")
+def dados_pneus_live():
+    from Bot.parser2024 import get_jogadores
+    jogadores =get_jogadores()
+    resultado = []
+    for j in jogadores:
+        resultado.append({
+            "nome": j.name,
+            "numero": j.numero,
+            "position": j.position,
+            "tyres": j.tyres,
+            "tyre_wear": j.tyre_wear,
+            "tyresAgeLaps": j.tyresAgeLaps,
+            "pit_stop": getattr(j, 'pit_stops', 0) 
+        })
+    return jsonify(resultado)
 @app.route("/dados_delta")
 def dados_delta():
     try:
@@ -181,79 +94,100 @@ def dados_delta():
 
 @app.route("/dados_pra_o_painel")
 def dados_pra_o_painel():
-    from Bot.jogadores import get_jogadores
-    
-    jogadores = get_jogadores()
-    dados = []
-    
-    for j in jogadores:
-        # Pega os stints de pneus DO OBJETO DO PILOTO (em tempo real)
-        stints = getattr(j, 'pneu_stints', [])
-        
-        # Se não houver stints, cria um padrão
-        if not stints:
-            current_lap = getattr(j, 'current_lap_num', 0)
-            stints = [{
-                'stint_numero': 1,
-                'tipo_pneu': getattr(j, 'tyres', 'MEDIUM'),
-                'composto_real': getattr(j, 'tyres', 7),
-                'volta_inicio': 1,
-                'volta_fim': current_lap,
-                'total_voltas': current_lap
-            }]
-        
-        dados.append({
-            'nome': getattr(j, 'name', 'Piloto'),
-            'numero': getattr(j, 'numero', 0),
-            'position': getattr(j, 'position', 0),
-            'pit_stop': getattr(j, 'pit_stops', 0),
-            'num_laps': getattr(j, 'current_lap_num', 0),
-            'tyres': getattr(j, 'tyres', 'MEDIUM'),
-            'stints': stints  # ← ENVIA OS STINTS
-        })
-    
-    return jsonify(dados)
-
-@app.route("/dados_completos")
-def dados_completos():
     try:
         conn = get_db()
         cur = conn.cursor()
         sessao_id = get_last_session_id(cur)
-        if not sessao_id:
-            conn.close()
-            return jsonify({"sessao": {}, "pilotos": []})
+        
         cur.execute("""
-          SELECT clima, temperatura_ar AS tempo_ar, temperatura_pista AS tempo_pista,
-                 porcentagem_chuva AS rain_porcentagem,
-                 safety_car_status AS safety_car_status,
-                 tipo_sessao AS Sessao,
-                 flag,
-                 velocidade_maxima_geral AS maior_speed_geral,
-                 total_voltas,
-                 nome_pista
-          FROM sessoes WHERE id = ?
+            SELECT p.id AS piloto_id, p.nome, p.numero, p.posicao,
+                   COALESCE(pn.tipo_pneu,'') AS tyres,
+                   COALESCE(pn.idade_voltas,0) AS tyresAgeLaps,
+                   COALESCE(pn.pit_stops,0) AS pit_stop,
+                   s.total_voltas AS num_laps
+            FROM pilotos p
+            LEFT JOIN pneus pn ON p.id = pn.piloto_id
+            JOIN sessoes s ON p.sessao_id = s.id
+            WHERE p.sessao_id = ?
         """, (sessao_id,))
-        sessao = dict(cur.fetchone())
-        cur.execute("""
-          SELECT p.nome, p.numero, p.posicao AS position,
-                 COALESCE(pn.tipo_pneu,'') AS tyres,
-                 COALESCE(pn.idade_voltas,0) AS tyresAgeLaps,
-                 COALESCE(d.delta_to_leader,'—') AS delta_to_leader,
-                 s.total_voltas AS num_laps,
-                 COALESCE(pn.pit_stops,0) AS pit_stop
-          FROM pilotos p
-          LEFT JOIN pneus pn ON p.id = pn.piloto_id
-          LEFT JOIN danos d ON p.id = d.piloto_id
-          JOIN sessoes s ON p.sessao_id = s.id
-          WHERE p.sessao_id = ?
-          ORDER BY p.posicao
-        """, (sessao_id,))
-        pilotos = [dict(r) for r in cur.fetchall()]
+        
+        resultado = []
+        for pb in cur.fetchall():
+            # ✅ PEGA STINTS DO BANCO
+            cur.execute("""
+                SELECT stint_numero, tipo_pneu, composto_real,
+                       volta_inicio, volta_fim, total_voltas
+                FROM pneu_stints
+                WHERE sessao_id = ? AND piloto_id = ?
+                ORDER BY stint_numero
+            """, (sessao_id, pb["piloto_id"]))
+            
+            stints = [{
+                "stint_numero": s["stint_numero"],
+                "tipo_pneu": s["tipo_pneu"],
+                "composto_real": s["composto_real"],
+                "volta_inicio": s["volta_inicio"],
+                "volta_fim": s["volta_fim"],
+                "total_voltas": s["total_voltas"]
+            } for s in cur.fetchall()]
+            
+            resultado.append({
+                "nome": pb["nome"],
+                "numero": pb["numero"],
+                "position": pb["posicao"],
+                "tyres": pb["tyres"],
+                "tyresAgeLaps": pb["tyresAgeLaps"],
+                "num_laps": pb["num_laps"],
+                "pit_stop": pb["pit_stop"],
+                "stints": stints  # ✅ DO BANCO
+            })
+        
         conn.close()
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({"erro": str(e)})
+
+@app.route("/dados_completos_live")
+def dados_completos_live():
+    """Dashboard em tempo real (direto do parser)"""
+    try:
+        from Bot.parser2024 import get_jogadores
+        from Bot.Session import SESSION
+        
+        jogadores = get_jogadores()
+        
+        # Dados da sessão
+        sessao = {
+            "clima": getattr(SESSION, 'weather', 'Desconhecido'),
+            "tempo_ar": getattr(SESSION, 'm_air_temperature', 0),
+            "tempo_pista": getattr(SESSION, 'm_track_temperature', 0),
+            "rain_porcentagem": getattr(SESSION, 'rainPercentage', 0),
+            "safety_car_status": getattr(SESSION, 'm_safety_car_status', 0),
+            "Sessao": getattr(SESSION, 'm_session_type', 0),
+            "flag": getattr(SESSION, 'flag', 'Verde'),
+            "maior_speed_geral": max([getattr(j, 'speed', 0) for j in jogadores], default=0),
+            "total_voltas": getattr(SESSION, 'm_total_laps', 0),
+            "nome_pista": getattr(SESSION, 'track_name', 'Desconhecida')
+        }
+        
+        # Dados dos pilotos
+        pilotos = []
+        for j in jogadores:
+            pilotos.append({
+                "nome": getattr(j, 'name', 'Piloto'),
+                "numero": getattr(j, 'numero', 0),
+                "position": getattr(j, 'position', 0),
+                "tyres": getattr(j, 'tyres', 'MEDIUM'),
+                "tyresAgeLaps": getattr(j, 'tyresAgeLaps', 0),
+                "delta_to_leader": getattr(j, 'delta_to_race_leader_in_ms', 0) / 1000,
+                "num_laps": getattr(j, 'current_lap_num', 0),
+                "pit_stop": getattr(j, 'pit_stops', 0)
+            })
+        
         return jsonify({"sessao": sessao, "pilotos": pilotos})
     except Exception as e:
         return jsonify({"erro": str(e)})
+
 @app.route("/historico_sessoes")
 def historico_sessoes():
     """Lista todas as sessões do banco"""

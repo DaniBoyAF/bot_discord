@@ -157,7 +157,7 @@
     }
 
     async function atualizar() {
-      const dados = await fetch("/dados_pneus").then(r => r.json());
+      const dados = await fetch("/dados_pneus_live").then(r => r.json());
       const painel = document.getElementById("painel");
       painel.innerHTML = "";
 
@@ -168,7 +168,7 @@
 
         card.innerHTML = `
           <h3>${piloto.nome} #${piloto.position}</h3>
-          <p>${piloto.tyres} - ${piloto.tyresAgeLaps} laps</p>
+          <p>${piloto.tyres} - ${piloto.tyresAgeLaps} laps - Pit🔧: ${piloto.pit_stop}</p>
           <div class="container">
             <span class="pneu FL" style="color:${corDesgaste(desgaste[2])}">${parseFloat(desgaste[2]).toFixed(1)}%</span>
             <span class="pneu FR" style="color:${corDesgaste(desgaste[3])}">${parseFloat(desgaste[3]).toFixed(1)}%</span>

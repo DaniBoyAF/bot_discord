@@ -1,6 +1,6 @@
 from Bot.jogadores import get_jogadores
 from utils.dictionnaries import tyres_dictionnary
-async def danos(ctx, piloto: str = None):
+async def danos(ctx, piloto: str | None=None):
     jogadores = get_jogadores ()
     tyres_nomes = tyres_dictionnary
     if not piloto :

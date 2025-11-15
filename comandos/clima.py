@@ -1,12 +1,13 @@
 import sys
 import os
 import time
+
 # Corrige o caminho para importar módulos de fora da pasta
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Bot.Session import SESSION # Supondo que SESSION está em Bot/Session.py
+from Bot.Session import SESSION
+from utils.dictionnaries import session_dictionary, weather_dictionary, safetyCarStatusDict
 
-from utils.dictionnaries import session_dictionary, weather_dictionary
 # Variável global para armazenar o tempo de início da sessão
 TEMPO_INICIO = time.time()
 
@@ -19,25 +20,29 @@ async def comando_clima(ctx):
     # Acessa os dados da sessão do F1 corretamente
     tempo_ar = getattr(SESSION, "m_air_temperature", 0)
     tempo_pista = getattr(SESSION, "m_track_temperature", 0)
-    clima = {weather_dictionary[getattr(SESSION, "m_weather", 0)]}
-    tipo_sessa= getattr(SESSION, "m_session_type", 0)
+    clima_id = getattr(SESSION, "m_weather", 0)
+    clima = weather_dictionary.get(clima_id, "Desconhecido")  # ← CORRIGIDO (era {set})
+    tipo_sessa = getattr(SESSION, "m_session_type", 0)
     total_voltas = getattr(session, "m_total_laps", 0)
     rain_porcentagem = getattr(session, "rainPercentage", 0)
     carro_de_segurança = getattr(session, "m_safety_car_status", 0)
+    safety_car_status = safetyCarStatusDict.get(carro_de_segurança, "Nenhum")  # ← TRADUZ
+    bandeira = getattr(session, "flag", "Verde")  # ← ADICIONA BANDEIRA
+    
     tipo_sessao = session_dictionary.get(tipo_sessa, "Sessão Desconhecida")
-    if carro_de_segurança == 0:
-        tipo_sessao += " (sem Safety Car)"
-    elif carro_de_segurança == 1:
-        tipo_sessao += " (Safety Car na pista)"
-    elif carro_de_segurança == 2:
-        tipo_sessao += " (Virtual Safety Car)"
+    
+    # ← REMOVE O IF (já traduzido acima)
+    
     texto = (
-        f"Sessão: {tipo_sessao}. Já se passaram {minutos} minutos e {segundos} segundos.\n "
-        f"Temperatura do ar: {tempo_ar} graus.\n Temperatura da pista: {tempo_pista} graus. "
-        f"Clima atual: {clima}E porcentagem {rain_porcentagem}%.\n Volta maximas {total_voltas}."
-        f"A sessão tem {len(session.weatherList)}% previsões de clima futuras.\n"
-        f"Carro de segurança: {carro_de_segurança}.\n"
-        f"Bandeira amarela na pista: {session.anyYellow}."
+        f"🏁 **Sessão**: {tipo_sessao}\n"
+        f"⏱️ **Tempo decorrido**: {minutos}min {segundos}s\n"
+        f"🌡️ **Temperatura do ar**: {tempo_ar}°C\n"
+        f"🌡️ **Temperatura da pista**: {tempo_pista}°C\n"
+        f"☁️ **Clima atual**: {clima}\n"
+        f"🌧️ **Porcentagem de chuva**: {rain_porcentagem}%\n"
+        f"🏎️ **Voltas totais**: {total_voltas}\n"
+        f"🚗 **Safety Car**: {safety_car_status}\n"
+        f"🏴 **Bandeira**: {bandeira}"
     )
 
-    await ctx.send(texto)  # Envia a mensagem no canal de texto
+    await ctx.send(texto)

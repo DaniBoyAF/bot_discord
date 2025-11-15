@@ -229,14 +229,6 @@ def conversion(millis, mode):  # mode 1 = titre, mode 2 = last lap
             return f"{seconds}.{millis}"
 
 
-
-def file_len(fname):
-    with open(fname) as file:
-        for i, l in enumerate(file):
-            pass
-    return i + 1
-
-
 def string_code(packet):
     string = ""
     for i in range(4):

@@ -1,335 +1,281 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análise de Voltas - GP</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        #root { min-height: 100vh; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .animate-spin { animation: spin 2s linear infinite; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Painel F1</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0a0e17 0%, #1a1f2e 100%);
+      color: white;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      background: linear-gradient(90deg, #ff3c00, #ff6b00, #ff3c00);
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-size: 2.5em;
+      margin-bottom: 20px;
+      text-shadow: 0 0 30px rgba(255, 60, 0, 0.3);
+      animation: gradientShift 3s ease infinite;
+      letter-spacing: 2px;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    table {
+      width: 90%;
+      max-width: 1200px;
+      margin: 80px auto 20px;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: linear-gradient(145deg, #1a1f2e, #141821);
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5),
+                  0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+
+    th, td {
+      padding: 16px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    th {
+      background: linear-gradient(135deg, #252b3a, #1e2330);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 0.85em;
+      color: #a8b2d1;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    tbody tr {
+      transition: all 0.3s ease;
+    }
+
+    tbody tr:hover {
+      background: linear-gradient(90deg, rgba(255, 60, 0, 0.1), rgba(255, 107, 0, 0.05));
+      transform: scale(1.01);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Cores dos pneus com brilho */
+    .wet { 
+      color: #0095ff;
+      text-shadow: 0 0 10px rgba(0, 149, 255, 0.5);
+      font-weight: 600;
+    }
+    .int { 
+      color: #4cf509;
+      text-shadow: 0 0 10px rgba(76, 245, 9, 0.5);
+      font-weight: 600;
+    }
+    .médio { 
+      color: #ffd700;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+      font-weight: 600;
+    }
+    .duro { 
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+      font-weight: 600;
+    }
+    .macio { 
+      color: #ff3c00;
+      text-shadow: 0 0 10px rgba(255, 60, 0, 0.5);
+      font-weight: 600;
+    }
+    .ss {
+      color: #cc00ff;
+      text-shadow: 0 0 10px rgba(204, 0, 255, 0.5);
+      font-weight: 600;
+    }
+    
+    /* Painéis informativos */
+    .info-panel {
+      position: fixed;
+      background: linear-gradient(135deg, rgba(26, 31, 46, 0.95), rgba(20, 24, 33, 0.95));
+      backdrop-filter: blur(10px);
+      color: white;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                  0 0 0 1px rgba(255, 255, 255, 0.1),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      z-index: 999;
+      transition: all 0.3s ease;
+    }
+
+    .info-panel:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5),
+                  0 0 0 1px rgba(255, 255, 255, 0.2);
+    }
+
+    #clima-painel { top: 10px; left: 10px; }
+    #clima-painel2 { top: 60px; left: 10px; }
+    #clima-painel3 { top: 60px; right: 10px; }
+    #clima-painel4 { 
+      top: 10px; 
+      right: 10px;
+      background: linear-gradient(135deg, rgba(255, 60, 0, 0.2), rgba(255, 107, 0, 0.1));
+      border: 1px solid rgba(255, 60, 0, 0.3);
+      font-weight: 700;
+      font-size: 16px;
+    }
+    #nome_de_circuito-painel5 { 
+      top: 10px; 
+      right: 200px;
+      background: linear-gradient(135deg, rgba(46, 161, 190, 0.3), rgba(31, 108, 128, 0.3));
+      padding: 10px 24px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    #Umidade { top: 10px; left: 200px; }
+    #Flag { 
+      top: 60px; 
+      left: 200px;
+      font-weight: 600;
+    }
+
+    /* Animação de entrada */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    tbody tr {
+      animation: fadeIn 0.5s ease;
+    }
+
+    /* Destaque para posição */
+    td:first-child {
+      font-weight: 700;
+      font-size: 1.1em;
+      color: #ff6b00;
+    }
+
+    /* Estilo para o número do piloto */
+    td:nth-child(2) {
+      font-weight: 600;
+      color: #a8b2d1;
+    }
+
+    /* Destaque para nome do piloto */
+    td:nth-child(3) {
+      font-weight: 600;
+      text-align: left;
+      padding-left: 30px;
+    }
+  </style>
+  <script>
+async function atualizar() {
+  try {
+    const dados = await fetch("/dados_completos_live").then(r => r.json());
+
+    if (dados.erro) {
+      console.error("Erro:", dados.erro);
+      return;
+    }
+
+    const pilotos = dados.pilotos;
+    const sessao = dados.sessao;
+
+    // ✅ NOMES CORRETOS DOS CAMPOS
+    document.getElementById("clima-painel").textContent = `☁ Clima: ${sessao.clima}`;
+    document.getElementById("clima-painel2").textContent = `🌡 Pista: ${sessao.tempo_pista}°C`;
+    document.getElementById("clima-painel3").textContent = `🌡 Ar: ${sessao.tempo_ar}°C`;
+    document.getElementById("clima-painel4").textContent = `🏁 ${sessao.total_voltas}`;
+    document.getElementById("nome_de_circuito-painel5").textContent = `🗺 ${sessao.nome_pista}`;
+    document.getElementById("Umidade").textContent = `🌧 PorRain: ${sessao.rain_porcentagem}%`;
+    document.getElementById("Flag").textContent = `🚩 ${sessao.flag}`;
+
+    const tbody = document.getElementById("tabela_pilotos");
+    tbody.innerHTML = "";
+    
+    pilotos.sort((a, b) => a.position - b.position).forEach(p => {
+      // ✅ FORMATAÇÃO CORRETA DO DELTA
+      const deltaFormatado = p.delta_to_leader === 0 
+        ? "Leader" 
+        : `+${p.delta_to_leader.toFixed(3)}s`;
+      
+      const linha = `
+        <tr>
+          <td>${p.position}</td>
+          <td>${p.numero}</td>
+          <td>${p.nome}</td>
+          <td>${deltaFormatado}</td>
+          <td class="${p.tyres.toLowerCase()}">${p.tyres}</td>
+          <td>${p.tyresAgeLaps}</td>
+        </tr>`;
+      tbody.innerHTML += linha;
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar painel:", error);
+  }
+}
+
+// ✅ EXECUTA IMEDIATAMENTE E DEPOIS A CADA 500ms
+setInterval(atualizar, 500);
+atualizar();
+  </script>
 </head>
-<body class="bg-gray-200">
-    <div id="root">
-        <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #1a1a2e; color: white;">
-            <div style="text-align: center;">
-                <div style="font-size: 4rem; margin-bottom: 1rem;" class="animate-spin">⏳</div>
-                <h2 style="font-size: 2rem; font-weight: bold;">Carregando...</h2>
-            </div>
-        </div>
-    </div>
-
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
-
-    {% raw %}
-    <script type="text/babel" data-type="module">
-        const { useState, useEffect } = React;
-        
-        const Flag = (props) => (
-            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
-                <line x1="4" y1="22" x2="4" y2="15"/>
-            </svg>
-        );
-
-        const GPLaptimeAnalysis = () => {
-            const [raceData, setRaceData] = useState([]);
-            const [isLoading, setIsLoading] = useState(true);
-            const [sortBy, setSortBy] = useState('mean');
-
-            useEffect(() => {
-                const fetchDados = async () => {
-                    try {
-                        const urlParams = new URLSearchParams(window.location.search);
-                        const sessaoId = urlParams.get('sessao');
-                        
-                        let url = '/dados_voltas';
-                        if (sessaoId) {
-                            url = `/dados_voltas/${sessaoId}`;
-                        }
-                        
-                        const response = await fetch(url);
-                        const dados = await response.json();
-                        setRaceData(Array.isArray(dados) ? dados : []);
-                    } catch (error) {
-                        console.error("Erro ao buscar dados:", error);
-                        setRaceData([]);
-                    } finally {
-                        setIsLoading(false);
-                    }
-                };
-
-                fetchDados();
-                
-                const urlParams = new URLSearchParams(window.location.search);
-                const sessaoId = urlParams.get('sessao');
-                
-                if (!sessaoId) {
-                    const interval = setInterval(fetchDados, 2000);
-                    return () => clearInterval(interval);
-                }
-            }, []);
-
-            const countConsecutiveSafetyCarLaps = (validLaps, meanTime) => {
-                let consecutiveCount = 0;
-                let totalSafetyLaps = 0;
-                
-                validLaps.forEach(lap => {
-                    if (lap.tempo_total > meanTime + 15) {
-                        consecutiveCount++;
-                    } else {
-                        if (consecutiveCount > 1) {
-                            totalSafetyLaps += consecutiveCount;
-                        }
-                        consecutiveCount = 0;
-                    }
-                });
-                
-                if (consecutiveCount > 1) {
-                    totalSafetyLaps += consecutiveCount;
-                }
-                
-                return totalSafetyLaps;
-            };
-
-            const processDriverData = (driver) => {
-                if (!driver || !driver.voltas) return null;
-
-                const validLaps = driver.voltas.filter(lap => {
-                    if (!lap.tempo_total || lap.tempo_total <= 0) return false;
-                    return lap.tempo_total > 15 && lap.tempo_total < 300;
-                });
-
-                if (validLaps.length === 0) return null;
-
-                const lapTimes = validLaps.map(lap => lap.tempo_total);
-                const meanTime = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
-                const bestLap = Math.min(...lapTimes);
-
-                return {
-                    nome: driver.nome,
-                    numero: driver.numero,
-                    tyres: driver.tyres,
-                    position: driver.position,
-                    lapTimes: lapTimes,
-                    meanTime: meanTime,
-                    bestLap: bestLap,
-                    safetyCarLaps: countConsecutiveSafetyCarLaps(validLaps, meanTime),
-                    validLapsCount: validLaps.length
-                };
-            };
-
-            const processedDrivers = raceData
-                .map(processDriverData)
-                .filter(d => d !== null && d.validLapsCount >= 3)
-                .sort((a, b) => {
-                    switch(sortBy) {
-                        case 'best': return a.bestLap - b.bestLap;
-                        case 'name': return a.nome.localeCompare(b.nome);
-                        case 'position': return a.position - b.position;
-                        default: return a.meanTime - b.meanTime;
-                    }
-                });
-
-            const formatTime = (seconds) => {
-                const mins = Math.floor(seconds / 60);
-                const secs = (seconds % 60).toFixed(3);
-                return `${mins}:${secs.padStart(6, '0')}`;
-            };
-
-            const getDriverInitials = (name) => {
-                const parts = name.split(' ').filter(p => p.length > 0);
-                if (parts.length >= 2) {
-                    return parts.slice(-2).map(p => p.substring(0, 3).toUpperCase()).join('');
-                }
-                return name.substring(0, 6).toUpperCase();
-            };
-
-            const colors = [
-                '#FF6B35', '#004E89', '#1A936F', '#C1666B', '#48A9A6',
-                '#E63946', '#457B9D', '#2A9D8F', '#E76F51', '#264653',
-                '#F4A261', '#8338EC', '#3A86FF', '#FB5607', '#FFBE0B'
-            ];
-
-            if (isLoading) {
-                return (
-                    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-                        <div className="text-center text-white">
-                            <div className="text-6xl mb-4 animate-bounce">🏎️</div>
-                            <h2 className="text-3xl font-bold">Carregando dados...</h2>
-                        </div>
-                    </div>
-                );
-            }
-
-            if (processedDrivers.length === 0) {
-                return (
-                    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
-                        <div className="bg-white rounded-lg p-12 max-w-2xl text-center shadow-2xl">
-                            <Flag className="text-red-500 mx-auto mb-6" size={64} />
-                            <h1 className="text-5xl font-bold text-gray-800 mb-6">GP 2025 🇲🇽</h1>
-                            <p className="text-xl text-gray-600">Aguardando dados de voltas...</p>
-                            <a href="/selecionar_sessao" className="mt-6 inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg">
-                                📊 Ver Histórico de Sessões
-                            </a>
-                        </div>
-                    </div>
-                );
-            }
-
-            const allLapTimes = processedDrivers.flatMap(d => d.lapTimes);
-            const minTime = Math.min(...allLapTimes);
-            const maxTime = Math.max(...allLapTimes);
-            const yMin = Math.floor((minTime - 2) / 5) * 5;
-            const yMax = Math.ceil((maxTime + 2) / 5) * 5;
-            const chartHeight = 500;
-
-            const getYPosition = (time) => {
-                return chartHeight - ((time - yMin) / (yMax - yMin)) * chartHeight;
-            };
-
-            return (
-                <div className="min-h-screen bg-gray-100 p-4 md:p-8">
-                    <div className="max-w-[1600px] mx-auto">
-                        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6 mb-6">
-                            <div className="flex items-center justify-between flex-wrap gap-4">
-                                <div>
-                                    <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2">
-                                        GP 2025 🇲🇽
-                                    </h1>
-                                    <p className="text-sm md:text-base text-gray-600">
-                                        {processedDrivers.length} pilotos - Ordenado por {
-                                            sortBy === 'mean' ? 'média' :
-                                            sortBy === 'best' ? 'melhor volta' :
-                                            sortBy === 'position' ? 'posição' : 'nome'
-                                        }
-                                    </p>
-                                </div>
-                                <div className="flex gap-2 md:gap-4 items-center flex-wrap">
-                                    <select
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value)}
-                                        className="px-3 py-2 rounded-lg border-2 border-gray-300 font-semibold bg-white text-sm"
-                                    >
-                                        <option value="mean">Ordenar: Média</option>
-                                        <option value="best">Ordenar: Melhor</option>
-                                        <option value="position">Ordenar: Posição</option>
-                                        <option value="name">Ordenar: Nome</option>
-                                    </select>
-
-                                    <a href="/selecionar_sessao" className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg text-sm">
-                                        📊 Histórico
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6 overflow-x-auto">
-                            <div className="relative" style={{ minWidth: '800px', height: chartHeight + 100 }}>
-                                <div className="absolute left-0 top-0 bottom-20 w-20 flex flex-col justify-between text-xs text-gray-600">
-                                    {Array.from({ length: 6 }, (_, i) => {
-                                        const time = yMax - (i * (yMax - yMin) / 5);
-                                        return <div key={i} className="text-right pr-2">{formatTime(time)}</div>;
-                                    })}
-                                </div>
-
-                                <div className="absolute left-20 right-0 top-0 bottom-20">
-                                    {Array.from({ length: 6 }, (_, i) => (
-                                        <div key={i} className="absolute w-full border-t border-gray-200" style={{ top: `${(i / 5) * 100}%` }} />
-                                    ))}
-
-                                    <div className="flex h-full">
-                                        {processedDrivers.map((driver, driverIdx) => {
-                                            const color = colors[driverIdx % colors.length];
-                                            const columnWidth = 100 / processedDrivers.length;
-
-                                            return (
-                                                <div key={driver.nome} className="relative" style={{ width: `${columnWidth}%` }}>
-                                                    <div
-                                                        className="absolute top-0 bottom-0 left-[10%] right-[10%] opacity-20"
-                                                        style={{ 
-                                                            backgroundColor: color,
-                                                            top: `${getYPosition(driver.meanTime + 3)}px`,
-                                                            bottom: `${chartHeight - getYPosition(driver.meanTime - 3)}px`
-                                                        }}
-                                                    />
-                                                    <div className="absolute left-0 right-0 h-0.5" style={{ backgroundColor: color, top: `${getYPosition(driver.meanTime)}px` }} />
-                                                    {driver.lapTimes.map((lapTime, lapIdx) => {
-                                                        const isOutlier = Math.abs(lapTime - driver.meanTime) > 10;
-                                                        return (
-                                                            <div
-                                                                key={lapIdx}
-                                                                className="absolute rounded-full transition-all hover:scale-150 cursor-pointer"
-                                                                style={{
-                                                                    backgroundColor: color,
-                                                                    width: isOutlier ? '3px' : '6px',
-                                                                    height: isOutlier ? '3px' : '6px',
-                                                                    left: `${30 + (lapIdx * (40 / driver.lapTimes.length))}%`,
-                                                                    top: `${getYPosition(lapTime) - 3}px`,
-                                                                    opacity: isOutlier ? 0.3 : 0.7
-                                                                }}
-                                                                title={`Volta ${lapIdx + 1}: ${formatTime(lapTime)}`}
-                                                            />
-                                                        );
-                                                    })}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                <div className="absolute left-20 right-0 bottom-0 h-20 flex border-t-2 border-gray-300">
-                                    {processedDrivers.map((driver, idx) => {
-                                        const color = colors[idx % colors.length];
-                                        return (
-                                            <div key={driver.nome} className="flex flex-col items-center justify-center text-center px-1" style={{ width: `${100 / processedDrivers.length}%` }}>
-                                                <div className="w-3 h-3 rounded-full mb-1" style={{ backgroundColor: color }} />
-                                                <div className="text-xs font-bold" style={{ color }}>{getDriverInitials(driver.nome)}</div>
-                                                <div className="text-xs text-gray-600 font-bold mt-1">{formatTime(driver.meanTime)}</div>
-                                                <div className="text-[10px] text-gray-500">
-                                                    {driver.safetyCarLaps > 0 && `${driver.safetyCarLaps}🚩`}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 bg-white rounded-lg shadow-lg p-4">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs md:text-sm">
-                                {processedDrivers.map((driver, idx) => (
-                                    <div key={driver.nome} className="flex items-center gap-2">
-                                        <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: colors[idx % colors.length] }} />
-                                        <span className="font-semibold">{getDriverInitials(driver.nome)}</span>
-                                        <span className="text-gray-600 truncate">- {driver.nome}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', renderApp);
-        } else {
-            renderApp();
-        }
-
-        function renderApp() {
-            const rootElement = document.getElementById('root');
-            if (rootElement) {
-                const root = ReactDOM.createRoot(rootElement);
-                root.render(<GPLaptimeAnalysis />);
-            }
-        }
-    </script>
-    {% endraw %}
+<body>
+  <h1>🔧 Painel Dinâmico F1 🏎️</h1>
+  
+  <div id="clima-painel" class="info-panel">☁ Clima: Carregando...</div>
+  <div id="clima-painel2" class="info-panel">🌡 Pista: Carregando...</div>
+  <div id="clima-painel3" class="info-panel">🌡 Ar: Carregando...</div>
+  <div id="clima-painel4" class="info-panel">🏁 Carregando...</div>
+  <div id="nome_de_circuito-painel5" class="info-panel">🗺 Track: Carregando...</div>
+  <div id="Umidade" class="info-panel">🌧 PorRain: Carregando...</div>
+  <div id="Flag" class="info-panel">🚩 Bandeira: Carregando...</div>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>P</th>
+        <th>#</th>
+        <th>NOME</th>
+        <th>GAP</th>
+        <th>TYRES 🛞</th>
+        <th>TYRES_AGE</th>
+      </tr>
+    </thead>
+    <tbody id="tabela_pilotos">
+      <tr><td colspan="6">Carregando...</td></tr>
+    </tbody>
+  </table>
 </body>
 </html>

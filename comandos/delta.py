@@ -1,8 +1,6 @@
 from discord.ext import commands
 from Bot.jogadores import get_jogadores
 from utils.dictionnaries import tyres_dictionnary , DRS_dict
-import sys
-import os
 def formatacao(ms):
     if ms == "—" or ms is None:
         return "—"
@@ -11,7 +9,7 @@ def formatacao(ms):
     milissegundos = ms % 1000
     return f"{minutos}:{segundos:02}.{milissegundos:03}"
 
-async def comando_delta(ctx, piloto: str = None):
+async def comando_delta(ctx, piloto: str | None=None):
     jogadores = get_jogadores()
     tyres_nome = tyres_dictionnary
     
