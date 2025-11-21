@@ -32,7 +32,8 @@
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6),
                   0 0 0 1px rgba(255, 255, 255, 0.1),
                   inset 0 1px 0 rgba(255, 255, 255, 0.05);
-      transition: all 0.3s ease;
+      transition: transform 360ms cubic-bezier(.2,.8,.2,1), opacity 360ms cubic-bezier(.2,.8,.2,1);
+      will-change: transform, opacity;
       position: relative;
       overflow: hidden;
     }
@@ -124,8 +125,25 @@
       }
     }
 
-    .piloto-card {
-      animation: fadeInUp 0.6s ease;
+    /* animação apenas para cards novos com delay variável */
+    .piloto-card.new {
+      animation: fadeInUp 560ms cubic-bezier(.2,.8,.2,1) both;
+      animation-delay: var(--delay, 0ms);
+    }
+
+    /* marcador visual discreto durante update (não reposiciona) */
+    .piloto-card.updating {
+      opacity: 0.92;
+      transform: translateY(4px) scale(0.998);
+    }
+
+    /* respeitar preferência de usuário por movimento reduzido */
+    @media (prefers-reduced-motion: reduce) {
+      .piloto-card, .piloto-card.new, .piloto-card.updating {
+        transition: none;
+        animation: none;
+        transform: none;
+      }
     }
 
     /* Melhorias no SVG do carro */
@@ -149,53 +167,146 @@
     }
   </style>
   <script>
-    function corDesgaste(valor) {
-      if (valor >= 60) return "red";
-      if (valor >= 45) return "orange";
-      if (valor >= 30) return "yellow";
-      return "lime";
-    }
+(function(){
+  const MIN_INTERVAL = 1500;
+  let lastFetch = 0;
+  const cards = new Map();
 
-    async function atualizar() {
-      const dados = await fetch("/dados_pneus_live").then(r => r.json());
+  function corDesgaste(valor) {
+    if (valor >= 60) return "red";
+    if (valor >= 45) return "orange";
+    if (valor >= 30) return "yellow";
+    return "lime";
+  }
+  function safeNumber(v, fallback=0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function makeCard(p) {
+    const card = document.createElement("div");
+    card.className = "piloto-card new";
+    // pequeno jitter para delay natural
+    const jitter = Math.floor(Math.random() * 180); // 0-180ms
+    card.style.setProperty('--delay', `${jitter}ms`);
+    card.dataset.pid = p.pid;
+    card.innerHTML = `
+      <h3 class="p_nome"></h3>
+      <p class="p_info"></p>
+      <div class="container">
+        <span class="pneu FL p_fl"></span>
+        <span class="pneu FR p_fr"></span>
+        <svg viewBox="0 0 100 200">
+          <!-- Corpo do carro -->
+          <rect x="40" y="20" width="20" height="160" rx="5" fill="#ccc" stroke="#555" stroke-width="2"/>
+          <!-- Asa dianteira -->
+          <rect x="20" y="10" width="60" height="10" fill="#999" stroke="#555" stroke-width="2"/>
+          <!-- Asa traseira -->
+          <rect x="30" y="180" width="40" height="10" fill="#999" stroke="#555" stroke-width="2"/>
+          <!-- Pneus -->
+          <circle cx="20" cy="40" r="10" fill="black"/>
+          <circle cx="80" cy="40" r="10" fill="black"/>
+          <circle cx="20" cy="160" r="10" fill="black"/>
+          <circle cx="80" cy="160" r="10" fill="black"/>
+        </svg>
+        <span class="pneu RL p_rl"></span>
+        <span class="pneu RR p_rr"></span>
+      </div>`;
+    // remove classe .new após animação (fallback timeout)
+    card.addEventListener('animationend', ()=> card.classList.remove('new'), { once: true });
+    setTimeout(()=> card.classList.remove('new'), 800);
+    return card;
+  }
+
+  function markUpdating(el) {
+    if (!el.classList.contains('updating')) {
+      el.classList.add('updating');
+      // remove o visual de update depois de curto tempo
+      setTimeout(()=> el.classList.remove('updating'), 300);
+    }
+  }
+
+  function updateCard(cardObj, p) {
+    const el = cardObj.el;
+    // aplica mudanças em texto/cores
+    el.querySelector(".p_nome").textContent = `${p.nome ?? p.name ?? "—"} #${p.position ?? p.numero ?? "-"}`;
+    el.querySelector(".p_info").textContent = `${p.tyres ?? p.tyre_compound ?? "—"} - ${p.tyresAgeLaps ?? 0} laps - Pit🔧: ${!!p.pit_stop}`;
+    const desgaste = Array.isArray(p.tyre_wear) ? p.tyre_wear : (p.tyre_wear ? Array.from(p.tyre_wear) : [0,0,0,0]);
+    const d = [safeNumber(desgaste[0],0), safeNumber(desgaste[1],0), safeNumber(desgaste[2],0), safeNumber(desgaste[3],0)];
+    const map = { p_fl: d[2], p_fr: d[3], p_rl: d[0], p_rr: d[1] };
+    for (const cls in map) {
+      const span = el.querySelector("." + cls);
+      const val = map[cls];
+      const text = val.toFixed(1) + "%";
+      if (span.textContent !== text) {
+        span.textContent = text;
+        span.style.color = corDesgaste(val);
+        // marca atualização visual discreta
+        markUpdating(el);
+      }
+    }
+  }
+
+  async function fetchAndRender() {
+    const now = Date.now();
+    if (now - lastFetch < MIN_INTERVAL) return;
+    lastFetch = now;
+    try {
+      const res = await fetch("/dados_pneus_live", { cache: "no-store" });
+      if (!res.ok) return;
+      const dados = await res.json();
+      if (!Array.isArray(dados)) return;
       const painel = document.getElementById("painel");
-      painel.innerHTML = "";
+      const seen = new Set();
+      const desiredOrder = [];
 
-      dados.sort((a,b)=> a.position - b.position).forEach(piloto => {
-        const desgaste = piloto.tyre_wear; // [FL, FR, RL, RR]
-        const card = document.createElement("div");
-        card.className = "piloto-card";
-
-        card.innerHTML = `
-          <h3>${piloto.nome} #${piloto.position}</h3>
-          <p>${piloto.tyres} - ${piloto.tyresAgeLaps} laps - Pit🔧: ${piloto.pit_stop}</p>
-          <div class="container">
-            <span class="pneu FL" style="color:${corDesgaste(desgaste[2])}">${parseFloat(desgaste[2]).toFixed(1)}%</span>
-            <span class="pneu FR" style="color:${corDesgaste(desgaste[3])}">${parseFloat(desgaste[3]).toFixed(1)}%</span>
-            <svg viewBox="0 0 100 200">
-              <!-- Corpo do carro -->
-              <rect x="40" y="20" width="20" height="160" rx="5" fill="#ccc" stroke="#555" stroke-width="2"/>
-              <!-- Asa dianteira -->
-              <rect x="20" y="10" width="60" height="10" fill="#999" stroke="#555" stroke-width="2"/>
-              <!-- Asa traseira -->
-              <rect x="30" y="180" width="40" height="10" fill="#999" stroke="#555" stroke-width="2"/>
-              <!-- Pneus -->
-              <circle cx="20" cy="40" r="10" fill="black"/>
-              <circle cx="80" cy="40" r="10" fill="black"/>
-              <circle cx="20" cy="160" r="10" fill="black"/>
-              <circle cx="80" cy="160" r="10" fill="black"/>
-            </svg>
-            <span class="pneu RL" style="color:${corDesgaste(desgaste[0])}">${parseFloat(desgaste[0]).toFixed(1)}%</span>
-            <span class="pneu RR" style="color:${corDesgaste(desgaste[1])}">${parseFloat(desgaste[1]).toFixed(1)}%</span>
-          </div>
-        `;
-        painel.appendChild(card);
+      // criar/atualizar com pequeno stagger para suavizar mudanças
+      dados.slice().sort((a,b)=> (a.position ?? 999)-(b.position ?? 999)).forEach((raw, i) => {
+        const pid = String(raw.numero ?? raw.position ?? (raw.name ?? Math.random()));
+        seen.add(pid);
+        desiredOrder.push(pid);
+        const p = Object.assign({}, raw, { pid });
+        if (!cards.has(pid)) {
+          const el = makeCard(p);
+          const obj = { el, lastData: null };
+          cards.set(pid, obj);
+          // adiciona com pequeno timeout baseado no índice para evitar bursts
+          setTimeout(()=> requestAnimationFrame(()=> painel.appendChild(el)), Math.min(300, i*40));
+          updateCard(obj, p);
+          obj.lastData = JSON.stringify(p);
+        } else {
+          const obj = cards.get(pid);
+          const curJson = JSON.stringify(p);
+          if (obj.lastData !== curJson) {
+            // atualiza só se mudou e adiciona leve stagger
+            setTimeout(()=> updateCard(obj, p), Math.min(300, i*30));
+            obj.lastData = curJson;
+          }
+        }
       });
-    }
 
-    setInterval(atualizar, 500);
-    window.onload = atualizar;
-  </script>
+      // reposicionar e remover não vistos (mantém elementos existentes)
+      desiredOrder.forEach((pid, idx) => {
+        const obj = cards.get(pid);
+        if (!obj) return;
+        const el = obj.el;
+        const currentAtIdx = painel.children[idx];
+        if (currentAtIdx !== el) painel.insertBefore(el, painel.children[idx] || null);
+      });
+      for (const [pid, obj] of Array.from(cards.entries())) {
+        if (!seen.has(pid)) { cards.delete(pid); requestAnimationFrame(()=> obj.el.remove()); }
+      }
+
+    } catch (err) {
+      console.error("Erro Tyre_hub:", err);
+    }
+  }
+
+  setInterval(fetchAndRender, Math.max(1200, MIN_INTERVAL));
+  window.addEventListener("load", fetchAndRender);
+  fetchAndRender();
+})();
+</script>
 </head>
 <body>
   <div id="painel">Carregando...</div>

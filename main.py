@@ -4,7 +4,7 @@ import asyncio
 import threading
 import time
 import sqlite3
-
+import PyPDF2
 import threading
 from comandos.pneusv import comando_pneusv
 from comandos.delta import comando_delta  # se o nome correto for esse
@@ -452,7 +452,7 @@ async def salvar_dados(ctx):
 async def volta_salvar(bot):
     global TEMPO_INICIO_VOLTAS, sessao_id_atual
     from Bot.jogadores import get_jogadores
-    from utils.dictionnaries import tyres_dictionnary, weather_dictionary, color_flag_dict, safetyCarStatusDict, session_dictionary
+    from utils.dictionnaries import tyres_dictionnary, weather_dictionary,  safetyCarStatusDict, session_dictionary
     from Bot.Session import SESSION
     
     canal_id = 1382050740922482892
@@ -463,23 +463,53 @@ async def volta_salvar(bot):
     
     mensagem = await canal.send("🔄 Iniciando salvamento no banco de dados...")
     
-    # 🏁 Cria a sessão inicial (SE NÃO EXISTIR)
+    # 🏁 Aguarda dados válidos da sessão vindos do parser antes de criar sessão
+    # se ainda não há sessão no DB, espere o parser popular SESSION com dados reais
     if sessao_id_atual is None:
-        conn = sqlite3.connect('f1_telemetry.db')
-        cursor = conn.cursor()
-        
-        # Pega dados da sessão atual
+        wait_seconds = 0
+        last_progress_update = 0
+        detected = False
+        # Espera até SESSION ter track_id válido, nome_pista ou total_voltas > 0
+        while True:
+            track_id = getattr(SESSION, 'm_track_id', -1)
+            nome_pista_raw = getattr(SESSION, 'track_name', None) or getattr(SESSION, 'm_track_name', None)
+            total_voltas = getattr(SESSION, 'm_total_laps', 0)
+            if (track_id not in (-1, None)) or (nome_pista_raw not in (None, '', 'Unknown Track')) or (total_voltas and total_voltas > 0):
+                detected = True
+                break
+
+            await asyncio.sleep(0.5)
+            wait_seconds += 0.5
+
+            # atualiza a mensagem no Discord a cada 5s para mostrar progresso
+            if wait_seconds - last_progress_update >= 5:
+                last_progress_update = wait_seconds
+                try:
+                    await mensagem.edit(content=f"🔄 Aguardando dados do jogo... {int(wait_seconds)}s")
+                except Exception:
+                    pass
+
+            # timeout seguro após 60s
+            if wait_seconds >= 60:
+                print("⚠️ Timeout aguardando dados do jogo. Criando sessão com dados atuais (parciais).")
+                break
+
+        # cria sessão no DB (caso detectado ou timeout)
+        # usa dados disponíveis no momento (se detectado, normalmente já há track_id/nome)
         track_id = getattr(SESSION, 'm_track_id', -1)
-        nome_pista = get_track_name(track_id)
+        nome_pista = get_track_name(track_id) if track_id not in (-1, None) else (nome_pista_raw or "Unknown Track")
         tipo_sessao = session_dictionary.get(getattr(SESSION, 'm_session_type', 0), 'Desconhecido')
-        total_voltas = getattr(SESSION, 'm_total_laps', 0)
+        total_voltas = getattr(SESSION, 'm_total_laps', 0) or 0
         clima = weather_dictionary.get(getattr(SESSION, 'm_weather', 0), 'Desconhecido')
         temp_ar = getattr(SESSION, 'm_air_temperature', 0)
         temp_pista = getattr(SESSION, 'm_track_temperature', 0)
         chuva = getattr(SESSION, "rainPercentage", 0)
         safety = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
-        flag = getattr(SESSION, "flag", "Verde")
-        
+        flag = getattr(SESSION, "m_zone_flag", "Verde")
+
+        conn = sqlite3.connect('f1_telemetry.db')
+        cursor = conn.cursor()
+
         cursor.execute('''
         INSERT INTO sessoes (nome_pista, tipo_sessao, total_voltas, clima, 
                             temperatura_ar, temperatura_pista, porcentagem_chuva,
@@ -487,14 +517,27 @@ async def volta_salvar(bot):
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (nome_pista, tipo_sessao, total_voltas, clima, temp_ar, temp_pista, 
               chuva, safety, flag, 0))
-        
+
         sessao_id_atual = cursor.lastrowid
         conn.commit()
         conn.close()
-        
+
         print(f"✅ Sessão criada: #{sessao_id_atual} | {nome_pista} | {tipo_sessao}")
-        await mensagem.edit(content=f"✅ Sessão iniciada: **{nome_pista}** ({tipo_sessao})")
-    
+        try:
+            if detected:
+                await mensagem.edit(content=f"✅ Dados do jogo recebidos: **{nome_pista}** — Sessão criada (#{sessao_id_atual})")
+            else:
+                await mensagem.edit(content=f"✅ Sessão criada (dados parciais): **{nome_pista}** ({tipo_sessao}) — Sessão #{sessao_id_atual}")
+        except Exception:
+            pass
+
+        # inicia task que atualiza nome da sessão caso o parser traga info mais tarde
+        try:
+            asyncio.create_task(_monitorar_e_atualizar_nome_sessao(sessao_id_atual, timeout=300, intervalo=1.0))
+        except Exception:
+            # ambiente sem loop? ignora sem travar
+            pass
+
     pit_quant = {}
     tyres_nomes = tyres_dictionnary
     
@@ -556,30 +599,115 @@ async def volta_salvar(bot):
                     VALUES (?, ?, ?, ?)
                     ''', (sessao_id_atual, nome, num, getattr(j, 'position', 0)))
                     
-                    # Pega o ID do piloto
+                    # Pega o ID do piloto (robusto contra fetchone() == None)
                     cursor.execute('SELECT id FROM pilotos WHERE sessao_id = ? AND nome = ?',
                                   (sessao_id_atual, nome))
-                    piloto_id = cursor.fetchone()[0]
-                    
-                    # 2. Salva voltas
+                    row = cursor.fetchone()
+                    if row:
+                        piloto_id = row[0]
+                    else:
+                        # fallback: tenta buscar pelo número
+                        cursor.execute('SELECT id FROM pilotos WHERE sessao_id = ? AND numero = ?',
+                                       (sessao_id_atual, num))
+                        row2 = cursor.fetchone()
+                        if row2:
+                            piloto_id = row2[0]
+                        else:
+                            # garante que existe um piloto mínimo e pega lastrowid
+                            cursor.execute('INSERT INTO pilotos (sessao_id, nome, numero, posicao) VALUES (?, ?, ?, ?)',
+                                           (sessao_id_atual, nome, num, getattr(j, 'position', 0)))
+                            piloto_id = cursor.lastrowid
+
+                    # 2. Salva voltas (mantido)
                     for volta in todas_voltas:
+                        # DEBUG: mostra a volta antes de inserir (comente depois)
+                        print("DEBUG: volta raw:", volta)
+
+                        # tempo total (aceita vários nomes possíveis)
+                        tempo_total = volta.get('tempo_total') or volta.get('tempo') or volta.get('tempo_volta') or volta.get('lap_time')
+
+                        # tenta obter setores por chaves diferentes
+                        s1 = volta.get('setor1')
+                        s2 = volta.get('setor2')
+                        s3 = volta.get('setor3')
+
+                        # alternativa inglês
+                        if (s1 is None or s2 is None or s3 is None) and 'sector1' in volta:
+                            s1 = volta.get('sector1')
+                            s2 = volta.get('sector2')
+                            s3 = volta.get('sector3')
+
+                        # formato parser: lista em 'setores' -> [s1,s2,s3]
+                        if (s1 is None or s2 is None or s3 is None) and isinstance(volta.get('setores'), (list, tuple)):
+                            setores = volta.get('setores', [])
+                            s1 = s1 if s1 is not None else (setores[0] if len(setores) > 0 else None)
+                            s2 = s2 if s2 is not None else (setores[1] if len(setores) > 1 else None)
+                            s3 = s3 if s3 is not None else (setores[2] if len(setores) > 2 else None)
+
+                        # normaliza: se valor parece ms (>=1000) converte pra s
+                        def _norm(v):
+                            try:
+                                if v is None:
+                                    return None
+                                fv = float(v)
+                                # considera valores grandes como ms
+                                if fv >= 1000:
+                                    return fv / 1000.0
+                                return fv
+                            except Exception:
+                                return None
+
+                        s1_val = _norm(s1)
+                        s2_val = _norm(s2)
+                        s3_val = _norm(s3)
+                        tempo_total_val = _norm(tempo_total)
+
+                        # DEBUG antes do insert
+                        print(f"DEBUG: insert volta #{volta.get('volta')} s1={s1_val} s2={s2_val} s3={s3_val} total={tempo_total_val}")
+
                         cursor.execute('''
                         INSERT OR REPLACE INTO voltas (sessao_id, piloto_id, numero_volta, tempo_volta, setor1, setor2, setor3)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                         ''', (
                             sessao_id_atual, piloto_id,
                             volta.get('volta', 0),
-                            volta.get('tempo_total', 0),
-                            volta.get('setor1', 0),
-                            volta.get('setor2', 0),
-                            volta.get('setor3', 0)
+                            tempo_total_val,
+                            s1_val,
+                            s2_val,
+                            s3_val
                         ))
+
+                    # 3. Salva dados de pneus - normalize arrays para evitar NoneType subscriptable
+                    tyre_wear = getattr(j, 'tyre_wear', None)
+                    if not isinstance(tyre_wear, (list, tuple)):
+                        tyre_wear = [0, 0, 0, 0]
+                    # Converte para lista se for tupla, para permitir append
+                    if isinstance(tyre_wear, tuple):
+                        tyre_wear = list(tyre_wear)
+                    # garante tamanho 4
+                    while len(tyre_wear) < 4:
+                        tyre_wear.append(0)
+
+                    temp_inner = getattr(j, 'tyres_temp_inner', None)
+                    if not isinstance(temp_inner, (list, tuple)):
+                        temp_inner = [0, 0, 0, 0]
                     
-                    # 3. Salva dados de pneus
-                    tyre_wear = getattr(j, 'tyre_wear', [0, 0, 0, 0])
-                    temp_inner = getattr(j, 'tyres_temp_inner', [0, 0, 0, 0])
-                    temp_surface = getattr(j, 'tyres_temp_surface', [0, 0, 0, 0])
-                    
+                    if isinstance(temp_inner, tuple):
+                        temp_inner = list(temp_inner)
+                    while len(temp_inner) < 4:
+                        temp_inner.append(0)
+
+                    temp_surface = getattr(j, 'tyres_temp_surface', None)
+                    if not isinstance(temp_surface, (list, tuple)):
+                        temp_surface = [0, 0, 0, 0]
+                    if isinstance(temp_surface, tuple):
+                        temp_surface = list(temp_surface)
+                    while len(temp_surface) < 4:
+                        temp_surface.append(0)
+
+                    # usa pit_quant.get para evitar KeyError caso não inicializado
+                    pit_count = pit_quant.get(nome, 0)
+
                     cursor.execute('''
                     INSERT INTO pneus (sessao_id, piloto_id, tipo_pneu, idade_voltas,
                                      desgaste_RL, desgaste_RR, desgaste_FL, desgaste_FR,
@@ -597,7 +725,7 @@ async def volta_salvar(bot):
                         getattr(j, 'tyre_life', 100),
                         getattr(j, 'tyre_set_data', 0),
                         getattr(j, 'm_lap_delta_time', 0),
-                        pit_quant[nome]
+                        pit_count
                     ))
                     
                     # 4. Salva danos
@@ -681,8 +809,25 @@ async def danos(ctx, piloto: str | None=None):
     await comandos_danos(ctx, piloto=piloto)
 
 @bot.command()
-async def media_lap(ctx):
-  await comando_media(ctx)
+async def media_lap(ctx, sessao_id: int | None = None):
+   """.media_lap -> usa última sessão
+       .media_lap <id> -> usa sessão específica"""
+   await comando_media(ctx, sessao_id)
+@bot.command(name="listar_sessoes")
+async def listar_sessoes(ctx, limit: int = 10):
+    """Lista sessões recentes com id para uso no comando .media <id>"""
+    conn = sqlite3.connect("f1_telemetry.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, nome_pista, tipo_sessao, datetime(created_at, 'unixepoch') FROM sessoes ORDER BY id DESC LIMIT ?", (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+    if not rows:
+        await ctx.send("Nenhuma sessão encontrada.")
+        return
+    linhas = ["Sessões recentes (id | nome | tipo | data):"]
+    for r in rows:
+        linhas.append(f"{r[0]} | {r[1] or 'Unknown'} | {r[2] or '??'} | {r[3] or '??'}")
+    await ctx.send("```\n" + "\n".join(linhas) + "\n```")
 def salvar_sessao_no_banco(pacote_session):
     import sqlite3
     
@@ -1019,7 +1164,7 @@ async def clip(ctx):
     )
 @bot.command()
 async def regras(ctx):
-    import PyPDF2
+    
     if not ctx.message.attachments:
         await ctx.send("📄 Envie o PDF das regras junto com o comando `.regras`")
         return
@@ -1213,6 +1358,35 @@ async def ler_regra(ctx, regra_id: int):
         await ctx.send(f"📄 **{nome}** (Upload: {data})\n\n```{conteudo[:1900]}...```\n⚠️ Conteúdo muito longo (mostrados primeiros 1900 caracteres)")
     else:
         await ctx.send(f"📄 **{nome}** (Upload: {data})\n\n```{conteudo}```")
+async def _monitorar_e_atualizar_nome_sessao(sessao_id, timeout=300, intervalo=1.0):
+    """Aguarda SESSION.track_name / m_track_id e atualiza sessoes.nome_pista quando disponível."""
+    from Bot.Session import SESSION
+    waited = 0
+    last_written = None
+    while waited < timeout:
+        nome_pista_raw = getattr(SESSION, "track_name", None) or getattr(SESSION, "m_track_name", None)
+        track_id = getattr(SESSION, "m_track_id", None)
+        nome = None
+        if track_id not in (None, -1):
+            nome = get_track_name(track_id)
+        if not nome:
+            nome = nome_pista_raw
+        if nome and nome not in ("", "Unknown Track", "Desconhecido"):
+            if nome != last_written:
+                try:
+                    conn = sqlite3.connect('f1_telemetry.db')
+                    cur = conn.cursor()
+                    cur.execute("UPDATE sessoes SET nome_pista = ? WHERE id = ?", (nome, sessao_id))
+                    conn.commit()
+                    conn.close()
+                    print(f"✅ Sessão #{sessao_id} atualizada para: {nome}")
+                    last_written = nome
+                except Exception as e:
+                    print("Erro ao atualizar nome de sessão:", e)
+            break
+        await asyncio.sleep(intervalo)
+        waited += intervalo
+
 #coisa HTTP e html pra baixo
 _cloudflared_proc = None
 url = None
@@ -1326,11 +1500,17 @@ async def pit_stop(ctx):
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
     await ctx.send(f"🔗 Painel disponível em: {url}/pit")
+try:
+    import Server_20 as ws_server
+except Exception :
+    ws_server = None
 if __name__ == "__main__":
     import threading
+    if ws_server: 
+          threading.Thread(target=ws_server.run, kwargs={"host":"0.0.0.0","port":6789}, daemon=True).start()  
+    
     from Bot.parser2024 import start_udp_listener
     threading.Thread(target=start_udp_listener, daemon=True).start()
-    threading.Thread(target=iniciar_painel_e_cloudflared, daemon=True).start()    
-
+    threading.Thread(target=iniciar_painel_e_cloudflared, daemon=True).start()  
+    
  #python Bot/bot_discord.py pra ativar
-

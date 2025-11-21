@@ -47,9 +47,9 @@ class Session:
         self.m_season_link_identifier = 0
         self.m_weekend_link_identifier = 0
         self.m_session_link_identifier = 0
-        self.m_pit_stop_window_ideal_lap = 0
-        self.m_pit_stop_window_latest_lap = 0
-        self.m_pit_stop_rejoin_position = 0
+        self.m_pit_stop_window_ideal_lap = 0 #proximo
+        self.m_pit_stop_window_latest_lap = 0#proximo
+        self.m_pit_stop_rejoin_position = 0#proximo
         self.m_steering_assist = 0
         self.m_braking_assist = 0
         self.m_gearbox_assist = 0
@@ -106,7 +106,12 @@ class Session:
 
         self.m_track_name = self.get_track_name(self.m_track_id)
         self.track_name = self.m_track_name
-        self.rainPercentage = getattr(pacote_session, "m_rain_percentage",)
+        # garante valor seguro mesmo se atributo não existir; aceita duas variações de nome
+        self.rainPercentage = getattr(
+            pacote_session,
+            "m_rain_percentage",
+            getattr(pacote_session, "m_rainPercentage", 0)
+        )
         if getattr(self, "m_num_marshal_zones", 0) > 0:
             mz = getattr(self, "m_marshal_zones", [])
             if mz:

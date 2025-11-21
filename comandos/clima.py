@@ -27,7 +27,7 @@ async def comando_clima(ctx):
     rain_porcentagem = getattr(session, "rainPercentage", 0)
     carro_de_segurança = getattr(session, "m_safety_car_status", 0)
     safety_car_status = safetyCarStatusDict.get(carro_de_segurança, "Nenhum")  # ← TRADUZ
-    bandeira = getattr(session, "flag", "Verde")  # ← ADICIONA BANDEIRA
+    bandeira = getattr(session, "m_zone_flag", "Verde")  # ← ADICIONA BANDEIRA
     
     tipo_sessao = session_dictionary.get(tipo_sessa, "Sessão Desconhecida")
     

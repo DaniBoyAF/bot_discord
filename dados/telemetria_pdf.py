@@ -42,7 +42,16 @@ def mostra_graficos_geral(jogadores, total_voltas=None, nome_arquivo="graficos_g
                     melhor_tempo = tempo
                     melhor_volta = v.get("volta", None)
                     melhor_piloto = getattr(j, "nome", "Piloto")
-                    melhor_tyres = tyres_dictionnary.get(getattr(j, "tyres", None), "N/A")
+                    # valida chave antes de usar .get para evitar passar None
+                    chave_tyres = getattr(j, "tyres", None)
+                    if chave_tyres is None:
+                        melhor_tyres = "N/A"
+                    else:
+                        # cast seguro para int (ajuste se sua chave for str ou outro tipo)
+                        try:
+                            melhor_tyres = tyres_dictionnary.get(int(chave_tyres), "N/A")
+                        except (ValueError, TypeError):
+                            melhor_tyres = tyres_dictionnary.get(chave_tyres, "N/A") 
 
     # Plota linhas
     max_volta_global = 0

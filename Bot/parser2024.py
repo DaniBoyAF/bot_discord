@@ -1,7 +1,7 @@
 import ctypes
 import socket
 import pprint
-from time import time
+import time
 
 pp = pprint.PrettyPrinter()
 
@@ -935,7 +935,7 @@ HEADER_FIELD_TO_PACKET_TYPE = {
 from Bot.Session import SESSION as session
 from Bot.jogadores import get_jogadores
 from dados.telemetria_pdf import mostra_graficos_geral
-from Bot.parser2024 import Listener
+# from Bot.parser2024 import Listener
 from dados.map_performance import atualizar_dados_motion, gerar_mapa_performance
 
 corrida_finalizada = False  # controle para não repetir
@@ -954,6 +954,21 @@ def start_udp_listener():
 
         # Interpreta o tipo de pacote
         
+        if header.m_packet_id == 1:  # PacketSessionData
+            session.atualizar(body)
+            print("DEBUG: session safety/marshal:", {
+                "m_safety_car_status": getattr(body, "m_safety_car_status", None),
+                "m_safety_car": getattr(body, "m_safety_car", None),
+                "marshal_zones": [
+                    {
+                        "start": getattr(mz, "m_zone_start", None),
+                        "flag": getattr(mz, "m_zone_flag", None)
+                    } for mz in getattr(body, "m_marshal_zones", []) or []
+                ]
+            })
+        elif header.m_packet_id == 3:  # PacketEventData
+            event_code = bytes(body.m_event_string_code).decode("utf-8", errors="ignore").strip("\x00")
+            print("DEBUG: event_code =", event_code, "event_details =", getattr(body, "m_event_details", None))
         if header.m_packet_id == 1:  # PacketSessionData
             session.atualizar(body)
         if header.m_packet_id == 4:
@@ -975,10 +990,11 @@ def start_udp_listener():
         elif header.m_packet_id == 11:
              atualizar_setores(body)
         elif header.m_packet_id == 0:
+            # PacketMotionData: percorre carros e envia para atualizar_dados_motion
             for idx, car in enumerate(body.m_car_motion_data):
-        # você precisa saber o tempo da volta atual (vem do PacketLapData)
-             tempo_volta = 0  # coloque o valor certo depois
-             atualizar_dados_motion(idx, car, tempo_volta)
+                # TODO: obter tempo_volta real a partir do último PacketLapData recebido
+                tempo_volta = 0
+                atualizar_dados_motion(idx, car, tempo_volta)
         elif header.m_packet_id == 3:
             event_code = bytes(body.m_event_string_code).decode('utf-8', errors='ignore').strip("\x00")
             if event_code == "Bateu":
@@ -989,14 +1005,6 @@ def start_udp_listener():
                 atualizar_pit_stop_served(body)
             elif event_code == "PUNICAO":
                 atualizar_punicao(body)
-        # ⚠️ Detectar fim da corrida
-        if not corrida_finalizada and session.Seance == 10:
-            jogadores = get_jogadores()
-            if all(p.hasRetired or p.position > 0 for p in jogadores):
-                print("🏁 Corrida finalizada!")
-                mostra_graficos_geral(jogadores)
-                print("📄 PDF gerado com gráfico!")
-                corrida_finalizada = True
 
 def atualizar_SessionData(pacote_session):
     from Bot.Session import SESSION 
@@ -1051,9 +1059,10 @@ def atualizar_SessionData(pacote_session):
     
     # 🔢 Outros dados
     SESSION.currentLap = currentLap
-    SESSION.air_temperature = air_temperature
-    SESSION.track_temperature = track_temperature
-    SESSION.total_laps = total_laps
+    SESSION.m_air_temperature = air_temperature
+    SESSION.m_track_temperature = track_temperature
+    SESSION.m_total_laps = total_laps
+    print("foi atualizado o session data")
     
 def atualizar_speed_trap(pacote_telemetry):
     from Bot.jogadores import JOGADORES
@@ -1096,7 +1105,7 @@ def atualizar_final_classification(pacote_final):
     for idx, data in enumerate(pacote_final.m_classification_data):
         piloto = JOGADORES[idx]
         piloto.bestLapTime = data.m_best_lap_time_in_ms / 1000
-        piloto.totalRaceTime = data.m_total_race_time
+        
 def atualizar_lapdata(pacote_lap):
     print("Atualizando lapdata")
     from Bot.jogadores import JOGADORES
@@ -1148,81 +1157,82 @@ def atualizar_damage_data(pacote_danos):
         piloto.diffuserDamage = dano.m_diffuser_damage
         piloto.sidepodDamage = dano.m_sidepod_damage
 
-def atualizar_setores(pacote_setores_history): 
+def atualizar_setores(pacote_setores_history):
     from Bot.jogadores import JOGADORES
     from utils.dictionnaries import tyres_dictionnary
-    car_idx = pacote_setores_history.m_car_idx
+
+    car_idx = getattr(pacote_setores_history, "m_car_idx", None)
+    if car_idx is None or car_idx >= len(JOGADORES):
+        return
+
     piloto = JOGADORES[car_idx]
-    num_laps = pacote_setores_history.m_num_laps
-    lap_history = pacote_setores_history.m_lap_history_data
+    num_laps = getattr(pacote_setores_history, "m_num_laps", 0)
+    lap_history = getattr(pacote_setores_history, "m_lap_history_data", [])
     piloto.todas_voltas_setores = []
-    
-    for i in range(num_laps):
+
+    for i in range(min(num_laps, len(lap_history))):
         lap = lap_history[i]
-        if (
-            lap.m_sector1_time_in_ms > 0 or 
-            lap.m_sector2_time_in_ms > 0 or 
-            lap.m_sector3_time_in_ms > 0
-        ):
-          setores = []
-          tempo_total = 0.0
+        if (getattr(lap, "m_sector1_time_in_ms", 0) > 0 or
+            getattr(lap, "m_sector2_time_in_ms", 0) > 0 or
+            getattr(lap, "m_sector3_time_in_ms", 0) > 0):
+            setores = []
+            tempo_total = 0.0
+
             # Setor 1
-          if lap.m_sector1_time_in_ms > 0:
+            if lap.m_sector1_time_in_ms > 0:
                 setor1 = lap.m_sector1_time_in_ms / 1000
                 setores.append(setor1)
                 tempo_total += setor1
-          else:
+            else:
                 setores.append(0.0)
+
             # Setor 2
-          if lap.m_sector2_time_in_ms > 0:
+            if lap.m_sector2_time_in_ms > 0:
                 setor2 = lap.m_sector2_time_in_ms / 1000
                 setores.append(setor2)
                 tempo_total += setor2
-          else:
+            else:
                 setores.append(0.0)
+
             # Setor 3
-          if lap.m_sector3_time_in_ms > 0:
+            if lap.m_sector3_time_in_ms > 0:
                 setor3 = lap.m_sector3_time_in_ms / 1000
                 setores.append(setor3)
                 tempo_total += setor3
-          else:
+            else:
                 setores.append(0.0)
 
-          piloto.todas_voltas_setores.append({
+            piloto.todas_voltas_setores.append({
                 "volta": i + 1,
                 "tempo_total": tempo_total,
                 "setores": setores
             })
-             # 🔧 CAPTURA DE STINTS DE PNEUS
-    num_stints = pacote_setores_history.m_num_tyre_stints
-    tyre_stints = pacote_setores_history.m_tyre_stints_history_data
-    
+
+    # Stints de pneus
+    num_stints = getattr(pacote_setores_history, "m_num_tyre_stints", 0)
+    tyre_stints = getattr(pacote_setores_history, "m_tyre_stints_history_data", [])
     piloto.pneu_stints = []
     volta_inicio = 1
-    
-    for i in range(num_stints):
+
+    for i in range(min(num_stints, len(tyre_stints))):
         stint = tyre_stints[i]
-        volta_fim = stint.m_end_lap
-        
-        # Se volta_fim = 255, significa que é o stint atual (ainda em uso)
+        volta_fim = getattr(stint, "m_end_lap", 255)
         if volta_fim == 255:
-            volta_fim = num_laps  # Usa a última volta registrada
-        
-        total_voltas = volta_fim - volta_inicio + 1
-        
-        # Pega o nome do composto
-        composto_real = stint.m_tyre_actual_compound
+            volta_fim = num_laps if num_laps > 0 else volta_inicio
+        total_voltas = max(0, volta_fim - volta_inicio + 1)
+
+        composto_real = getattr(stint, "m_tyre_actual_compound", None)
         tipo_pneu = tyres_dictionnary.get(composto_real, "Desconhecido")
-        
+
         piloto.pneu_stints.append({
-            'stint_numero': i + 1,
-            'tipo_pneu': tipo_pneu,
-            'composto_real': composto_real,
-            'volta_inicio': volta_inicio,
-            'volta_fim': volta_fim,
-            'total_voltas': total_voltas
+            "stint_numero": i + 1,
+            "tipo_pneu": tipo_pneu,
+            "composto_real": composto_real,
+            "volta_inicio": volta_inicio,
+            "volta_fim": volta_fim,
+            "total_voltas": total_voltas
         })
-        
+
         volta_inicio = volta_fim + 1
 def atualizar_colisao(pacote_colisao):
     from Bot.jogadores import JOGADORES

@@ -69,7 +69,15 @@
     }
 
     tbody tr {
-      transition: all 0.3s ease;
+      transition: background 260ms ease, transform 260ms ease, opacity 260ms ease;
+      will-change: transform, opacity, background;
+    }
+
+    /* marcador discreto quando um row muda */
+    tbody tr.updating {
+      background: linear-gradient(90deg, rgba(255, 60, 0, 0.06), rgba(255, 107, 0, 0.03));
+      transform: translateY(2px);
+      opacity: 0.98;
     }
 
     tbody tr:hover {
@@ -175,10 +183,6 @@
       }
     }
 
-    tbody tr {
-      animation: fadeIn 0.5s ease;
-    }
-
     /* Destaque para posição */
     td:first-child {
       font-weight: 700;
@@ -199,55 +203,101 @@
       padding-left: 30px;
     }
   </style>
+
   <script>
 async function atualizar() {
   try {
-    const dados = await fetch("/dados_completos_live").then(r => r.json());
-
-    if (dados.erro) {
-      console.error("Erro:", dados.erro);
-      return;
-    }
-
-    const pilotos = dados.pilotos;
-    const sessao = dados.sessao;
-
-    // ✅ NOMES CORRETOS DOS CAMPOS
-    document.getElementById("clima-painel").textContent = `☁ Clima: ${sessao.clima}`;
-    document.getElementById("clima-painel2").textContent = `🌡 Pista: ${sessao.tempo_pista}°C`;
-    document.getElementById("clima-painel3").textContent = `🌡 Ar: ${sessao.tempo_ar}°C`;
-    document.getElementById("clima-painel4").textContent = `🏁 ${sessao.total_voltas}`;
-    document.getElementById("nome_de_circuito-painel5").textContent = `🗺 ${sessao.nome_pista}`;
-    document.getElementById("Umidade").textContent = `🌧 PorRain: ${sessao.rain_porcentagem}%`;
-    document.getElementById("Flag").textContent = `🚩 ${sessao.flag}`;
-
+    const res = await fetch("/dados_completos_live", { cache: "no-store" });
+    if (!res.ok) return;
+    const dados = await res.json();
+    const pilotos = Array.isArray(dados.pilotos) ? dados.pilotos : [];
     const tbody = document.getElementById("tabela_pilotos");
-    tbody.innerHTML = "";
-    
-    pilotos.sort((a, b) => a.position - b.position).forEach(p => {
-      // ✅ FORMATAÇÃO CORRETA DO DELTA
-      const deltaFormatado = p.delta_to_leader === 0 
-        ? "Leader" 
-        : `+${p.delta_to_leader.toFixed(3)}s`;
-      
-      const linha = `
-        <tr>
-          <td>${p.position}</td>
-          <td>${p.numero}</td>
-          <td>${p.nome}</td>
-          <td>${deltaFormatado}</td>
-          <td class="${p.tyres.toLowerCase()}">${p.tyres}</td>
-          <td>${p.tyresAgeLaps}</td>
-        </tr>`;
-      tbody.innerHTML += linha;
+    if (!tbody) return;
+
+    // mapa de linhas existentes (pid -> tr)
+    const existing = {};
+    tbody.querySelectorAll("tr[data-pid]").forEach(tr => existing[tr.dataset.pid] = tr);
+
+    // manter ordem desejada e diffs
+    const fragment = document.createDocumentFragment();
+    const desiredOrder = [];
+
+    pilotos
+      .sort((a,b) => (a.position ?? 999) - (b.position ?? 999))
+      .forEach((p, idx) => {
+        const pid = String(p.numero ?? p.position ?? (p.name ?? idx));
+        desiredOrder.push(pid);
+
+        const position = p.position ?? p.pos ?? "-";
+        const numero = p.numero ?? p.number ?? "-";
+        const nome = p.nome ?? p.name ?? "—";
+        const deltaRaw = (typeof p.delta_to_leader === "number") ? p.delta_to_leader : (typeof p.delta === "number" ? p.delta : null);
+        const deltaFormatado = deltaRaw === 0 ? "Leader" : (deltaRaw ? `+${Number(deltaRaw).toFixed(3)}s` : "-");
+        const tyresText = p.tyres ?? p.tyre_compound ?? p.tyres_type ?? "—";
+        const tyresClass = (typeof tyresText === "string") ? tyresText.toLowerCase().normalize('NFKD').replace(/\s+/g, "_").replace(/[^\w-]/g, "") : "";
+        const tyresAge = p.tyresAgeLaps ?? p.tyres_age_laps ?? "-";
+
+        const html = `
+          <td>${position}</td>
+          <td>${numero}</td>
+          <td>${nome}</td>
+          <td>${deltaRaw}</td>
+          <td class="${tyresClass}">${tyresText}</td>
+          <td>${tyresAge}</td>`;
+
+        let tr = existing[pid];
+        if (tr) {
+          // atualiza só se houver diferença no HTML (minimiza reflows)
+          if (tr._lastHtml !== html) {
+            tr.classList.add('updating');
+            tr.innerHTML = html;
+            // remove a marca visual após curto período
+            setTimeout(() => tr.classList.remove('updating'), 350);
+            tr._lastHtml = html;
+          }
+          delete existing[pid];
+        } else {
+          tr = document.createElement("tr");
+          tr.dataset.pid = pid;
+          tr._lastHtml = html;
+          tr.innerHTML = html;
+          // animação discreta apenas para novas linhas (usando classe CSS)
+          tr.classList.add('updating');
+          setTimeout(() => tr.classList.remove('updating'), 500);
+        }
+        fragment.appendChild(tr);
+      });
+
+    // remove linhas que não existem mais
+    Object.values(existing).forEach(tr => tr.remove());
+
+    // aplica a nova ordem de forma eficiente em um único repaint
+    requestAnimationFrame(() => {
+      // se tbody já tiver exatamente o fragment em ordem, evita replace (micro-optim)
+      let same = tbody.children.length === fragment.childElementCount;
+      if (same) {
+        const newNodes = Array.from(fragment.children);
+        for (let i = 0; i < newNodes.length; i++) {
+          if (tbody.children[i].dataset.pid !== newNodes[i].dataset.pid) { same = false; break; }
+        }
+      }
+      if (!same) {
+        tbody.innerHTML = ""; // único clear
+        tbody.appendChild(fragment);
+      } else {
+        // se mesma ordem, apenas atualizações já feitas em cada <tr> ficam
+        // nada a fazer aqui
+      }
     });
+
   } catch (error) {
     console.error("Erro ao atualizar painel:", error);
   }
 }
 
-// ✅ EXECUTA IMEDIATAMENTE E DEPOIS A CADA 500ms
-setInterval(atualizar, 500);
+// throttle razoável (evita polling super agressivo)
+const POLL_INTERVAL = 1200;
+setInterval(atualizar, POLL_INTERVAL);
 atualizar();
   </script>
 </head>
