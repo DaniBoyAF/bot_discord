@@ -1,6 +1,7 @@
 import requests
 import json
 
+API_KEY = "sk-363dbb4a5f4e4f809cab8169b147c815"
 url= "https://api.deepseek.com/v1/chat/completions"
 
 headers = {
@@ -38,7 +39,7 @@ def analisar_dados_auto():
             "content": (
                 "Você é um assistente especializado em análise de corridas de Fórmula 1. "
                 "Sua função é interpretar dados de pneus, danos, telemetria e voltas, "
-                "e responder de forma clara e resumida."
+                "e responder de forma clara e resumida.E pq fim fazer um resumo das corridas"
             )
         },
         {
@@ -54,6 +55,8 @@ def analisar_dados_auto():
                 "3. ⚡ **Tipos de Pneus em Uso**\n"
                 "   - Liste cada piloto e o tipo de pneu atual (Macio, Médio, Duro, Chuva)\n\n"
                 "Dados completos:\n"
+                "4.fazer um rusumo: "
+                
                 f"{json.dumps(dados_completos)}"
             )
         }

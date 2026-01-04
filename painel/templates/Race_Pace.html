@@ -80,8 +80,18 @@
                             url = `/dados_voltas/${sessaoId}`;
                         }
                         
-                        const response = await fetch(url);
+                        console.log("Fetching:", url);
+                        const response = await fetch(url, { cache: 'no-store' });
+                        console.log("Response status:", response.status);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                        
                         const dados = await response.json();
+                        console.log("Dados recebidos:", dados);
+                        console.log("Número de pilotos:", dados.length);
+                        
                         setRaceData(Array.isArray(dados) ? dados : []);
                     } catch (error) {
                         console.error("Erro ao buscar dados:", error);
@@ -93,13 +103,18 @@
 
                 fetchDados();
                 
+                // ✅ Só faz polling se não tiver sessaoId (modo live)
                 const urlParams = new URLSearchParams(window.location.search);
                 const sessaoId = urlParams.get('sessao');
                 
+                let interval;
                 if (!sessaoId) {
-                    const interval = setInterval(fetchDados, 2000);
-                    return () => clearInterval(interval);
+                    interval = setInterval(fetchDados, 2000);
                 }
+                
+                return () => {
+                    if (interval) clearInterval(interval);
+                };
             }, []);
 
             const processRacerData = (racer) => {

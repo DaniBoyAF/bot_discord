@@ -50,38 +50,44 @@
             const [sortBy, setSortBy] = useState('mean');
 
             useEffect(() => {
+                let mounted = true;
+                const retryIntervalMs = 2000;
+
                 const fetchDados = async () => {
                     try {
-                        // Pega ID da sessão da URL (se existir)
                         const urlParams = new URLSearchParams(window.location.search);
                         const sessaoId = urlParams.get('sessao');
-                        
-                        let url = '/dados_voltas';
-                        if (sessaoId) {
-                            url = `/dados_voltas/${sessaoId}`;
+                        const url = sessaoId ? `/dados_voltas/${sessaoId}` : '/dados_voltas';
+
+                        const resp = await fetch(url, { cache: 'no-store' });
+                        if (!resp.ok) {
+                            console.error("HTTP error ao buscar dados:", resp.status);
+                            if (mounted) setRaceData([]);
+                            return;
                         }
-                        
-                        const response = await fetch(url);
-                        const dados = await response.json();
-                        setRaceData(Array.isArray(dados) ? dados : []);
-                    } catch (error) {
-                        console.error("Erro ao buscar dados:", error);
-                        setRaceData([]);
+                        const dados = await resp.json();
+                        if (!Array.isArray(dados) || dados.length === 0) {
+                            // sem dados ainda — manter polling até encontrar ou até o usuário interromper
+                            if (mounted) setRaceData([]);
+                            return;
+                        }
+                        if (mounted) setRaceData(dados);
+                    } catch (err) {
+                        console.error("Erro fetch /dados_voltas:", err);
+                        if (mounted) setRaceData([]);
                     } finally {
-                        setIsLoading(false);
+                        if (mounted) setIsLoading(false);
                     }
                 };
 
+                // fetch imediado + polling contínuo (sempre) para carregar histórico mesmo que demore
                 fetchDados();
-                
-                // Atualiza automaticamente apenas se NÃO houver sessão selecionada
-                const urlParams = new URLSearchParams(window.location.search);
-                const sessaoId = urlParams.get('sessao');
-                
-                if (!sessaoId) {
-                    const interval = setInterval(fetchDados, 2000);
-                    return () => clearInterval(interval);
-                }
+                const interval = setInterval(fetchDados, retryIntervalMs);
+
+                return () => {
+                    mounted = false;
+                    clearInterval(interval);
+                };
             }, []);
 
             const handleFileUpload = async (event) => {
@@ -158,7 +164,7 @@
 
             const processedDrivers = raceData
                 .map(processDriverData)
-                .filter(d => d !== null && d.validLapsCount >= 30)
+                .filter(d => d !== null && d.validLapsCount >= 3) // ✅ Aceita 3+ voltas
                 .sort((a, b) => {
                     switch(sortBy) {
                         case 'best': return a.bestLap - b.bestLap;

@@ -204,14 +204,24 @@
 
             const fetchData = async () => {
                 try {
+                    console.log("Fetching /dados_pra_o_painel"); // ✅ debug
                     const response = await fetch('/dados_pra_o_painel');
+                    console.log("Response status:", response.status); // ✅ debug
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
                     const data = await response.json();
+                    console.log("Dados recebidos:", data); // ✅ debug
+                    console.log("Número de pilotos:", data.length); // ✅ debug
                     
                     if (Array.isArray(data)) {
                         processDriverData(data);
                     }
                 } catch (error) {
                     console.error('Erro:', error);
+                    setDriversData([]); // ✅ garante que sai do loading
                 } finally {
                     setIsLoading(false);
                 }
