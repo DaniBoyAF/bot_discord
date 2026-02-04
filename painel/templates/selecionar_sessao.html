@@ -343,6 +343,21 @@
             if (data.ok) carregarSessoes();
         });
 
+        const btnModo = document.getElementById('btn-modo-selecao');
+        if (btnModo) btnModo.addEventListener('click', () => atualizarUI());
+
+        const btnTodas = document.getElementById('btn-selecionar-todas');
+        if (btnTodas) btnTodas.addEventListener('click', () => atualizarUI());
+
+        const btnLimpar = document.getElementById('btn-limpar-selecao');
+        if (btnLimpar) btnLimpar.addEventListener('click', () => atualizarUI());
+
+        const btnExcluirSel = document.getElementById('btn-excluir-selecionadas');
+        if (btnExcluirSel) btnExcluirSel.addEventListener('click', excluirSelecionadas);
+
+        const btnApagar = document.getElementById('btn-apagar');
+        if (btnApagar) btnApagar.addEventListener('click', async () => carregarSessoes());
+
         carregarSessoes();
     </script>
 </body>

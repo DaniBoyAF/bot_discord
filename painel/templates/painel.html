@@ -211,8 +211,27 @@ async function atualizar() {
     if (!res.ok) return;
     const dados = await res.json();
     const pilotos = Array.isArray(dados.pilotos) ? dados.pilotos : [];
+    const sessao = dados.sessao || {};
+    const clima = dados.clima || {};
     const tbody = document.getElementById("tabela_pilotos");
     if (!tbody) return;
+
+    // Atualiza painéis de info
+    const climaEl = document.getElementById("clima-painel");
+    const pistaEl = document.getElementById("clima-painel2");
+    const arEl = document.getElementById("clima-painel3");
+    const voltaEl = document.getElementById("clima-painel4");
+    const circuitoEl = document.getElementById("nome_de_circuito-painel5");
+    const umidadeEl = document.getElementById("Umidade");
+    const flagEl = document.getElementById("Flag");
+
+    if (climaEl) climaEl.textContent = `☁ Clima: ${clima.condicao || sessao.clima || "—"}`;
+    if (pistaEl) pistaEl.textContent = `🌡 Pista: ${clima.temp_pista || sessao.temp_pista || "—"}°C`;
+    if (arEl) arEl.textContent = `🌡 Ar: ${clima.temp_ar || sessao.temp_ar || "—"}°C`;
+    if (voltaEl) voltaEl.textContent = `🏁 Volta: ${sessao.volta_atual || "—"}/${sessao.total_voltas || "—"}`;
+    if (circuitoEl) circuitoEl.textContent = `🗺 Track: ${sessao.nome_pista || "—"}`;
+    if (umidadeEl) umidadeEl.textContent = `🌧 Rain: ${clima.chance_chuva || "—"}%`;
+    if (flagEl) flagEl.textContent = `🚩 Bandeira: ${sessao.bandeira || clima.bandeira || "Verde"}`;
 
     // mapa de linhas existentes (pid -> tr)
     const existing = {};
@@ -223,35 +242,33 @@ async function atualizar() {
     const desiredOrder = [];
 
     pilotos
-      .sort((a,b) => (a.position ?? 999) - (b.position ?? 999))
+      .sort((a,b) => (a.posicao ?? a.position ?? 999) - (b.posicao ?? b.position ?? 999))
       .forEach((p, idx) => {
-        const pid = `p-${idx}`; // ✅ sempre único (baseado na posição no array)
+        const pid = `p-${p.numero || idx}`;
         desiredOrder.push(pid);
 
-        const position = p.position ?? p.pos ?? "-";
+        const position = p.posicao ?? p.position ?? "-";
         const numero = p.numero ?? p.number ?? "-";
         const nome = p.nome ?? p.name ?? "—";
-        const deltaRaw = (typeof p.delta_to_leader === "number") ? p.delta_to_leader : (typeof p.delta === "number" ? p.delta : null);
+        const deltaRaw = p.delta_to_leader ?? p.delta ?? null;
         const deltaFormatado = deltaRaw === 0 ? "Leader" : (deltaRaw ? `+${Number(deltaRaw).toFixed(3)}s` : "-");
-        const tyresText = p.tyres ?? p.tyre_compound ?? p.tyres_type ?? "—";
+        const tyresText = p.pneu_atual ?? p.tyres ?? p.tyre_compound ?? "—";
         const tyresClass = (typeof tyresText === "string") ? tyresText.toLowerCase().normalize('NFKD').replace(/\s+/g, "_").replace(/[^\w-]/g, "") : "";
-        const tyresAge = p.tyresAgeLaps ?? p.tyres_age_laps ?? "-";
+        const tyresAge = p.idade_pneu ?? p.tyresAgeLaps ?? p.tyres_age_laps ?? "-";
 
         const html = `
           <td>${position}</td>
           <td>${numero}</td>
           <td>${nome}</td>
-          <td>${deltaRaw}</td>
+          <td>${deltaFormatado}</td>
           <td class="${tyresClass}">${tyresText}</td>
           <td>${tyresAge}</td>`;
 
         let tr = existing[pid];
         if (tr) {
-          // atualiza só se houver diferença no HTML (minimiza reflows)
           if (tr._lastHtml !== html) {
             tr.classList.add('updating');
             tr.innerHTML = html;
-            // remove a marca visual após curto período
             setTimeout(() => tr.classList.remove('updating'), 350);
             tr._lastHtml = html;
           }
@@ -261,7 +278,6 @@ async function atualizar() {
           tr.dataset.pid = pid;
           tr._lastHtml = html;
           tr.innerHTML = html;
-          // animação discreta apenas para novas linhas (usando classe CSS)
           tr.classList.add('updating');
           setTimeout(() => tr.classList.remove('updating'), 500);
         }
@@ -271,22 +287,18 @@ async function atualizar() {
     // remove linhas que não existem mais
     Object.values(existing).forEach(tr => tr.remove());
 
-    // aplica a nova ordem de forma eficiente em um único repaint
+    // aplica a nova ordem
     requestAnimationFrame(() => {
-      // se tbody já tiver exatamente o fragment em ordem, evita replace (micro-optim)
       let same = tbody.children.length === fragment.childElementCount;
       if (same) {
         const newNodes = Array.from(fragment.children);
         for (let i = 0; i < newNodes.length; i++) {
-          if (tbody.children[i].dataset.pid !== newNodes[i].dataset.pid) { same = false; break; }
+          if (tbody.children[i]?.dataset.pid !== newNodes[i].dataset.pid) { same = false; break; }
         }
       }
       if (!same) {
-        tbody.innerHTML = ""; // único clear
+        tbody.innerHTML = "";
         tbody.appendChild(fragment);
-      } else {
-        // se mesma ordem, apenas atualizações já feitas em cada <tr> ficam
-        // nada a fazer aqui
       }
     });
 
@@ -295,7 +307,6 @@ async function atualizar() {
   }
 }
 
-// throttle razoável (evita polling super agressivo)
 const POLL_INTERVAL = 1200;
 setInterval(atualizar, POLL_INTERVAL);
 atualizar();

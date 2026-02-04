@@ -26,7 +26,7 @@
     <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 
     {% raw %}
-    <script type="text/babel" data-type="module">
+    <script type="text/babel">
         const { useState, useEffect } = React;
         
         const Upload = (props) => (
@@ -58,29 +58,30 @@
                         const urlParams = new URLSearchParams(window.location.search);
                         const sessaoId = urlParams.get('sessao');
                         const url = sessaoId ? `/dados_voltas/${sessaoId}` : '/dados_voltas';
+                        console.log("Fetching:", url);
 
                         const resp = await fetch(url, { cache: 'no-store' });
                         if (!resp.ok) {
-                            console.error("HTTP error ao buscar dados:", resp.status);
+                            console.error("HTTP error:", resp.status);
                             if (mounted) setRaceData([]);
                             return;
                         }
                         const dados = await resp.json();
+                        console.log("Dados recebidos:", dados);
+                        
                         if (!Array.isArray(dados) || dados.length === 0) {
-                            // sem dados ainda — manter polling até encontrar ou até o usuário interromper
                             if (mounted) setRaceData([]);
                             return;
                         }
                         if (mounted) setRaceData(dados);
                     } catch (err) {
-                        console.error("Erro fetch /dados_voltas:", err);
+                        console.error("Erro fetch:", err);
                         if (mounted) setRaceData([]);
                     } finally {
                         if (mounted) setIsLoading(false);
                     }
                 };
 
-                // fetch imediado + polling contínuo (sempre) para carregar histórico mesmo que demore
                 fetchDados();
                 const interval = setInterval(fetchDados, retryIntervalMs);
 
@@ -106,38 +107,26 @@
                 }
             };
 
-            const countConsecutiveSafetyCarLaps = (validLaps, meanTime) => {
-                let consecutiveCount = 0;
-                let totalSafetyLaps = 0;
-                
-                validLaps.forEach(lap => {
-                    if (lap.tempo_total > meanTime + 15) {
-                        consecutiveCount++;
-                    } else {
-                        if (consecutiveCount > 1) {
-                            totalSafetyLaps += consecutiveCount;
-                        }
-                        consecutiveCount = 0;
-                    }
-                });
-                
-                if (consecutiveCount > 1) {
-                    totalSafetyLaps += consecutiveCount;
-                }
-                
-                return totalSafetyLaps;
-            };
-
             const processDriverData = (driver) => {
-                if (!driver || !driver.voltas) return null;
+                if (!driver || !driver.voltas || driver.voltas.length === 0) return null;
 
+                // Adapta formato: backend retorna setor1/setor2/setor3, não array setores
                 const validLaps = driver.voltas.filter(lap => {
-                    if (!lap.setores || lap.setores.length !== 3) return false;
-                    const allSectorsValid = lap.setores.every(setor => setor >= 15);
-                    if (!allSectorsValid) return false;
-                    const sectorsSum = lap.setores.reduce((a, b) => a + b, 0);
-                    const diff = Math.abs(sectorsSum - lap.tempo_total);
-                    return diff < 0.1;
+                    const tempo = lap.tempo_total;
+                    if (!tempo || tempo <= 0) return false;
+                    
+                    // Se tiver setores separados, valida
+                    const s1 = lap.setor1 || lap.s1 || 0;
+                    const s2 = lap.setor2 || lap.s2 || 0;
+                    const s3 = lap.setor3 || lap.s3 || 0;
+                    
+                    // Se não tiver setores, aceita só pelo tempo
+                    if (s1 === 0 && s2 === 0 && s3 === 0) {
+                        return tempo > 30 && tempo < 300; // tempo razoável
+                    }
+                    
+                    // Valida setores
+                    return s1 >= 10 && s2 >= 10 && s3 >= 10;
                 });
 
                 if (validLaps.length === 0) return null;
@@ -146,41 +135,42 @@
                 const meanTime = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
                 const bestLap = Math.min(...lapTimes);
                 const pitStops = driver.pit_stop || 0;
-                const safetyCarLaps = countConsecutiveSafetyCarLaps(validLaps, meanTime);
 
                 return {
-                    nome: driver.nome,
+                    nome: driver.nome || "Desconhecido",
                     numero: driver.numero,
                     tyres: driver.tyres,
-                    position: driver.position,
+                    position: driver.posicao || driver.position || 0,
                     lapTimes: lapTimes,
                     meanTime: meanTime,
                     bestLap: bestLap,
                     pitStops: pitStops,
-                    safetyCarLaps: safetyCarLaps,
+                    safetyCarLaps: 0,
                     validLapsCount: validLaps.length
                 };
             };
 
             const processedDrivers = raceData
                 .map(processDriverData)
-                .filter(d => d !== null && d.validLapsCount >= 3) // ✅ Aceita 3+ voltas
+                .filter(d => d !== null && d.validLapsCount >= 1)
                 .sort((a, b) => {
                     switch(sortBy) {
                         case 'best': return a.bestLap - b.bestLap;
                         case 'name': return a.nome.localeCompare(b.nome);
-                        case 'position': return a.position - b.position;
+                        case 'position': return (a.position || 99) - (b.position || 99);
                         default: return a.meanTime - b.meanTime;
                     }
                 });
 
             const formatTime = (seconds) => {
+                if (!seconds || seconds <= 0) return "--:--.---";
                 const mins = Math.floor(seconds / 60);
                 const secs = (seconds % 60).toFixed(3);
                 return `${mins}:${secs.padStart(6, '0')}`;
             };
 
             const getDriverInitials = (name) => {
+                if (!name) return "???";
                 const parts = name.split(' ').filter(p => p.length > 0);
                 if (parts.length >= 2) {
                     return parts.slice(-2).map(p => p.substring(0, 3).toUpperCase()).join('');
@@ -210,8 +200,8 @@
                     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
                         <div className="bg-white rounded-lg p-12 max-w-2xl text-center shadow-2xl">
                             <Flag className="text-red-500 mx-auto mb-6" size={64} />
-                            <h1 className="text-5xl font-bold text-gray-800 mb-6">GP 2025 🇲🇽</h1>
-                            <p className="text-xl text-gray-600 mb-8">Análise de Tempos por Volta</p>
+                            <h1 className="text-5xl font-bold text-gray-800 mb-6">GP 2025 🏁</h1>
+                            <p className="text-xl text-gray-600 mb-8">Nenhum dado de volta encontrado</p>
                             
                             <label className="cursor-pointer">
                                 <div className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold py-4 px-8 rounded-lg inline-flex items-center gap-3 transition-all transform hover:scale-105">
@@ -220,6 +210,10 @@
                                 </div>
                                 <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
                             </label>
+                            
+                            <div className="mt-6">
+                                <a href="/" className="text-blue-600 hover:underline">← Voltar ao Histórico</a>
+                            </div>
                         </div>
                     </div>
                 );
@@ -243,7 +237,7 @@
                             <div className="flex items-center justify-between flex-wrap gap-4">
                                 <div>
                                     <h1 className="text-2xl md:text-4xl font-bold text-gray-800 mb-2">
-                                        GP 2025 🇲🇽
+                                        Análise de Voltas 🏁
                                     </h1>
                                     <p className="text-sm md:text-base text-gray-600">
                                         {processedDrivers.length} pilotos - Ordenado por {
@@ -254,6 +248,9 @@
                                     </p>
                                 </div>
                                 <div className="flex gap-2 md:gap-4 items-center flex-wrap">
+                                    <a href="/" className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">
+                                        ← Histórico
+                                    </a>
                                     <select
                                         value={sortBy}
                                         onChange={(e) => setSortBy(e.target.value)}
@@ -264,14 +261,6 @@
                                         <option value="position">Ordenar: Posição</option>
                                         <option value="name">Ordenar: Nome</option>
                                     </select>
-
-                                    <label className="cursor-pointer">
-                                        <div className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-3 md:px-4 rounded-lg inline-flex items-center gap-2 text-sm">
-                                            <Upload size={16} />
-                                            Upload
-                                        </div>
-                                        <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
-                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -339,7 +328,7 @@
                                                 <div className="text-xs font-bold" style={{ color }}>{getDriverInitials(driver.nome)}</div>
                                                 <div className="text-xs text-gray-600 font-bold mt-1">{formatTime(driver.meanTime)}</div>
                                                 <div className="text-[10px] text-gray-500">
-                                                    {driver.pitStops}🔧{driver.safetyCarLaps > 0 && `|${driver.safetyCarLaps}🚩`}
+                                                    {driver.validLapsCount} voltas
                                                 </div>
                                             </div>
                                         );
@@ -364,12 +353,6 @@
             );
         };
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', renderApp);
-        } else {
-            renderApp();
-        }
-
         function renderApp() {
             const rootElement = document.getElementById('root');
             if (rootElement) {
@@ -377,14 +360,13 @@
                 root.render(<GPLaptimeAnalysis />);
             }
         }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', renderApp);
+        } else {
+            renderApp();
+        }
     </script>
     {% endraw %}
-
-    <div class="header">
-        <h1>🏎️ F1 Telemetria - Painel em Tempo Real</h1>
-        <a href="/selecionar_sessao" class="btn-historico" style="background: #e10600; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; margin-top: 10px;">
-            📊 Ver Histórico de Sessões
-        </a>
-    </div>
 </body>
 </html>

@@ -76,53 +76,36 @@
     .piloto-card.updating { opacity: 0.92; transform: scale(0.98); }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     .piloto-card.new { animation: fadeIn 0.5s ease; }
+    .no-data {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      width: 100%;
+    }
+    .no-data h2 { font-size: 2rem; margin: 1rem 0; }
+    .btn-history {
+      background: #e10600;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      margin-top: 1rem;
+    }
+    .btn-history:hover { background: #ff1a1a; }
   </style>
 </head>
 <body>
-  <div id="status" class="status disconnected">🔴 Desconectado</div>
-  <div id="painel">Aguardando dados do parser...</div>
+  <div id="status" class="status disconnected">🔴 Carregando...</div>
+  <div id="painel"></div>
 
   <script>
   (function() {
     const painel = document.getElementById("painel");
     const statusEl = document.getElementById("status");
     const cards = new Map();
-    let ws;
-    let reconnectTimer;
-
-    function connect() {
-      // WebSocket na porta 8765
-      ws = new WebSocket("ws://" + window.location.hostname + ":8765");
-      
-      ws.onopen = () => {
-        statusEl.className = "status connected";
-        statusEl.textContent = "🟢 LIVE";
-        console.log("WebSocket conectado!");
-      };
-      
-      ws.onclose = () => {
-        statusEl.className = "status disconnected";
-        statusEl.textContent = "🔴 Desconectado";
-        console.log("WebSocket desconectado, reconectando...");
-        clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(connect, 2000);
-      };
-      
-      ws.onerror = (err) => {
-        console.error("WebSocket erro:", err);
-        ws.close();
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const pilotos = data.pilotos || [];
-          renderPilotos(pilotos);
-        } catch (e) {
-          console.error("Erro ao processar dados:", e);
-        }
-      };
-    }
 
     function getWearColor(val) {
       if (val > 80) return "#ff3333";
@@ -184,12 +167,20 @@
     }
 
     function renderPilotos(pilotos) {
-      if (!pilotos.length) return;
-      
-      // Limpa texto inicial
-      if (painel.textContent.includes("Aguardando")) {
-        painel.innerHTML = "";
+      if (!pilotos || pilotos.length === 0) {
+        painel.innerHTML = `
+          <div class="no-data">
+            <span style="font-size: 4rem;">⚠️</span>
+            <h2>No Data Available</h2>
+            <a href="/" class="btn-history">📊 View History</a>
+          </div>
+        `;
+        return;
       }
+      
+      // Limpa no-data se existir
+      const noData = painel.querySelector('.no-data');
+      if (noData) painel.innerHTML = "";
       
       const seen = new Set();
       
@@ -221,7 +212,32 @@
       }
     }
 
-    connect();
+    async function fetchData() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessaoId = urlParams.get('sessao');
+        const url = sessaoId ? `/dados_pneus/${sessaoId}` : '/dados_pneus_live';
+        
+        const resp = await fetch(url, { cache: 'no-store' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        
+        const dados = await resp.json();
+        const pilotos = dados.pilotos || dados || [];
+        
+        statusEl.className = "status connected";
+        statusEl.textContent = "🟢 LIVE";
+        
+        renderPilotos(pilotos);
+      } catch (err) {
+        console.error("Erro fetch:", err);
+        statusEl.className = "status disconnected";
+        statusEl.textContent = "🔴 Erro";
+      }
+    }
+
+    // Polling a cada 1.5s
+    fetchData();
+    setInterval(fetchData, 1500);
   })();
   </script>
 </body>

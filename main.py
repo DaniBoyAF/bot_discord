@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import asyncio
 import threading
+import time as _time
 import time
 import sqlite3
 import PyPDF2
@@ -26,6 +27,37 @@ import os
 import shutil
 import re
 from painel.app import app
+from datetime import datetime, timedelta
+
+
+DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "f1_telemetry.db"))
+
+def db_connect():
+    """Conecta ao SQLite com WAL + busy_timeout para reduzir locks"""
+    conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
+    try:
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA synchronous = NORMAL;")
+        conn.execute("PRAGMA busy_timeout = 5000;")
+    except Exception:
+        pass
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def execute_with_retry(func, retries=6, backoff=0.15):
+    """Executa func() com retry se 'database is locked'"""
+    last_exc = None  # ✅ inicializa
+    for i in range(retries):
+        try:
+            return func()
+        except sqlite3.OperationalError as e:
+            last_exc = e  # ✅ guarda exceção
+            if "database is locked" not in str(e).lower():
+                raise
+            _time.sleep(backoff * (1 + i))
+    if last_exc is not None:
+        raise last_exc  # ✅ lança última exceção se todas tentativas falharem
+    raise RuntimeError("database operation failed after retries")  # fallback seguro
 
 TEMPO_INICIO = False
 TEMPO_INICIO_TABELA = False
@@ -40,6 +72,7 @@ tempo_maximo = 600 * 60
 intents =discord.Intents.default()
 intents.message_content=True
 intents.members = True
+
 bot =commands.Bot(command_prefix=".", intents=intents)
 @bot.event
 async def on_ready():
@@ -565,8 +598,8 @@ async def volta_salvar(bot):
                 if isinstance(speed, (int, float)) and speed > maior_speed_geral:
                     maior_speed_geral = speed
             
-            cursor.execute('UPDATE sessoes SET velocidade_maxima_geral = ? WHERE id = ?',
-                          (maior_speed_geral, sessao_id_atual))
+            # atualiza diretamente no banco (o commit é feito mais abaixo após processar todos os pilotos)
+            cursor.execute("UPDATE sessoes SET velocidade_maxima_geral = ? WHERE id = ?", (maior_speed_geral, sessao_id_atual))
             
             # 📊 Salva dados de cada piloto
             for j in jogadores:
@@ -772,9 +805,19 @@ async def volta_salvar(bot):
                     print(f"❌ Erro ao salvar piloto {nome or 'Desconhecido'}: {e}")
                     continue
             
-            # ✅ Commit APÓS processar todos os pilotos
-            conn.commit()
-            conn.close()
+            # ✅ Commit com retry (SUBSTITUA o bloco for tentativa in range(6))
+            def _commit():
+                conn.commit()
+            
+            try:
+                execute_with_retry(_commit)
+            except Exception as e:
+                print(f"❌ Erro ao commitar (após retries): {e}")
+            finally:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
             
             await asyncio.sleep(0.5)
         
@@ -1474,32 +1517,7 @@ async def painel(ctx):
     if not url:
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
-    await ctx.send(f"🔗 Painel disponível em: {url}")
-
-@bot.command()
-async def pneusp(ctx):
-    if not url:
-        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
-        return
-    await ctx.send(f"🔗 Painel dos pneus disponível em: {url}/pnues")
-@bot.command()
-async def grafico_web(ctx):
-    if not url:
-        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
-        return
-    await ctx.send(f"🔗 Painel disponível em: {url}/graf")
-@bot.command()
-async def media_HD(ctx):
-    if not url:
-        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
-        return
-    await ctx.send(f"🔗 Painel disponível em: {url}/g")
-@bot.command()
-async def pit_stop(ctx):
-    if not url:
-        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
-        return
-    await ctx.send(f"🔗 Painel disponível em: {url}/pit")
+    await ctx.send(f"🔗 Painel disponível dos graficos estão em: {url}/")
 try:
     import Server_20 as ws_server
 except Exception :

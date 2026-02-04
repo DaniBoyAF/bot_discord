@@ -41,6 +41,7 @@
             padding: 8px 40px;
             border-bottom: 1px solid #222;
             transition: all 0.3s;
+            animation: slideIn 0.5s ease forwards;
         }
         
         .driver-row:hover {
@@ -173,10 +174,6 @@
                 transform: translateX(0);
             }
         }
-        
-        .driver-row {
-            animation: slideIn 0.5s ease forwards;
-        }
     </style>
 </head>
 <body>
@@ -194,56 +191,61 @@
             const [driversData, setDriversData] = useState([]);
             const [isLoading, setIsLoading] = useState(true);
             const [totalPitStops, setTotalPitStops] = useState(0);
-            const [sessionInfo, setSessionInfo] = useState({ track: 'CIRCUIT', laps: 0 });
+            const [sessaoInfo, setSessaoInfo] = useState({ nome_pista: '', total_voltas: 0 });
 
             useEffect(() => {
                 fetchData();
-                const interval = setInterval(fetchData, 2000);
-                return () => clearInterval(interval);
             }, []);
 
             const fetchData = async () => {
                 try {
-                    console.log("Fetching /dados_pra_o_painel"); // ✅ debug
-                    const response = await fetch('/dados_pra_o_painel');
-                    console.log("Response status:", response.status); // ✅ debug
+                    // Pega sessao_id da URL ou usa a última
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const sessaoId = urlParams.get('sessao');
+                    const url = sessaoId ? `/dados_stints/${sessaoId}` : '/dados_stints_ultimo';
+                    
+                    console.log("Fetching:", url);
+                    const response = await fetch(url);
+                    console.log("Response status:", response.status);
                     
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);
                     }
                     
                     const data = await response.json();
-                    console.log("Dados recebidos:", data); // ✅ debug
-                    console.log("Número de pilotos:", data.length); // ✅ debug
+                    console.log("Dados recebidos:", data);
                     
-                    if (Array.isArray(data)) {
-                        processDriverData(data);
+                    if (data.sessao) {
+                        setSessaoInfo(data.sessao);
+                    }
+                    
+                    if (Array.isArray(data.pilotos)) {
+                        processDriverData(data.pilotos, data.sessao?.total_voltas || 0);
                     }
                 } catch (error) {
                     console.error('Erro:', error);
-                    setDriversData([]); // ✅ garante que sai do loading
+                    setDriversData([]);
                 } finally {
                     setIsLoading(false);
                 }
             };
 
-            const processDriverData = (pilotos) => {
+            const processDriverData = (pilotos, totalVoltasSessao) => {
                 const processed = pilotos.map((pilot) => {
                     const stints = pilot.stints || [];
-                    const totalLaps = pilot.num_laps || 0;
+                    const totalLaps = pilot.total_voltas || stints.reduce((sum, s) => sum + (s.total_voltas || 0), 0);
 
-                    // Se não houver stints, cria um padrão
                     const pitStops = stints.length > 0 
                         ? stints.map((stint, idx) => ({
-                            length: stint.total_voltas,
-                            compound: stint.tipo_pneu.toUpperCase().replace(' ', '_'),
+                            length: stint.total_voltas || (stint.volta_fim - stint.volta_inicio + 1),
+                            compound: (stint.tipo_pneu || stint.composto || 'MEDIUM').toUpperCase().replace(' ', '_'),
                             isUsed: idx < stints.length - 1,
                             voltaInicio: stint.volta_inicio,
                             voltaFim: stint.volta_fim
                           }))
                         : [{
                             length: totalLaps,
-                            compound: (pilot.tyres || 'MEDIUM').toUpperCase(),
+                            compound: (pilot.pneu_atual || 'MEDIUM').toUpperCase(),
                             isUsed: false,
                             voltaInicio: 1,
                             voltaFim: totalLaps
@@ -252,7 +254,7 @@
                     return {
                         name: pilot.nome,
                         number: pilot.numero,
-                        position: pilot.position,
+                        position: pilot.posicao || 99,
                         pitStops: pitStops,
                         totalLaps: totalLaps
                     };
@@ -270,7 +272,12 @@
                     'HARD': '#ffffff',
                     'INTERMEDIATE': '#4caf50',
                     'WET': '#2196f3',
-                    'SUPER_SOFT': '#9306f1'
+                    'SUPER_SOFT': '#9306f1',
+                    'C1': '#ffffff',
+                    'C2': '#ffffff',
+                    'C3': '#ffd700',
+                    'C4': '#ff1744',
+                    'C5': '#ff1744'
                 };
                 return colors[compound] || '#999';
             };
@@ -280,7 +287,7 @@
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'white' }}>
                         <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏎️</div>
-                            <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Loading...</h2>
+                            <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Carregando...</h2>
                         </div>
                     </div>
                 );
@@ -291,28 +298,28 @@
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'white' }}>
                         <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚠️</div>
-                            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>No Data Available</h2>
-                            <a href="/selecionar_sessao" style={{ display: 'inline-block', background: '#e10600', color: 'white', padding: '12px 24px', borderRadius: '4px', fontWeight: 'bold', textDecoration: 'none' }}>
-                                📊 View History
+                            <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>Sem dados disponíveis</h2>
+                            <a href="/" style={{ display: 'inline-block', background: '#e10600', color: 'white', padding: '12px 24px', borderRadius: '4px', fontWeight: 'bold', textDecoration: 'none' }}>
+                                📊 Ver Histórico
                             </a>
                         </div>
                     </div>
                 );
             }
 
-            const maxLaps = Math.max(...driversData.map(d => d.totalLaps));
+            const maxLaps = Math.max(...driversData.map(d => d.totalLaps), sessaoInfo.total_voltas || 1);
 
             return (
                 <div style={{ background: '#000', minHeight: '100vh' }}>
                     {/* Header */}
                     <div className="f1-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f9/F1_logo.svg" alt="F1" style={{ height: '50px' }} />
+                            <span style={{ fontSize: '2rem' }}>🏎️</span>
                             <div className="pirelli-badge">PIRELLI</div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
                             <div style={{ color: '#999', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '2px' }}>
-                                FORMULA 1 GRAND PRIX
+                                {sessaoInfo.nome_pista || 'CIRCUIT'}
                             </div>
                             <div style={{ color: '#fff', fontSize: '36px', fontWeight: '900', letterSpacing: '3px' }}>
                                 PIT STOPS
@@ -342,11 +349,16 @@
                         </div>
                         <div className="tyre-item">
                             <div className="tyre-circle" style={{ background: getTyreColor('INTERMEDIATE') }}></div>
-                            <div className="tyre-label">Intermediate</div>
+                            <div className="tyre-label">Inter</div>
                         </div>
                         <div className="tyre-item">
                             <div className="tyre-circle" style={{ background: getTyreColor('WET') }}></div>
                             <div className="tyre-label">Wet</div>
+                        </div>
+                        <div style={{ marginLeft: 'auto' }}>
+                            <a href="/" style={{ color: '#e10600', fontWeight: 'bold', textDecoration: 'none' }}>
+                                ← Voltar ao Histórico
+                            </a>
                         </div>
                     </div>
 
@@ -354,12 +366,15 @@
                     <div style={{ marginTop: '40px' }}>
                         {driversData.map((driver, idx) => (
                             <div key={driver.name} className="driver-row" style={{ animationDelay: `${idx * 0.03}s` }}>
-                                <div className="driver-name">{driver.name}</div>
+                                <div className="driver-name">
+                                    <span style={{ color: '#e10600', marginRight: '10px' }}>P{driver.position}</span>
+                                    {driver.name}
+                                </div>
                                 <div className="stint-bar">
                                     {driver.pitStops.map((stint, stintIdx) => {
                                         const widthPercent = (stint.length / maxLaps) * 100;
                                         const color = getTyreColor(stint.compound);
-                                        const textColor = stint.compound === 'MEDIUM' ? '#000' : '#fff';
+                                        const textColor = stint.compound === 'MEDIUM' || stint.compound === 'HARD' ? '#000' : '#fff';
                                         
                                         return (
                                             <div
@@ -370,7 +385,7 @@
                                                     background: color,
                                                     color: textColor
                                                 }}
-                                                title={`${stint.compound}: ${stint.length} laps (${stint.voltaInicio}-${stint.voltaFim}) ${stint.isUsed ? 'USED' : 'NEW'}`}
+                                                title={`${stint.compound}: ${stint.length} voltas (${stint.voltaInicio}-${stint.voltaFim})`}
                                             >
                                                 {stint.length > 4 && <span style={{ position: 'relative', zIndex: 1 }}>{stint.length}</span>}
                                             </div>
@@ -383,10 +398,10 @@
                     </div>
 
                     {/* Footer */}
-                    <div style={{ padding: '40px', textAlign: 'right' }}>
-                        <a href="/selecionar_sessao" style={{ background: '#e10600', color: 'white', padding: '12px 30px', borderRadius: '4px', fontWeight: 'bold', textDecoration: 'none', display: 'inline-block' }}>
-                            📊 SESSION HISTORY
-                        </a>
+                    <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
+                        {sessaoInfo.total_voltas > 0 && (
+                            <span>Total da corrida: {sessaoInfo.total_voltas} voltas</span>
+                        )}
                     </div>
                 </div>
             );
