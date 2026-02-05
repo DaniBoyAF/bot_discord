@@ -48,6 +48,9 @@
             const [raceData, setRaceData] = useState([]);
             const [isLoading, setIsLoading] = useState(true);
             const [sortBy, setSortBy] = useState('mean');
+            const [totalVoltasSessao, setTotalVoltasSessao] = useState(0);  // ← NOVO
+            const [filtroCompletou, setFiltroCompletou] = useState(true);   // ← NOVO
+            const [minPorcentagem, setMinPorcentagem] = useState(90);       // ← NOVO
 
             useEffect(() => {
                 let mounted = true;
@@ -69,11 +72,23 @@
                         const dados = await resp.json();
                         console.log("Dados recebidos:", dados);
                         
-                        if (!Array.isArray(dados) || dados.length === 0) {
+                        // NOVO: Verifica se é formato novo ou antigo
+                        if (dados.pilotos) {
+                            // Formato novo: { total_voltas_sessao, pilotos }
+                            if (mounted) {
+                                setTotalVoltasSessao(dados.total_voltas_sessao || 0);
+                                setRaceData(dados.pilotos);
+                            }
+                        } else if (Array.isArray(dados)) {
+                            // Formato antigo: array direto
+                            const maxVoltas = Math.max(...dados.map(d => d.voltas?.length || 0));
+                            if (mounted) {
+                                setTotalVoltasSessao(maxVoltas);
+                                setRaceData(dados);
+                            }
+                        } else {
                             if (mounted) setRaceData([]);
-                            return;
                         }
-                        if (mounted) setRaceData(dados);
                     } catch (err) {
                         console.error("Erro fetch:", err);
                         if (mounted) setRaceData([]);
@@ -110,22 +125,18 @@
             const processDriverData = (driver) => {
                 if (!driver || !driver.voltas || driver.voltas.length === 0) return null;
 
-                // Adapta formato: backend retorna setor1/setor2/setor3, não array setores
                 const validLaps = driver.voltas.filter(lap => {
                     const tempo = lap.tempo_total;
                     if (!tempo || tempo <= 0) return false;
                     
-                    // Se tiver setores separados, valida
                     const s1 = lap.setor1 || lap.s1 || 0;
                     const s2 = lap.setor2 || lap.s2 || 0;
                     const s3 = lap.setor3 || lap.s3 || 0;
                     
-                    // Se não tiver setores, aceita só pelo tempo
                     if (s1 === 0 && s2 === 0 && s3 === 0) {
-                        return tempo > 30 && tempo < 300; // tempo razoável
+                        return tempo > 30 && tempo < 300;
                     }
                     
-                    // Valida setores
                     return s1 >= 10 && s2 >= 10 && s3 >= 10;
                 });
 
@@ -135,6 +146,7 @@
                 const meanTime = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
                 const bestLap = Math.min(...lapTimes);
                 const pitStops = driver.pit_stop || 0;
+                const totalVoltasPiloto = driver.voltas.length;  // ← Total de voltas do piloto
 
                 return {
                     nome: driver.nome || "Desconhecido",
@@ -146,13 +158,26 @@
                     bestLap: bestLap,
                     pitStops: pitStops,
                     safetyCarLaps: 0,
-                    validLapsCount: validLaps.length
+                    validLapsCount: validLaps.length,
+                    totalVoltasPiloto: totalVoltasPiloto  // ← NOVO
                 };
             };
 
+            // NOVO: Calcula mínimo de voltas para ser considerado "completou"
+            const minVoltasParaCompletar = Math.floor(totalVoltasSessao * (minPorcentagem / 100));
+
             const processedDrivers = raceData
                 .map(processDriverData)
-                .filter(d => d !== null && d.validLapsCount >= 1)
+                .filter(d => {
+                    if (d === null) return false;
+                    if (d.validLapsCount < 1) return false;
+                    
+                    // NOVO: Filtra por % de conclusão
+                    if (filtroCompletou && totalVoltasSessao > 0) {
+                        return d.totalVoltasPiloto >= minVoltasParaCompletar;
+                    }
+                    return true;
+                })
                 .sort((a, b) => {
                     switch(sortBy) {
                         case 'best': return a.bestLap - b.bestLap;

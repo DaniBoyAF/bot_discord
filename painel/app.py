@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import os
 import json
 import sqlite3
@@ -45,36 +45,45 @@ def pit_page():
 @app.route("/painel")
 def painel():
     return render_template("painel.html")
+@app.route("/tyres")
+def tyres_page():
+    return render_template("Tyre_hub.html")
 
 # ========== ENDPOINTS DE DADOS ==========
 
 @app.route("/historico_sessoes")
 def historico_sessoes():
-    """Lista todas as sessões disponíveis - direto do banco"""
+    """Lista todas as sessões do banco"""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
-        cur.execute("""
-            SELECT 
-                s.id,
-                s.nome_pista,
-                s.tipo_sessao,
-                s.total_voltas,
-                s.data_hora,
-                s.velocidade_maxima_geral,
-                (SELECT COUNT(*) FROM pilotos WHERE sessao_id = s.id) as num_pilotos,
-                (SELECT COUNT(*) FROM voltas WHERE sessao_id = s.id) as num_voltas
-            FROM sessoes s
-            ORDER BY s.id DESC
-        """)
+        # Verifica se coluna nome_customizado existe
+        cur.execute("PRAGMA table_info(sessoes)")
+        colunas = [col[1] for col in cur.fetchall()]
         
-        sessoes = [dict(row) for row in cur.fetchall()]
+        if "nome_customizado" in colunas:
+            cur.execute("""
+                SELECT id, nome_pista, nome_customizado, tipo_sessao, data_hora, 
+                       total_voltas, velocidade_maxima_geral
+                FROM sessoes 
+                ORDER BY id DESC
+            """)
+        else:
+            cur.execute("""
+                SELECT id, nome_pista, NULL as nome_customizado, tipo_sessao, data_hora, 
+                       total_voltas, velocidade_maxima_geral
+                FROM sessoes 
+                ORDER BY id DESC
+            """)
+        
+        sessoes = [dict(r) for r in cur.fetchall()]
         conn.close()
+        
         return jsonify(sessoes)
     except Exception as e:
-        print(f"Erro ao buscar sessões: {e}")
+        print(f"Erro historico_sessoes: {e}")
         return jsonify([])
 
 @app.route("/dados_voltas/<int:sessao_id>")
@@ -85,7 +94,12 @@ def dados_voltas(sessao_id):
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Busca pilotos ÚNICOS da sessão (pega o primeiro registro de cada)
+        # Busca info da sessão (total_voltas)
+        cur.execute("SELECT total_voltas FROM sessoes WHERE id = ?", (sessao_id,))
+        sessao_row = cur.fetchone()
+        total_voltas_sessao = sessao_row["total_voltas"] if sessao_row else 0
+
+        # Busca pilotos ÚNICOS da sessão
         cur.execute("""
             SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao
             FROM pilotos 
@@ -102,13 +116,17 @@ def dados_voltas(sessao_id):
             numero = p.get("numero")
             posicao = p.get("posicao")
 
-            # Busca voltas DISTINTAS pelo piloto_id (evita duplicatas)
+            # Busca voltas do piloto (agrupadas por numero_volta para evitar duplicatas)
             cur.execute("""
-                SELECT DISTINCT numero_volta, tempo_volta, setor1, setor2, setor3
+                SELECT numero_volta, 
+                       AVG(tempo_volta) as tempo_volta,
+                       AVG(setor1) as setor1, 
+                       AVG(setor2) as setor2, 
+                       AVG(setor3) as setor3
                 FROM voltas
                 WHERE sessao_id = ? AND piloto_id = ?
+                GROUP BY numero_volta
                 ORDER BY numero_volta
-                LIMIT 100
             """, (sessao_id, piloto_id))
 
             voltas = []
@@ -121,18 +139,32 @@ def dados_voltas(sessao_id):
                     "setor3": v["setor3"]
                 })
 
+            # CORRIGIDO: Pega o número da última volta (não a quantidade de registros)
+            cur.execute("""
+                SELECT MAX(numero_volta) as max_volta
+                FROM voltas
+                WHERE sessao_id = ? AND piloto_id = ?
+            """, (sessao_id, piloto_id))
+            max_row = cur.fetchone()
+            total_voltas_piloto = max_row["max_volta"] if max_row and max_row["max_volta"] else len(voltas)
+
             dados.append({
                 "nome": nome,
                 "numero": numero,
                 "posicao": posicao,
-                "voltas": voltas
+                "voltas": voltas,
+                "total_voltas_piloto": total_voltas_piloto  # ← Agora é a última volta real
             })
 
         conn.close()
-        return jsonify(dados)
+        
+        return jsonify({
+            "total_voltas_sessao": total_voltas_sessao,
+            "pilotos": dados
+        })
     except Exception as e:
         print(f"Erro ao buscar dados_voltas: {e}")
-        return jsonify([])
+        return jsonify({"total_voltas_sessao": 0, "pilotos": []})
 
 @app.route("/dados_pneus/<int:sessao_id>")
 def dados_pneus(sessao_id):
@@ -395,16 +427,22 @@ def dados_stints_ultimo():
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
-        cur.execute("SELECT id FROM sessoes ORDER BY id DESC LIMIT 1")
-        row = cur.fetchone()
-        if not row:
+        # Busca última sessão
+        cur.execute("SELECT id, nome_pista, tipo_sessao, total_voltas FROM sessoes ORDER BY id DESC LIMIT 1")
+        sessao = cur.fetchone()
+        
+        if not sessao:
             conn.close()
             return jsonify({"sessao": {}, "pilotos": []})
         
-        return dados_stints(row["id"])
+        sessao_id = sessao["id"]
+        
+        return _dados_stints_por_sessao(cur, sessao_id, dict(sessao))
+        
     except Exception as e:
         print(f"Erro dados_stints_ultimo: {e}")
         return jsonify({"sessao": {}, "pilotos": []})
+
 
 @app.route("/dados_stints/<int:sessao_id>")
 def dados_stints(sessao_id):
@@ -414,14 +452,27 @@ def dados_stints(sessao_id):
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
-        # Info da sessão
-        cur.execute("SELECT * FROM sessoes WHERE id = ?", (sessao_id,))
-        sessao_row = cur.fetchone()
-        sessao = dict(sessao_row) if sessao_row else {}
+        # Busca info da sessão
+        cur.execute("SELECT id, nome_pista, tipo_sessao, total_voltas FROM sessoes WHERE id = ?", (sessao_id,))
+        sessao = cur.fetchone()
         
-        # Pilotos únicos
+        if not sessao:
+            conn.close()
+            return jsonify({"sessao": {}, "pilotos": []})
+        
+        return _dados_stints_por_sessao(cur, sessao_id, dict(sessao))
+        
+    except Exception as e:
+        print(f"Erro dados_stints/{sessao_id}: {e}")
+        return jsonify({"sessao": {}, "pilotos": []})
+
+
+def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
+    """Função auxiliar: busca stints de uma sessão"""
+    try:
+        # Busca pilotos únicos
         cur.execute("""
-            SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao, pneu_atual
+            SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao
             FROM pilotos 
             WHERE sessao_id = ?
             GROUP BY nome
@@ -429,59 +480,45 @@ def dados_stints(sessao_id):
         """, (sessao_id,))
         pilotos = [dict(r) for r in cur.fetchall()]
         
-        # Verifica se existe tabela pneu_stints
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pneu_stints'")
-        tem_stints = cur.fetchone() is not None
-        
         dados = []
         for p in pilotos:
             piloto_id = p.get("id")
             nome = p.get("nome", "Desconhecido")
             
-            # Conta voltas do piloto
+            # Busca stints do piloto
             cur.execute("""
-                SELECT COUNT(DISTINCT numero_volta) as total
-                FROM voltas
+                SELECT stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas
+                FROM pneu_stints
                 WHERE sessao_id = ? AND piloto_id = ?
+                ORDER BY stint_numero
             """, (sessao_id, piloto_id))
-            voltas_row = cur.fetchone()
-            total_voltas = voltas_row["total"] if voltas_row else 0
             
-            # Busca stints se existir tabela
             stints = []
-            if tem_stints:
-                cur.execute("""
-                    SELECT * FROM pneu_stints
-                    WHERE sessao_id = ? AND piloto_id = ?
-                    ORDER BY volta_inicio
-                """, (sessao_id, piloto_id))
-                stints = [dict(r) for r in cur.fetchall()]
-            
-            # Se não tem stints, cria um padrão
-            if not stints and total_voltas > 0:
-                stints = [{
-                    "tipo_pneu": p.get("pneu_atual") or "MEDIUM",
-                    "volta_inicio": 1,
-                    "volta_fim": total_voltas,
-                    "total_voltas": total_voltas
-                }]
+            for s in cur.fetchall():
+                stints.append({
+                    "stint_numero": s["stint_numero"],
+                    "tipo_pneu": s["tipo_pneu"],
+                    "volta_inicio": s["volta_inicio"],
+                    "volta_fim": s["volta_fim"],
+                    "total_voltas": s["total_voltas"]
+                })
             
             dados.append({
                 "nome": nome,
                 "numero": p.get("numero"),
-                "posicao": p.get("posicao", 99),
-                "pneu_atual": p.get("pneu_atual"),
-                "total_voltas": total_voltas,
+                "posicao": p.get("posicao"),
                 "stints": stints
             })
         
-        conn.close()
+        cur.connection.close()
+        
         return jsonify({
-            "sessao": sessao,
+            "sessao": sessao_info,
             "pilotos": dados
         })
+        
     except Exception as e:
-        print(f"Erro dados_stints: {e}")
+        print(f"Erro _dados_stints_por_sessao: {e}")
         return jsonify({"sessao": {}, "pilotos": []})
 
 if __name__ == "__main__":

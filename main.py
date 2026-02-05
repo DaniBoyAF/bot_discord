@@ -1,3 +1,4 @@
+from dash import ctx
 import discord
 from discord.ext import commands
 import asyncio
@@ -15,7 +16,7 @@ from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
 from comandos.media import comando_media 
 from dados.voltas import gerar_boxplot
-
+from comandos.listar_sessoes import listar_sessoe
 
 from Javes.modelo_ml import analisar_dados_auto
 
@@ -68,6 +69,13 @@ public_url = None
 _cloudflared_proc = None
 inicio= time.time()
 tempo_maximo = 600 * 60 
+
+# 🆕 CACHE para evitar duplicatas
+voltas_ja_salvas = {}  # {(sessao_id, piloto_id, numero_volta): True}
+ultimo_pneu_salvo = {}  # {(sessao_id, piloto_id): timestamp}
+ultimo_dano_salvo = {}  # {(sessao_id, piloto_id): timestamp}
+ultimo_pneu_por_piloto = {}  # 🆕 {(sessao_id, piloto_id): {'pneu': 'Soft', 'volta_inicio': 1, 'stint': 1}}
+
 # Corrige o caminho para importar módulos de fora da pasta
 intents =discord.Intents.default()
 intents.message_content=True
@@ -483,7 +491,7 @@ async def salvar_dados(ctx):
     await ctx.send("🔄 Salvando dados dos pilotos...")
     bot.loop.create_task(volta_salvar(bot))
 async def volta_salvar(bot):
-    global TEMPO_INICIO_VOLTAS, sessao_id_atual
+    global TEMPO_INICIO_VOLTAS, sessao_id_atual, voltas_ja_salvas  # ← Adiciona voltas_ja_salvas
     from Bot.jogadores import get_jogadores
     from utils.dictionnaries import tyres_dictionnary, weather_dictionary,  safetyCarStatusDict, session_dictionary
     from Bot.Session import SESSION
@@ -496,9 +504,11 @@ async def volta_salvar(bot):
     
     mensagem = await canal.send("🔄 Iniciando salvamento no banco de dados...")
     
-    # 🏁 Aguarda dados válidos da sessão vindos do parser antes de criar sessão
-    # se ainda não há sessão no DB, espere o parser popular SESSION com dados reais
+    # 🏁 Aguarda dados válidos da sessão
     if sessao_id_atual is None:
+        # 🆕 Limpa cache de voltas ao iniciar nova sessão
+        voltas_ja_salvas.clear()
+        
         wait_seconds = 0
         last_progress_update = 0
         detected = False
@@ -651,10 +661,20 @@ async def volta_salvar(bot):
                                            (sessao_id_atual, nome, num, getattr(j, 'position', 0)))
                             piloto_id = cursor.lastrowid
 
-                    # 2. Salva voltas (mantido)
+                    # 2. Salva voltas - COM CACHE para evitar duplicatas
                     for volta in todas_voltas:
-                        # DEBUG: mostra a volta antes de inserir (comente depois)
-                        print("DEBUG: volta raw:", volta)
+                        num_volta = volta.get('volta', 0)
+                        chave_volta = (sessao_id_atual, piloto_id, num_volta)
+                        
+                        # Pula se já salvou essa volta
+                        if chave_volta in voltas_ja_salvas:
+                            continue
+                        
+                        # Marca como salva
+                        voltas_ja_salvas[chave_volta] = True
+                        
+                        # DEBUG: mostra a volta antes de inserir
+                        # print("DEBUG: volta raw:", volta)
 
                         # tempo total (aceita vários nomes possíveis)
                         tempo_total = volta.get('tempo_total') or volta.get('tempo') or volta.get('tempo_volta') or volta.get('lap_time')
@@ -683,7 +703,6 @@ async def volta_salvar(bot):
                                 if v is None:
                                     return None
                                 fv = float(v)
-                                # considera valores grandes como ms
                                 if fv >= 1000:
                                     return fv / 1000.0
                                 return fv
@@ -695,36 +714,30 @@ async def volta_salvar(bot):
                         s3_val = _norm(s3)
                         tempo_total_val = _norm(tempo_total)
 
-                        # DEBUG antes do insert
-                        print(f"DEBUG: insert volta #{volta.get('volta')} s1={s1_val} s2={s2_val} s3={s3_val} total={tempo_total_val}")
-
                         cursor.execute('''
                         INSERT OR REPLACE INTO voltas (sessao_id, piloto_id, numero_volta, tempo_volta, setor1, setor2, setor3)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                         ''', (
                             sessao_id_atual, piloto_id,
-                            volta.get('volta', 0),
+                            num_volta,
                             tempo_total_val,
                             s1_val,
                             s2_val,
                             s3_val
                         ))
 
-                    # 3. Salva dados de pneus - normalize arrays para evitar NoneType subscriptable
+                    # 3. Salva dados de pneus - COM INSERT OR REPLACE (só 1 registro)
                     tyre_wear = getattr(j, 'tyre_wear', None)
                     if not isinstance(tyre_wear, (list, tuple)):
                         tyre_wear = [0, 0, 0, 0]
-                    # Converte para lista se for tupla, para permitir append
                     if isinstance(tyre_wear, tuple):
                         tyre_wear = list(tyre_wear)
-                    # garante tamanho 4
                     while len(tyre_wear) < 4:
                         tyre_wear.append(0)
 
                     temp_inner = getattr(j, 'tyres_temp_inner', None)
                     if not isinstance(temp_inner, (list, tuple)):
                         temp_inner = [0, 0, 0, 0]
-                    
                     if isinstance(temp_inner, tuple):
                         temp_inner = list(temp_inner)
                     while len(temp_inner) < 4:
@@ -738,16 +751,15 @@ async def volta_salvar(bot):
                     while len(temp_surface) < 4:
                         temp_surface.append(0)
 
-                    # usa pit_quant.get para evitar KeyError caso não inicializado
                     pit_count = pit_quant.get(nome, 0)
 
                     cursor.execute('''
-                    INSERT INTO pneus (sessao_id, piloto_id, tipo_pneu, idade_voltas,
+                    INSERT OR REPLACE INTO pneus (sessao_id, piloto_id, tipo_pneu, idade_voltas,
                                      desgaste_RL, desgaste_RR, desgaste_FL, desgaste_FR,
                                      temp_interna_RL, temp_interna_RR, temp_interna_FL, temp_interna_FR,
                                      temp_superficie_RL, temp_superficie_RR, temp_superficie_FL, temp_superficie_FR,
-                                     vida_util, tyre_set_data, lap_delta_time, pit_stops)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     vida_util, tyre_set_data, lap_delta_time, pit_stops, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         sessao_id_atual, piloto_id,
                         tyres_nomes.get(getattr(j, 'tyres', 0), 'Desconhecido'),
@@ -758,15 +770,16 @@ async def volta_salvar(bot):
                         getattr(j, 'tyre_life', 100),
                         getattr(j, 'tyre_set_data', 0),
                         getattr(j, 'm_lap_delta_time', 0),
-                        pit_count
+                        pit_count,
+                        time.time()
                     ))
                     
-                    # 4. Salva danos
+                    # 4. Salva danos - COM INSERT OR REPLACE (só 1 registro)
                     cursor.execute('''
-                    INSERT INTO danos (sessao_id, piloto_id, delta_to_leader, combustivel_restante,
+                    INSERT OR REPLACE INTO danos (sessao_id, piloto_id, delta_to_leader, combustivel_restante,
                                      dano_asa_esquerda, dano_asa_direita, dano_asa_traseira,
-                                     dano_assoalho, dano_difusor, dano_sidepods)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     dano_assoalho, dano_difusor, dano_sidepods, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         sessao_id_atual, piloto_id, str(delta), Gas,
                         getattr(j, 'FrontLeftWingDamage', 0),
@@ -774,33 +787,16 @@ async def volta_salvar(bot):
                         getattr(j, 'rearWingDamage', 0),
                         getattr(j, 'floorDamage', 0),
                         getattr(j, 'diffuserDamage', 0),
-                        getattr(j, 'sidepodDamage', 0)
+                        getattr(j, 'sidepodDamage', 0),
+                        time.time()
                     ))
                     
-                    # 5. Salva telemetria
+                    # 5. Salva telemetria - COM INSERT OR REPLACE (só 1 registro)
                     cursor.execute('''
-                    INSERT INTO telemetria (sessao_id, piloto_id, velocidade)
-                    VALUES (?, ?, ?)
-                    ''', (sessao_id_atual, piloto_id, maior_speed))
-                
-                    # 6. Salva stints de pneus
-                    stints = getattr(j, 'pneu_stints', [])
-                    for stint in stints:
-                        cursor.execute('''
-                        INSERT OR REPLACE INTO pneu_stints 
-                        (sessao_id, piloto_id, stint_numero, tipo_pneu, composto_real, 
-                         volta_inicio, volta_fim, total_voltas)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        ''', (
-                            sessao_id_atual, piloto_id,
-                            stint['stint_numero'],
-                            stint['tipo_pneu'],
-                            stint['composto_real'],
-                            stint['volta_inicio'],
-                            stint['volta_fim'],
-                            stint['total_voltas']
-                        ))
-                
+                    INSERT OR REPLACE INTO telemetria (sessao_id, piloto_id, velocidade, timestamp)
+                    VALUES (?, ?, ?, ?)
+                    ''', (sessao_id_atual, piloto_id, maior_speed, time.time()))
+
                 except Exception as e:
                     print(f"❌ Erro ao salvar piloto {nome or 'Desconhecido'}: {e}")
                     continue
@@ -859,18 +855,8 @@ async def media_lap(ctx, sessao_id: int | None = None):
 @bot.command(name="listar_sessoes")
 async def listar_sessoes(ctx, limit: int = 10):
     """Lista sessões recentes com id para uso no comando .media <id>"""
-    conn = sqlite3.connect("f1_telemetry.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, nome_pista, tipo_sessao, datetime(created_at, 'unixepoch') FROM sessoes ORDER BY id DESC LIMIT ?", (limit,))
-    rows = cursor.fetchall()
-    conn.close()
-    if not rows:
-        await ctx.send("Nenhuma sessão encontrada.")
-        return
-    linhas = ["Sessões recentes (id | nome | tipo | data):"]
-    for r in rows:
-        linhas.append(f"{r[0]} | {r[1] or 'Unknown'} | {r[2] or '??'} | {r[3] or '??'}")
-    await ctx.send("```\n" + "\n".join(linhas) + "\n```")
+    await listar_sessoe(ctx, limit=limit)
+
 def salvar_sessao_no_banco(pacote_session):
     import sqlite3
     
@@ -959,12 +945,15 @@ def criar_tabelas():
         nome TEXT,
         numero INTEGER,
         posicao INTEGER,
+        pneu_atual TEXT,
+        idade_pneu INTEGER,
+        delta_to_leader TEXT,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
         UNIQUE(sessao_id, nome)
     )
     ''')
     
-    # Tabela de voltas
+    # Tabela de voltas - COM UNIQUE
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS voltas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -981,7 +970,7 @@ def criar_tabelas():
     )
     ''')
     
-    # Tabela de pneus
+    # Tabela de pneus - COM UNIQUE (só 1 registro por piloto/sessão)
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS pneus (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1005,12 +994,14 @@ def criar_tabelas():
         tyre_set_data INTEGER,
         lap_delta_time REAL,
         pit_stops INTEGER,
+        timestamp REAL,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
-        FOREIGN KEY (piloto_id) REFERENCES pilotos(id)
+        FOREIGN KEY (piloto_id) REFERENCES pilotos(id),
+        UNIQUE(sessao_id, piloto_id)
     )
     ''')
     
-    # Tabela de danos
+    # Tabela de danos - COM UNIQUE (só 1 registro por piloto/sessão)
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS danos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1024,20 +1015,24 @@ def criar_tabelas():
         dano_assoalho REAL,
         dano_difusor REAL,
         dano_sidepods REAL,
+        timestamp REAL,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
-        FOREIGN KEY (piloto_id) REFERENCES pilotos(id)
+        FOREIGN KEY (piloto_id) REFERENCES pilotos(id),
+        UNIQUE(sessao_id, piloto_id)
     )
     ''')
     
-    # Tabela de telemetria
+    # Tabela de telemetria - COM UNIQUE
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS telemetria (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sessao_id INTEGER,
         piloto_id INTEGER,
         velocidade REAL,
+        timestamp REAL,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
-        FOREIGN KEY (piloto_id) REFERENCES pilotos(id)
+        FOREIGN KEY (piloto_id) REFERENCES pilotos(id),
+        UNIQUE(sessao_id, piloto_id)
     )
     ''')
     
@@ -1518,6 +1513,26 @@ async def painel(ctx):
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
     await ctx.send(f"🔗 Painel disponível dos graficos estão em: {url}/")
+try:
+    import Server_20 as ws_server
+except Exception :
+    ws_server = None
+@bot.command()
+async def live_painel(ctx):
+     if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+     await ctx.send(f"🔗 Painel disponível ver a corrida: {url}/painel")
+try:
+    import Server_20 as ws_server
+except Exception :
+    ws_server = None
+@bot.command()
+async def live_pneus(ctx):
+     if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+     await ctx.send(f"🔗 Painel disponível ver a corrida: {url}/tyres")
 try:
     import Server_20 as ws_server
 except Exception :
