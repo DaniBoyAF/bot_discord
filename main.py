@@ -17,9 +17,10 @@ from comandos.danos import danos as comandos_danos
 from comandos.media import comando_media 
 from dados.voltas import gerar_boxplot
 from comandos.listar_sessoes import listar_sessoe
-
-from Javes.modelo_ml import analisar_dados_auto
-
+from comandos.setups import setups
+from comandos.desgaste import desgaste
+from comandos.ers import ers
+from comandos.fuel import fuel
 
                  
 from threading import Thread
@@ -136,26 +137,6 @@ async def bem(ctx: commands.Context):
     nome=ctx.author.name
     await ctx.reply(f"Que bom {nome}! Digite '.comando' pra mais informações")
 @bot.command()
-async def Jarves_on(ctx):
-    resultado = analisar_dados_auto()
-    canal_id = 1413993963072782436
-    canal = bot.get_channel(canal_id)
-    if not canal:
-        await ctx.send("❌ Canal de texto não encontrado.")
-        return
-    await ctx.send("⚠️ Deseja continuar? Responda com `sim` ou `não`.")
-    def check(m):# isso ver a mensagem sim ou não
-        return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() in ["sim", "não"]
-
-    resposta = await bot.wait_for("message", check=check)
-    if resposta.content.lower() == "sim":
-        await ctx.send("✅ Continuando...")
-        await ctx.send(resultado)
-    else:
-        await ctx.send("❌ Análise cancelada.")
-
-
-@bot.command()
 async def comando(ctx: commands.Context):
     await ctx.reply("""📋 **Lista de Comandos:**
 
@@ -164,48 +145,43 @@ async def comando(ctx: commands.Context):
 .bem            - Responde positivamente
 .sobre          - Informações sobre o bot
 
-**Telemetria:**
-.status         - Status de um piloto
+**Telemetria Avançada:**
+.setup <piloto> - Ver setup completo (Asas, diferencial, freios, pneus)
+.ver_fuel       - Combustível em tempo real de todos os pilotos
+.desgastes      - Desgaste físico dos pneus (0-100%) de todos
+.ver_ers        - Status da bateria e DRS de todos
+.status         - Status consolidado de um piloto
 .clima          - Informações do clima
-.delta          - Delta de tempo dos pilotos
-.pneusv         - Informações dos pneus
-.danos          - Danos do carro
-.velocidade     - Piloto mais rápido no speed trap
+.delta          - Delta de tempo entre os pilotos
+.pneusv         - Composto e idade dos pneus
+.danos          - Danos detalhados do carro
+.velocidade     - Piloto mais rápido (Speed Trap)
 .ranking        - Top 10 da corrida
 
 **Voltas & Análise:**
 .voltas         - Tempos de volta de um piloto
-.setor          - Gráfico de setores (3 em 1)
-.grafico        - Gráfico de tempos de volta
-.corrida        - Boxplot da corrida
+.setor          - Gráfico comparativo de setores
+.grafico        - Gráfico de evolução de tempos
+.corrida        - Boxplot de consistência da corrida
 .media_lap      - Média de tempo de volta
 
 **Pilotos & Sessões:**
-.pilotos        - Lista pilotos da sessão
-.historico      - Últimas 10 sessões salvas
+.pilotos        - Lista pilotos ativos na sessão
+.historico      - Últimas 10 sessões salvas no banco
+.listar_sessoes - Lista sessões para consulta de ID
 
-**Automação:**
-.salvar_dados   - Inicia salvamento automático
-.parar_salvar   - Para salvamento automático
-.tabela         - Tabela ao vivo
-.parar_tabela   - Para tabela
+**Automação & Web:**
+.salvar_dados   - Inicia gravação no banco de dados
+.parar_salvar   - Para gravação no banco
+.tabela         - Tabela de posições ao vivo no Discord
+.painel         - Link do Painel Web principal
+.pit_stop       - Análise de estratégia e desgaste web
+.live_painel    - Link da telemetria em tempo real
 
-**Regras & Clips:**
-.regras         - Salva PDF de regras no banco
-.ver_regras     - Lista regras salvas (se implementado)
-.clip           - Salva vídeo no banco
-.ver_clips      - Lista clips salvos
-.info_clip <ID> - Detalhes de um clip
-.deletar_clip <ID> - Remove clip
-
-**Web/Painel:**
-.painel         - Link do painel web
-.pneusp         - Painel de pneus
-.grafico_web    - Gráfico web
-.media_HD       - Média HD
-.pit_stop       - Análise de pit stops
-
-**IA:**
+**Regras | Clips | IA:**
+.regras         - Upload de PDF de regras
+.clip           - Salva vídeo de lance no banco
+.ver_clips      - Lista vídeos salvos
 .Jarves_on      - Análise com IA (experimental)
 
 💡 Use `.comando` para ver esta lista novamente.""")
@@ -506,8 +482,9 @@ async def volta_salvar(bot):
     
     # 🏁 Aguarda dados válidos da sessão
     if sessao_id_atual is None:
-        # 🆕 Limpa cache de voltas ao iniciar nova sessão
+        # 🆕 Limpa caches
         voltas_ja_salvas.clear()
+        ultimo_pneu_por_piloto.clear()  # ← ADICIONA ISSO
         
         wait_seconds = 0
         last_progress_update = 0
@@ -797,6 +774,68 @@ async def volta_salvar(bot):
                     VALUES (?, ?, ?, ?)
                     ''', (sessao_id_atual, piloto_id, maior_speed, time.time()))
 
+                    # ========== 6. SALVA STINTS ==========
+                    pneu_atual = tyres_nomes.get(getattr(j, 'tyres', 0), 'Desconhecido')
+                    volta_atual = getattr(j, 'currentLapNum', 1) or getattr(j, 'current_lap', 1) or 1
+                    
+                    chave_stint = (sessao_id_atual, piloto_id)
+                    
+                    # Primeira vez: inicializa stint 1
+                    if chave_stint not in ultimo_pneu_por_piloto:
+                        ultimo_pneu_por_piloto[chave_stint] = {
+                            'pneu': pneu_atual, 
+                            'volta_inicio': volta_atual, 
+                            'stint': 1
+                        }
+                        # Salva stint 1
+                        cursor.execute('''
+                        INSERT OR REPLACE INTO pneu_stints 
+                        (sessao_id, piloto_id, stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', (sessao_id_atual, piloto_id, 1, pneu_atual, volta_atual, volta_atual, 1))
+                    
+                    stint_info = ultimo_pneu_por_piloto[chave_stint]
+                    
+                    # Se mudou de pneu = novo stint (pit stop)
+                    if pneu_atual != stint_info['pneu'] and pneu_atual != 'Desconhecido':
+                        # Atualiza stint anterior (fecha)
+                        cursor.execute('''
+                        UPDATE pneu_stints 
+                        SET volta_fim = ?, total_voltas = ?
+                        WHERE sessao_id = ? AND piloto_id = ? AND stint_numero = ?
+                        ''', (
+                            volta_atual - 1,
+                            volta_atual - stint_info['volta_inicio'],
+                            sessao_id_atual, piloto_id, stint_info['stint']
+                        ))
+                        
+                        # Inicia novo stint
+                        novo_stint = stint_info['stint'] + 1
+                        cursor.execute('''
+                        INSERT OR REPLACE INTO pneu_stints 
+                        (sessao_id, piloto_id, stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', (sessao_id_atual, piloto_id, novo_stint, pneu_atual, volta_atual, volta_atual, 1))
+                        
+                        ultimo_pneu_por_piloto[chave_stint] = {
+                            'pneu': pneu_atual, 
+                            'volta_inicio': volta_atual, 
+                            'stint': novo_stint
+                        }
+                        print(f"🔄 {nome}: Stint {novo_stint} - {pneu_atual}")
+                    
+                    else:
+                        # Atualiza volta_fim do stint atual
+                        cursor.execute('''
+                        UPDATE pneu_stints 
+                        SET volta_fim = ?, total_voltas = ?
+                        WHERE sessao_id = ? AND piloto_id = ? AND stint_numero = ?
+                        ''', (
+                            volta_atual,
+                            volta_atual - stint_info['volta_inicio'] + 1,
+                            sessao_id_atual, piloto_id, stint_info['stint']
+                        ))
+
                 except Exception as e:
                     print(f"❌ Erro ao salvar piloto {nome or 'Desconhecido'}: {e}")
                     continue
@@ -846,7 +885,18 @@ async def pilotos(ctx):
 @bot.command()
 async def danos(ctx, piloto: str | None=None):
     await comandos_danos(ctx, piloto=piloto)
-
+@bot.command()
+async def setup(ctx, piloto: str | None=None):
+    await setups(ctx, piloto=piloto)
+@bot.command()
+async def desgastes(ctx):
+    await desgaste(ctx)
+@bot.command()
+async def ver_fuel(ctx):
+    await fuel(ctx)
+@bot.command()
+async def ver_ers(ctx):
+    await ers(ctx)
 @bot.command()
 async def media_lap(ctx, sessao_id: int | None = None):
    """.media_lap -> usa última sessão

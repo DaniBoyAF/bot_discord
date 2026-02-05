@@ -43,9 +43,7 @@
             letter-spacing: 1px;
         }
         
-        .header .flag {
-            font-size: 28px;
-        }
+        .header .flag { font-size: 28px; }
         
         .header .subtitle {
             font-size: 20px;
@@ -124,7 +122,113 @@
             color: white;
         }
         
-        /* Grid principal */
+        .btn-compare {
+            background: linear-gradient(135deg, #6b21a8 0%, #9333ea 100%);
+            color: white;
+        }
+        
+        .btn-compare:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+        }
+        
+        /* Comparação de Pilotos */
+        .comparison-panel {
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d3d 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .comparison-panel h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .driver-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .driver-chip {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .driver-chip.unselected {
+            background: #3d3d4d;
+            color: #aaa;
+        }
+        
+        .driver-chip.selected {
+            background: #e10600;
+            color: white;
+            border-color: #ff4444;
+        }
+        
+        .driver-chip:hover {
+            transform: scale(1.05);
+        }
+        
+        .driver-chip .position {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        
+        .comparison-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #444;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .stat-card .label {
+            font-size: 11px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 900;
+            margin: 5px 0;
+        }
+        
+        .stat-card .driver {
+            font-size: 12px;
+            color: #e10600;
+        }
+        
+        .stat-card .value.green { color: #00d27f; }
+        .stat-card .value.red { color: #e10600; }
+        .stat-card .value.yellow { color: #FFC906; }
+        
         .grid-container {
             display: grid;
             gap: 1px;
@@ -134,7 +238,6 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
         
-        /* Labels de stint (coluna esquerda) */
         .stint-label {
             background: linear-gradient(135deg, #4a6fa5 0%, #6b8cbe 100%);
             color: white;
@@ -146,10 +249,9 @@
             justify-content: center;
             text-transform: uppercase;
             letter-spacing: 1px;
-            min-height: 160px;
+            min-height: 180px;
         }
         
-        /* Header dos pilotos */
         .driver-header {
             background: linear-gradient(180deg, #1e1e2e 0%, #2d2d3d 100%);
             color: white;
@@ -161,12 +263,6 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
-        }
-        
-        .driver-header .team-logo {
-            width: 40px;
-            height: 28px;
-            object-fit: contain;
         }
         
         .driver-header .driver-name {
@@ -182,12 +278,11 @@
             font-weight: 600;
         }
         
-        /* Células do gráfico */
         .chart-cell {
             background: #fafafa;
             padding: 12px;
             position: relative;
-            min-height: 160px;
+            min-height: 180px;
             display: flex;
             flex-direction: column;
         }
@@ -195,50 +290,37 @@
         .chart-cell .stats {
             font-size: 11px;
             color: #15151e;
-            line-height: 1.5;
+            line-height: 1.6;
             margin-bottom: 8px;
             z-index: 10;
         }
         
-        .chart-cell .stats .avg {
-            font-weight: 700;
-            color: #15151e;
-        }
-        
-        .chart-cell .stats .delta {
-            font-weight: 600;
-        }
-        
-        .chart-cell .stats .delta.positive {
-            color: #e10600;
-        }
-        
-        .chart-cell .stats .delta.negative {
-            color: #00d27f;
-        }
-        
-        .chart-cell .stats .delta.neutral {
-            color: #666;
-        }
+        .chart-cell .stats .avg { font-weight: 700; color: #15151e; }
+        .chart-cell .stats .delta { font-weight: 600; }
+        .chart-cell .stats .delta.positive { color: #e10600; }
+        .chart-cell .stats .delta.negative { color: #00d27f; }
+        .chart-cell .stats .delta.neutral { color: #666; }
+        .chart-cell .stats .extra { font-size: 10px; color: #888; }
         
         .chart-cell canvas {
             flex: 1;
             width: 100% !important;
             height: auto !important;
-            min-height: 90px;
+            min-height: 100px;
         }
         
         .empty-cell {
             background: #f0f0f0;
-            min-height: 160px;
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ccc;
+            font-size: 20px;
         }
         
-        /* Corner vazio */
-        .corner-cell {
-            background: #e8e8e8;
-        }
+        .corner-cell { background: #e8e8e8; }
         
-        /* Eixo X label */
         .x-axis-label {
             text-align: center;
             padding: 15px;
@@ -252,7 +334,6 @@
             border-radius: 0 0 8px 8px;
         }
         
-        /* Legenda */
         .legend {
             display: flex;
             justify-content: center;
@@ -286,59 +367,23 @@
             border-radius: 2px;
         }
         
-        .legend-line.solid {
-            background: #15151e;
-        }
+        .legend-line.solid { background: #15151e; }
         
-        .legend-line.dashed {
-            background: repeating-linear-gradient(
-                90deg,
-                #888,
-                #888 6px,
-                transparent 6px,
-                transparent 12px
-            );
-        }
-        
-        /* Dots de pneus */
         .tyre-dot {
             width: 14px;
             height: 14px;
             border-radius: 50%;
             display: inline-block;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
         
-        .tyre-soft { 
-            background: linear-gradient(135deg, #ff1744 0%, #ff5252 100%);
-        }
-        .tyre-medium { 
-            background: linear-gradient(135deg, #ffc107 0%, #ffeb3b 100%);
-        }
-        .tyre-hard { 
-            background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
-            border: 2px solid #9e9e9e;
-        }
-        .tyre-inter { 
-            background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
-        }
-        .tyre-wet { 
-            background: linear-gradient(135deg, #2196f3 0%, #64b5f6 100%);
-        }
+        .tyre-supersoft { background: linear-gradient(135deg, #FF00FF 0%, #FF66FF 100%); }
+        .tyre-soft { background: linear-gradient(135deg, #E10600 0%, #FF4444 100%); }
+        .tyre-medium { background: linear-gradient(135deg, #FFC906 0%, #FFE066 100%); }
+        .tyre-hard { background: linear-gradient(135deg, #EBEBEB 0%, #FFFFFF 100%); border: 2px solid #666; }
+        .tyre-inter { background: linear-gradient(135deg, #43B02A 0%, #7ED957 100%); }
+        .tyre-wet { background: linear-gradient(135deg, #0072C6 0%, #4AA8FF 100%); }
         
-        /* Team colors */
-        .team-redbull { border-left: 4px solid #1e41ff; }
-        .team-mercedes { border-left: 4px solid #00d2be; }
-        .team-ferrari { border-left: 4px solid #dc0000; }
-        .team-mclaren { border-left: 4px solid #ff8700; }
-        .team-alpine { border-left: 4px solid #0090ff; }
-        .team-astonmartin { border-left: 4px solid #006f62; }
-        .team-williams { border-left: 4px solid #005aff; }
-        .team-alphatauri { border-left: 4px solid #2b4562; }
-        .team-alfaromeo { border-left: 4px solid #900000; }
-        .team-haas { border-left: 4px solid #ffffff; }
-        
-        /* Loading */
         .loading {
             display: flex;
             align-items: center;
@@ -347,27 +392,15 @@
             background: linear-gradient(135deg, #15151e 0%, #1e1e2e 50%, #e10600 100%);
         }
         
-        .loading-content {
-            text-align: center;
-            color: white;
-        }
+        .loading-content { text-align: center; color: white; }
         
         .loading-spinner {
             font-size: 5rem;
             animation: spin 1.5s linear infinite;
         }
         
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* Confidence band */
-        .confidence-band {
-            position: absolute;
-            opacity: 0.25;
-        }
-        
-        /* No data message */
         .no-data {
             display: flex;
             flex-direction: column;
@@ -381,16 +414,116 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
         
-        .no-data h2 {
-            font-size: 28px;
-            color: #15151e;
-            margin-bottom: 15px;
+        .no-data h2 { font-size: 28px; color: #15151e; margin-bottom: 15px; }
+        .no-data p { color: #666; font-size: 16px; margin-bottom: 25px; }
+        
+        /* Modo Comparação */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
         }
         
-        .no-data p {
+        .comparison-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .comparison-card .card-header {
+            background: linear-gradient(180deg, #1e1e2e 0%, #2d2d3d 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .comparison-card .card-header .driver-name {
+            font-weight: 700;
+            font-size: 18px;
+            text-transform: uppercase;
+        }
+        
+        .comparison-card .card-header .position {
+            background: #e10600;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        
+        .comparison-card .card-body {
+            padding: 20px;
+        }
+        
+        .comparison-card .stint-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .comparison-card .stint-row:last-child {
+            border-bottom: none;
+        }
+        
+        .comparison-card .stint-number {
+            font-weight: 800;
+            font-size: 14px;
+            color: #4a6fa5;
+            min-width: 60px;
+        }
+        
+        .comparison-card .stint-info {
+            flex: 1;
+        }
+        
+        .comparison-card .stint-info .tyre-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .comparison-card .stint-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+        }
+        
+        .comparison-card .stint-stats span {
             color: #666;
-            font-size: 16px;
-            margin-bottom: 25px;
+        }
+        
+        .comparison-card .stint-stats strong {
+            color: #15151e;
+        }
+        
+        .vs-badge {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: #e10600;
+            color: white;
+            font-weight: 900;
+            font-size: 24px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(225, 6, 0, 0.4);
+            z-index: 10;
         }
     </style>
 </head>
@@ -412,42 +545,15 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // Cores das equipes F1
-        const teamColors = {
-            'Red Bull': '#1e41ff',
-            'Mercedes': '#00d2be',
-            'Ferrari': '#dc0000',
-            'McLaren': '#ff8700',
-            'Alpine': '#0090ff',
-            'Aston Martin': '#006f62',
-            'Williams': '#005aff',
-            'AlphaTauri': '#2b4562',
-            'RB': '#6692ff',
-            'Alfa Romeo': '#900000',
-            'Haas': '#b6babd',
-            'Kick Sauber': '#52e252',
-            'default': '#38383f'
-        };
-
-        // Cores dos pneus
-        const tyreColors = {
-            'SOFT': { bg: '#ff1744', gradient: 'linear-gradient(135deg, #ff1744 0%, #ff5252 100%)' },
-            'MEDIUM': { bg: '#ffc107', gradient: 'linear-gradient(135deg, #ffc107 0%, #ffeb3b 100%)' },
-            'HARD': { bg: '#f5f5f5', gradient: 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)' },
-            'INTER': { bg: '#4caf50', gradient: 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)' },
-            'WET': { bg: '#2196f3', gradient: 'linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)' },
-            'default': { bg: '#9e9e9e', gradient: 'linear-gradient(135deg, #9e9e9e 0%, #bdbdbd 100%)' }
-        };
-
         const TyreDegradationChart = () => {
             const [data, setData] = useState({ pilotos: [], sessao: {} });
             const [isLoading, setIsLoading] = useState(true);
             const [selectedDrivers, setSelectedDrivers] = useState([]);
             const [maxStints, setMaxStints] = useState(3);
+            const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'compare'
+            const [compareDrivers, setCompareDrivers] = useState([]);
 
-            useEffect(() => {
-                fetchData();
-            }, []);
+            useEffect(() => { fetchData(); }, []);
 
             const fetchData = async () => {
                 try {
@@ -475,11 +581,11 @@
                         sessao: stintsData.sessao || voltasData.sessao || {}
                     });
                     
-                    // Seleciona top 8 por padrão
-                    const top8 = pilotos.slice(0, 8).map(p => p.nome);
+                    // Ordena por posição e seleciona top 8
+                    const sortedPilotos = [...pilotos].sort((a, b) => (a.posicao || 99) - (b.posicao || 99));
+                    const top8 = sortedPilotos.slice(0, 8).map(p => p.nome);
                     setSelectedDrivers(top8);
                     
-                    // Calcula máximo de stints
                     const max = Math.max(...pilotos.map(p => p.stints?.length || 0), 1);
                     setMaxStints(Math.min(max, 5));
                     
@@ -503,52 +609,124 @@
                     const voltas = voltasPorPiloto[piloto.nome] || [];
                     const stints = piloto.stints || [];
                     
-                    const stintsComTempos = stints.map((stint, idx) => {
+                    const stintsComTempos = stints.map((stint) => {
                         const voltasDoStint = voltas.filter(v => {
                             const numVolta = v.numero_volta;
                             return numVolta >= stint.volta_inicio && numVolta <= stint.volta_fim;
                         });
                         
-                        const tempos = voltasDoStint
+                        // Filtra tempos válidos
+                        let tempos = voltasDoStint
                             .map(v => v.tempo_total)
                             .filter(t => t > 30 && t < 300);
+                        
+                        // 🆕 CÁLCULO MAIS PRECISO: Remove outliers (IQR)
+                        tempos = removeOutliers(tempos);
                         
                         const avgTime = tempos.length > 0 
                             ? tempos.reduce((a, b) => a + b, 0) / tempos.length 
                             : 0;
                         
-                        // Regressão linear para delta por volta
+                        const bestTime = tempos.length > 0 ? Math.min(...tempos) : 0;
+                        const worstTime = tempos.length > 0 ? Math.max(...tempos) : 0;
+                        
+                        // 🆕 REGRESSÃO LINEAR MELHORADA
                         let deltaPerLap = 0;
+                        let rSquared = 0; // Qualidade do ajuste
+                        
                         if (tempos.length >= 3) {
-                            const n = tempos.length;
-                            const xMean = (n - 1) / 2;
-                            const yMean = avgTime;
-                            
-                            let numerator = 0;
-                            let denominator = 0;
-                            
-                            tempos.forEach((t, i) => {
-                                numerator += (i - xMean) * (t - yMean);
-                                denominator += (i - xMean) ** 2;
-                            });
-                            
-                            deltaPerLap = denominator !== 0 ? numerator / denominator : 0;
+                            const regression = linearRegression(tempos);
+                            deltaPerLap = regression.slope;
+                            rSquared = regression.rSquared;
+                        }
+                        
+                        // Desvio padrão (consistência)
+                        const stdDev = tempos.length > 0 
+                            ? Math.sqrt(tempos.reduce((sum, t) => sum + (t - avgTime) ** 2, 0) / tempos.length)
+                            : 0;
+                        
+                        const consistency = avgTime > 0 ? Math.max(0, 100 - (stdDev / avgTime) * 100) : 0;
+                        
+                        // 🆕 Desgaste por volta estimado (se disponível)
+                        const desgastes = voltasDoStint
+                            .map(v => v.desgaste_pneu)
+                            .filter(d => d !== undefined && d !== null);
+                        
+                        let wearRate = 0;
+                        if (desgastes.length >= 2) {
+                            wearRate = (desgastes[desgastes.length - 1] - desgastes[0]) / desgastes.length;
                         }
                         
                         return {
                             ...stint,
                             tempos: tempos,
                             avgTime: avgTime,
+                            bestTime: bestTime,
+                            worstTime: worstTime,
                             deltaPerLap: deltaPerLap,
+                            rSquared: rSquared,
+                            stdDev: stdDev,
+                            consistency: consistency,
+                            wearRate: wearRate,
                             totalVoltas: stint.total_voltas || tempos.length
                         };
                     });
                     
-                    return {
-                        ...piloto,
-                        stints: stintsComTempos
+                    return { 
+                        ...piloto, 
+                        stints: stintsComTempos,
+                        posicao: piloto.posicao || piloto.position || 99
                     };
                 }).sort((a, b) => (a.posicao || 99) - (b.posicao || 99));
+            };
+
+            // 🆕 FUNÇÃO: Remove outliers usando IQR (Interquartile Range)
+            const removeOutliers = (data) => {
+                if (data.length < 4) return data;
+                
+                const sorted = [...data].sort((a, b) => a - b);
+                const q1 = sorted[Math.floor(sorted.length * 0.25)];
+                const q3 = sorted[Math.floor(sorted.length * 0.75)];
+                const iqr = q3 - q1;
+                
+                const lowerBound = q1 - 1.5 * iqr;
+                const upperBound = q3 + 1.5 * iqr;
+                
+                return data.filter(x => x >= lowerBound && x <= upperBound);
+            };
+
+            // 🆕 FUNÇÃO: Regressão Linear com R²
+            const linearRegression = (y) => {
+                const n = y.length;
+                const x = Array.from({ length: n }, (_, i) => i);
+                
+                const xMean = x.reduce((a, b) => a + b, 0) / n;
+                const yMean = y.reduce((a, b) => a + b, 0) / n;
+                
+                let numerator = 0;
+                let denominator = 0;
+                
+                for (let i = 0; i < n; i++) {
+                    numerator += (x[i] - xMean) * (y[i] - yMean);
+                    denominator += (x[i] - xMean) ** 2;
+                }
+                
+                const slope = denominator !== 0 ? numerator / denominator : 0;
+                const intercept = yMean - slope * xMean;
+                
+                // Calcula R² (coeficiente de determinação)
+                let ssRes = 0;
+                let ssTot = 0;
+                
+                for (let i = 0; i < n; i++) {
+                    const predicted = intercept + slope * x[i];
+                    ssRes += (y[i] - predicted) ** 2;
+                    ssTot += (y[i] - yMean) ** 2;
+                }
+                
+                const rSquared = ssTot !== 0 ? 1 - (ssRes / ssTot) : 0;
+                
+                return { slope, intercept, rSquared };
             };
 
             const formatTime = (seconds) => {
@@ -559,32 +737,90 @@
             };
 
             const getTyreColor = (compound) => {
-                const c = (compound || '').toUpperCase();
-                if (c.includes('SOFT')) return tyreColors.SOFT;
-                if (c.includes('MEDIUM')) return tyreColors.MEDIUM;
-                if (c.includes('HARD')) return tyreColors.HARD;
-                if (c.includes('INTER')) return tyreColors.INTER;
-                if (c.includes('WET')) return tyreColors.WET;
-                return tyreColors.default;
+                if (!compound) return { bg: '#9E9E9E', light: '#BDBDBD' };
+                
+                const c = compound.toUpperCase().trim()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+                if (c.includes('SUPER')) return { bg: '#FF00FF', light: '#FF66FF' };
+                if (c.includes('SOFT') || c.includes('MACIO')) return { bg: '#E10600', light: '#FF4444' };
+                if (c.includes('MEDIUM') || c.includes('MEDIO')) return { bg: '#FFC906', light: '#FFE066' };
+                if (c.includes('HARD') || c.includes('DURO')) return { bg: '#EBEBEB', light: '#FFFFFF', border: '#666666' };
+                if (c.includes('INTER')) return { bg: '#43B02A', light: '#7ED957' };
+                if (c.includes('WET') || c.includes('MOLHADO') || c.includes('CHUVA')) return { bg: '#0072C6', light: '#4AA8FF' };
+                
+                return { bg: '#9E9E9E', light: '#BDBDBD' };
             };
 
             const getTyreClass = (compound) => {
-                const c = (compound || '').toUpperCase();
-                if (c.includes('SOFT')) return 'tyre-soft';
-                if (c.includes('MEDIUM')) return 'tyre-medium';
-                if (c.includes('HARD')) return 'tyre-hard';
+                if (!compound) return 'tyre-medium';
+                
+                const c = compound.toUpperCase().trim()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    
+                if (c.includes('SUPER')) return 'tyre-supersoft';
+                if (c.includes('SOFT') || c.includes('MACIO')) return 'tyre-soft';
+                if (c.includes('MEDIUM') || c.includes('MEDIO')) return 'tyre-medium';
+                if (c.includes('HARD') || c.includes('DURO')) return 'tyre-hard';
                 if (c.includes('INTER')) return 'tyre-inter';
-                if (c.includes('WET')) return 'tyre-wet';
+                if (c.includes('WET') || c.includes('MOLHADO') || c.includes('CHUVA')) return 'tyre-wet';
+                
                 return 'tyre-medium';
             };
 
-            const getDriverColor = (nome) => {
-                // Simplificado - pode mapear pilotos para equipes
-                return teamColors.default;
+            // Toggle seleção de piloto para comparação
+            const toggleDriverSelection = (driverName) => {
+                setSelectedDrivers(prev => {
+                    if (prev.includes(driverName)) {
+                        return prev.filter(n => n !== driverName);
+                    } else {
+                        return [...prev, driverName];
+                    }
+                });
             };
 
-            // Mini gráfico de scatter plot
-            const MiniChart = ({ stint, driverIdx }) => {
+            // Toggle piloto para modo comparação (máximo 2)
+            const toggleCompareDriver = (driverName) => {
+                setCompareDrivers(prev => {
+                    if (prev.includes(driverName)) {
+                        return prev.filter(n => n !== driverName);
+                    } else if (prev.length < 2) {
+                        return [...prev, driverName];
+                    } else {
+                        return [prev[1], driverName]; // Substitui o primeiro
+                    }
+                });
+            };
+
+            // Calcula estatísticas de comparação
+            const getComparisonStats = () => {
+                if (compareDrivers.length !== 2) return null;
+                
+                const driver1 = data.pilotos.find(p => p.nome === compareDrivers[0]);
+                const driver2 = data.pilotos.find(p => p.nome === compareDrivers[1]);
+                
+                if (!driver1 || !driver2) return null;
+                
+                const avgTime1 = driver1.stints.reduce((sum, s) => sum + (s.avgTime || 0), 0) / (driver1.stints.length || 1);
+                const avgTime2 = driver2.stints.reduce((sum, s) => sum + (s.avgTime || 0), 0) / (driver2.stints.length || 1);
+                
+                const avgDelta1 = driver1.stints.reduce((sum, s) => sum + (s.deltaPerLap || 0), 0) / (driver1.stints.length || 1);
+                const avgDelta2 = driver2.stints.reduce((sum, s) => sum + (s.deltaPerLap || 0), 0) / (driver2.stints.length || 1);
+                
+                const consistency1 = driver1.stints.reduce((sum, s) => sum + (s.consistency || 0), 0) / (driver1.stints.length || 1);
+                const consistency2 = driver2.stints.reduce((sum, s) => sum + (s.consistency || 0), 0) / (driver2.stints.length || 1);
+                
+                return {
+                    timeDiff: avgTime1 - avgTime2,
+                    fasterDriver: avgTime1 < avgTime2 ? driver1.nome : driver2.nome,
+                    deltaDiff: avgDelta1 - avgDelta2,
+                    betterDegradation: avgDelta1 < avgDelta2 ? driver1.nome : driver2.nome,
+                    consistencyDiff: consistency1 - consistency2,
+                    moreConsistent: consistency1 > consistency2 ? driver1.nome : driver2.nome
+                };
+            };
+
+            const MiniChart = ({ stint }) => {
                 const canvasRef = useRef(null);
                 const tyreColor = getTyreColor(stint.tipo_pneu);
                 
@@ -594,7 +830,6 @@
                     const canvas = canvasRef.current;
                     const ctx = canvas.getContext('2d');
                     
-                    // High DPI support
                     const dpr = window.devicePixelRatio || 1;
                     const rect = canvas.getBoundingClientRect();
                     canvas.width = rect.width * dpr;
@@ -617,16 +852,14 @@
                     const chartWidth = width - padding.left - padding.right;
                     const chartHeight = height - padding.top - padding.bottom;
                     
-                    // Desenha área de confiança
+                    // Área de confiança
                     const avgTime = stint.avgTime;
-                    const stdDev = Math.sqrt(
-                        tempos.reduce((sum, t) => sum + (t - avgTime) ** 2, 0) / tempos.length
-                    ) || 0.5;
+                    const stdDev = stint.stdDev || 0.5;
                     
                     const yTop = padding.top + ((maxTime - (avgTime + stdDev * 1.5)) / timeRange) * chartHeight;
                     const yBottom = padding.top + ((maxTime - (avgTime - stdDev * 1.5)) / timeRange) * chartHeight;
                     
-                    ctx.fillStyle = tyreColor.bg + '25';
+                    ctx.fillStyle = tyreColor.bg + '20';
                     ctx.beginPath();
                     ctx.moveTo(padding.left, yTop);
                     ctx.lineTo(padding.left + chartWidth, yTop);
@@ -635,7 +868,7 @@
                     ctx.closePath();
                     ctx.fill();
                     
-                    // Desenha linha de regressão
+                    // Linha de regressão
                     if (tempos.length >= 2) {
                         const startY = stint.avgTime - stint.deltaPerLap * (tempos.length / 2);
                         const endY = stint.avgTime + stint.deltaPerLap * (tempos.length / 2);
@@ -643,26 +876,15 @@
                         const y1 = padding.top + ((maxTime - startY) / timeRange) * chartHeight;
                         const y2 = padding.top + ((maxTime - endY) / timeRange) * chartHeight;
                         
-                        // Linha sólida
                         ctx.beginPath();
                         ctx.moveTo(padding.left, y1);
                         ctx.lineTo(padding.left + chartWidth, y2);
                         ctx.strokeStyle = tyreColor.bg;
                         ctx.lineWidth = 2.5;
                         ctx.stroke();
-                        
-                        // Linha tracejada (mais clara)
-                        ctx.beginPath();
-                        ctx.setLineDash([6, 4]);
-                        ctx.moveTo(padding.left, y1);
-                        ctx.lineTo(padding.left + chartWidth, y2);
-                        ctx.strokeStyle = tyreColor.bg + '60';
-                        ctx.lineWidth = 1.5;
-                        ctx.stroke();
-                        ctx.setLineDash([]);
                     }
                     
-                    // Desenha pontos
+                    // Pontos
                     tempos.forEach((tempo, i) => {
                         const x = padding.left + (i / Math.max(tempos.length - 1, 1)) * chartWidth;
                         const y = padding.top + ((maxTime - tempo) / timeRange) * chartHeight;
@@ -670,39 +892,30 @@
                         // Sombra
                         ctx.beginPath();
                         ctx.arc(x, y + 1, 5, 0, Math.PI * 2);
-                        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                        ctx.fillStyle = 'rgba(0,0,0,0.15)';
                         ctx.fill();
                         
-                        // Ponto principal
+                        // Ponto
                         ctx.beginPath();
                         ctx.arc(x, y, 5, 0, Math.PI * 2);
                         ctx.fillStyle = tyreColor.bg;
                         ctx.fill();
-                        
-                        // Borda branca
                         ctx.strokeStyle = '#fff';
                         ctx.lineWidth = 1.5;
                         ctx.stroke();
                     });
                     
-                    // Eixo X labels
+                    // Labels
                     ctx.fillStyle = '#666';
                     ctx.font = '10px Titillium Web';
                     ctx.textAlign = 'center';
+                    ctx.fillText('1', padding.left, height - 8);
+                    ctx.fillText(tempos.length.toString(), padding.left + chartWidth, height - 8);
                     
-                    const labels = tempos.length <= 10 
-                        ? tempos.map((_, i) => i + 1)
-                        : [1, Math.floor(tempos.length / 2), tempos.length];
-                    
-                    labels.forEach((val) => {
-                        const x = padding.left + ((val - 1) / Math.max(tempos.length - 1, 1)) * chartWidth;
-                        ctx.fillText(val.toString(), x, height - 8);
-                    });
-                    
-                }, [stint]);
+                }, [stint, tyreColor.bg]);
                 
                 if (!stint.tempos || stint.tempos.length === 0) {
-                    return <div className="empty-cell"></div>;
+                    return <div className="empty-cell">—</div>;
                 }
                 
                 const deltaClass = stint.deltaPerLap > 0.02 ? 'positive' : stint.deltaPerLap < -0.02 ? 'negative' : 'neutral';
@@ -710,17 +923,141 @@
                 return (
                     <div className="chart-cell">
                         <div className="stats">
-                            <div className="avg">
-                                Avg time = {formatTime(stint.avgTime)}
-                            </div>
+                            <div className="avg">Avg: {formatTime(stint.avgTime)}</div>
                             <div className={`delta ${deltaClass}`}>
-                                Delta p/lap = {stint.deltaPerLap >= 0 ? '+' : ''}{stint.deltaPerLap.toFixed(3)} s
+                                Δ/lap: {stint.deltaPerLap >= 0 ? '+' : ''}{stint.deltaPerLap.toFixed(3)}s
+                            </div>
+                            <div className="extra">
+                                Best: {formatTime(stint.bestTime)} | R²: {(stint.rSquared * 100).toFixed(0)}%
+                            </div>
+                            <div className="extra">
+                                Laps: {stint.tempos?.length} | Cons: {stint.consistency.toFixed(0)}%
                             </div>
                         </div>
-                        <canvas 
-                            ref={canvasRef} 
-                            style={{ width: '100%', height: '90px' }}
-                        />
+                        <canvas ref={canvasRef} style={{ width: '100%', height: '100px' }} />
+                    </div>
+                );
+            };
+
+            // Componente de Comparação
+            const ComparisonView = () => {
+                const stats = getComparisonStats();
+                const driver1Data = data.pilotos.find(p => p.nome === compareDrivers[0]);
+                const driver2Data = data.pilotos.find(p => p.nome === compareDrivers[1]);
+                
+                if (compareDrivers.length !== 2 || !driver1Data || !driver2Data) {
+                    return (
+                        <div className="comparison-panel">
+                            <h3>🏁 Modo Comparação</h3>
+                            <p style={{ color: '#aaa', marginBottom: '15px' }}>
+                                Selecione 2 pilotos para comparar
+                            </p>
+                            <div className="driver-selector">
+                                {data.pilotos.map(driver => (
+                                    <div 
+                                        key={driver.nome}
+                                        className={`driver-chip ${compareDrivers.includes(driver.nome) ? 'selected' : 'unselected'}`}
+                                        onClick={() => toggleCompareDriver(driver.nome)}
+                                    >
+                                        <span className="position">P{driver.posicao}</span>
+                                        {driver.nome}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                }
+                
+                return (
+                    <div>
+                        <div className="comparison-panel">
+                            <h3>🏁 Comparação: {driver1Data.nome} vs {driver2Data.nome}</h3>
+                            
+                            <div className="driver-selector">
+                                {data.pilotos.map(driver => (
+                                    <div 
+                                        key={driver.nome}
+                                        className={`driver-chip ${compareDrivers.includes(driver.nome) ? 'selected' : 'unselected'}`}
+                                        onClick={() => toggleCompareDriver(driver.nome)}
+                                    >
+                                        <span className="position">P{driver.posicao}</span>
+                                        {driver.nome}
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            {stats && (
+                                <div className="comparison-stats">
+                                    <div className="stat-card">
+                                        <div className="label">Mais Rápido</div>
+                                        <div className={`value ${stats.timeDiff > 0 ? 'green' : 'red'}`}>
+                                            {Math.abs(stats.timeDiff).toFixed(3)}s
+                                        </div>
+                                        <div className="driver">{stats.fasterDriver}</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="label">Melhor Degradação</div>
+                                        <div className={`value ${stats.deltaDiff > 0 ? 'green' : 'red'}`}>
+                                            {Math.abs(stats.deltaDiff * 1000).toFixed(1)}ms/lap
+                                        </div>
+                                        <div className="driver">{stats.betterDegradation}</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="label">Mais Consistente</div>
+                                        <div className={`value yellow`}>
+                                            {Math.abs(stats.consistencyDiff).toFixed(1)}%
+                                        </div>
+                                        <div className="driver">{stats.moreConsistent}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="comparison-grid" style={{ position: 'relative' }}>
+                            <div className="vs-badge">VS</div>
+                            
+                            {[driver1Data, driver2Data].map((driver, idx) => (
+                                <div key={driver.nome} className="comparison-card">
+                                    <div className="card-header">
+                                        <div 
+                                            className={getTyreClass(driver.stints?.[0]?.tipo_pneu)}
+                                            style={{ width: '28px', height: '28px', borderRadius: '50%' }}
+                                        ></div>
+                                        <div className="driver-name">{driver.nome}</div>
+                                        <div className="position">P{driver.posicao}</div>
+                                    </div>
+                                    <div className="card-body">
+                                        {driver.stints.map((stint, stintIdx) => (
+                                            <div key={stintIdx} className="stint-row">
+                                                <div className="stint-number">Stint {stintIdx + 1}</div>
+                                                <div className="stint-info">
+                                                    <div 
+                                                        className="tyre-badge"
+                                                        style={{ 
+                                                            background: getTyreColor(stint.tipo_pneu).bg,
+                                                            color: stint.tipo_pneu?.toLowerCase().includes('hard') ? '#333' : 'white'
+                                                        }}
+                                                    >
+                                                        <div 
+                                                            className={getTyreClass(stint.tipo_pneu)}
+                                                            style={{ width: '12px', height: '12px', borderRadius: '50%' }}
+                                                        ></div>
+                                                        {stint.tipo_pneu}
+                                                    </div>
+                                                    <div className="stint-stats">
+                                                        <span>Avg: <strong>{formatTime(stint.avgTime)}</strong></span>
+                                                        <span>Δ: <strong style={{ color: stint.deltaPerLap > 0 ? '#e10600' : '#00d27f' }}>
+                                                            {stint.deltaPerLap >= 0 ? '+' : ''}{stint.deltaPerLap.toFixed(3)}s
+                                                        </strong></span>
+                                                        <span>Laps: <strong>{stint.tempos?.length || 0}</strong></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 );
             };
@@ -736,9 +1073,11 @@
                 );
             }
 
-            const filteredDrivers = data.pilotos.filter(p => selectedDrivers.includes(p.nome));
+            // Ordena pilotos por posição
+            const sortedPilotos = [...data.pilotos].sort((a, b) => (a.posicao || 99) - (b.posicao || 99));
+            const filteredDrivers = sortedPilotos.filter(p => selectedDrivers.includes(p.nome));
 
-            if (filteredDrivers.length === 0) {
+            if (data.pilotos.length === 0) {
                 return (
                     <div className="main-container">
                         <div className="no-data">
@@ -753,141 +1092,144 @@
                 );
             }
 
-            const gridCols = filteredDrivers.length + 1;
-
             return (
                 <div className="main-container">
-                    {/* Header */}
                     <div className="header">
                         <h1>{data.sessao?.nome_pista || '2024 GP'}</h1>
                         <span className="flag">🏁</span>
-                        <span className="subtitle">Tire degradation trend for top {filteredDrivers.length} drivers</span>
+                        <span className="subtitle">
+                            {viewMode === 'compare' ? 'Driver Comparison' : `Tire degradation trend for ${filteredDrivers.length} drivers`}
+                        </span>
                     </div>
 
-                    {/* Controls */}
                     <div className="controls">
-                        <select 
-                            value={selectedDrivers.length}
-                            onChange={(e) => {
-                                const count = parseInt(e.target.value);
-                                setSelectedDrivers(data.pilotos.slice(0, count).map(p => p.nome));
-                            }}
+                        <button 
+                            className={viewMode === 'grid' ? 'btn-primary' : 'btn-outline'}
+                            onClick={() => setViewMode('grid')}
                         >
-                            <option value={4}>Top 4 Pilotos</option>
-                            <option value={6}>Top 6 Pilotos</option>
-                            <option value={8}>Top 8 Pilotos</option>
-                            <option value={10}>Top 10 Pilotos</option>
-                            <option value={data.pilotos.length}>Todos ({data.pilotos.length})</option>
-                        </select>
+                            📊 Grid
+                        </button>
+                        <button 
+                            className={viewMode === 'compare' ? 'btn-compare' : 'btn-outline'}
+                            onClick={() => setViewMode('compare')}
+                        >
+                            ⚔️ Comparar
+                        </button>
                         
-                        <button className="btn-primary" onClick={() => setSelectedDrivers(data.pilotos.slice(0, 4).map(p => p.nome))}>
-                            Top 4
-                        </button>
-                        <button className="btn-secondary" onClick={() => setSelectedDrivers(data.pilotos.slice(0, 8).map(p => p.nome))}>
-                            Top 8
-                        </button>
-                        <button className="btn-outline" onClick={() => setSelectedDrivers(data.pilotos.map(p => p.nome))}>
-                            Todos
-                        </button>
+                        {viewMode === 'grid' && (
+                            <>
+                                <div style={{ width: '1px', height: '30px', background: '#ddd', margin: '0 10px' }}></div>
+                                
+                                <select 
+                                    value={selectedDrivers.length}
+                                    onChange={(e) => {
+                                        const count = parseInt(e.target.value);
+                                        setSelectedDrivers(sortedPilotos.slice(0, count).map(p => p.nome));
+                                    }}
+                                >
+                                    <option value={4}>Top 4</option>
+                                    <option value={6}>Top 6</option>
+                                    <option value={8}>Top 8</option>
+                                    <option value={10}>Top 10</option>
+                                    <option value={data.pilotos.length}>Todos ({data.pilotos.length})</option>
+                                </select>
+                                
+                                <button className="btn-secondary" onClick={() => setSelectedDrivers(sortedPilotos.slice(0, 4).map(p => p.nome))}>
+                                    Top 4
+                                </button>
+                                <button className="btn-outline" onClick={() => setSelectedDrivers(sortedPilotos.map(p => p.nome))}>
+                                    Todos
+                                </button>
+                            </>
+                        )}
                         
                         <div style={{ flex: 1 }}></div>
                         
-                        <a href="/" className="btn-secondary" style={{ textDecoration: 'none' }}>
-                            ← Histórico
-                        </a>
+                        <a href="/" className="btn-secondary" style={{ textDecoration: 'none' }}>← Histórico</a>
                     </div>
 
-                    {/* Grid */}
-                    <div 
-                        className="grid-container"
-                        style={{ 
-                            gridTemplateColumns: `100px repeat(${filteredDrivers.length}, 1fr)`,
-                            gridTemplateRows: `auto repeat(${maxStints}, 1fr)`
-                        }}
-                    >
-                        {/* Header row */}
-                        <div className="corner-cell"></div>
-                        {filteredDrivers.map((driver, idx) => (
-                            <div key={driver.nome} className="driver-header">
-                                <div 
-                                    className={getTyreClass(driver.stints?.[0]?.tipo_pneu)} 
-                                    style={{ 
-                                        width: '24px', 
-                                        height: '24px', 
-                                        borderRadius: '50%',
-                                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                                    }}
-                                ></div>
-                                <div className="driver-name">{driver.nome}</div>
-                                <div className="driver-position">P{driver.posicao || idx + 1}</div>
+                    {/* Seletor de pilotos no modo Grid */}
+                    {viewMode === 'grid' && (
+                        <div className="comparison-panel" style={{ marginBottom: '20px' }}>
+                            <h3>👥 Selecionar Pilotos</h3>
+                            <div className="driver-selector">
+                                {sortedPilotos.map(driver => (
+                                    <div 
+                                        key={driver.nome}
+                                        className={`driver-chip ${selectedDrivers.includes(driver.nome) ? 'selected' : 'unselected'}`}
+                                        onClick={() => toggleDriverSelection(driver.nome)}
+                                    >
+                                        <span className="position">P{driver.posicao}</span>
+                                        {driver.nome}
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                        
-                        {/* Stint rows */}
-                        {Array.from({ length: maxStints }, (_, stintIdx) => (
-                            <React.Fragment key={stintIdx}>
-                                <div className="stint-label">
-                                    Stint {stintIdx + 1}
-                                </div>
-                                
-                                {filteredDrivers.map((driver, driverIdx) => {
-                                    const stint = driver.stints?.[stintIdx];
-                                    
-                                    if (!stint) {
-                                        return <div key={driver.nome} className="empty-cell"></div>;
-                                    }
-                                    
-                                    return (
-                                        <MiniChart 
-                                            key={`${driver.nome}-${stintIdx}`}
-                                            stint={stint}
-                                            driverIdx={driverIdx}
-                                        />
-                                    );
-                                })}
-                            </React.Fragment>
-                        ))}
-                    </div>
+                        </div>
+                    )}
 
-                    {/* X-axis label */}
-                    <div className="x-axis-label">
-                        Stint Lap
-                    </div>
+                    {viewMode === 'compare' ? (
+                        <ComparisonView />
+                    ) : (
+                        <>
+                            {filteredDrivers.length > 0 && (
+                                <>
+                                    <div 
+                                        className="grid-container"
+                                        style={{ 
+                                            gridTemplateColumns: `100px repeat(${filteredDrivers.length}, 1fr)`,
+                                            gridTemplateRows: `auto repeat(${maxStints}, 1fr)`
+                                        }}
+                                    >
+                                        <div className="corner-cell"></div>
+                                        {filteredDrivers.map((driver) => (
+                                            <div key={driver.nome} className="driver-header">
+                                                <div 
+                                                    className={getTyreClass(driver.stints?.[0]?.tipo_pneu)} 
+                                                    style={{ width: '24px', height: '24px', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
+                                                ></div>
+                                                <div className="driver-name">{driver.nome}</div>
+                                                <div className="driver-position">P{driver.posicao}</div>
+                                            </div>
+                                        ))}
+                                        
+                                        {Array.from({ length: maxStints }, (_, stintIdx) => (
+                                            <React.Fragment key={stintIdx}>
+                                                <div className="stint-label">Stint {stintIdx + 1}</div>
+                                                
+                                                {filteredDrivers.map((driver) => {
+                                                    const stint = driver.stints?.[stintIdx];
+                                                    
+                                                    if (!stint) {
+                                                        return <div key={driver.nome} className="empty-cell">—</div>;
+                                                    }
+                                                    
+                                                    return <MiniChart key={`${driver.nome}-${stintIdx}`} stint={stint} />;
+                                                })}
+                                            </React.Fragment>
+                                        ))}
+                                    </div>
 
-                    {/* Legend */}
+                                    <div className="x-axis-label">Stint Lap</div>
+                                </>
+                            )}
+                        </>
+                    )}
+
                     <div className="legend">
                         <div className="legend-section">
                             <div className="legend-item">
                                 <div className="legend-line solid"></div>
-                                <span>Robust regression</span>
-                            </div>
-                            <div className="legend-item">
-                                <div className="legend-line dashed"></div>
-                                <span>Linear regression</span>
+                                <span>Regression trend (R² = precisão)</span>
                             </div>
                         </div>
                         
                         <div className="legend-section">
-                            <div className="legend-item">
-                                <div className="tyre-dot tyre-soft"></div>
-                                <span>Soft</span>
-                            </div>
-                            <div className="legend-item">
-                                <div className="tyre-dot tyre-medium"></div>
-                                <span>Medium</span>
-                            </div>
-                            <div className="legend-item">
-                                <div className="tyre-dot tyre-hard"></div>
-                                <span>Hard</span>
-                            </div>
-                            <div className="legend-item">
-                                <div className="tyre-dot tyre-inter"></div>
-                                <span>Intermediate</span>
-                            </div>
-                            <div className="legend-item">
-                                <div className="tyre-dot tyre-wet"></div>
-                                <span>Wet</span>
-                            </div>
+                            <div className="legend-item"><div className="tyre-dot tyre-supersoft"></div><span>Supersoft</span></div>
+                            <div className="legend-item"><div className="tyre-dot tyre-soft"></div><span>Soft</span></div>
+                            <div className="legend-item"><div className="tyre-dot tyre-medium"></div><span>Medium</span></div>
+                            <div className="legend-item"><div className="tyre-dot tyre-hard"></div><span>Hard</span></div>
+                            <div className="legend-item"><div className="tyre-dot tyre-inter"></div><span>Inter</span></div>
+                            <div className="legend-item"><div className="tyre-dot tyre-wet"></div><span>Wet</span></div>
                         </div>
                     </div>
                 </div>

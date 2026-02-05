@@ -1085,10 +1085,37 @@ def atualizar_CarSetupData(pacote_setup):
     for idx, setup in enumerate(pacote_setup.m_car_setups):
         if idx < len(JOGADORES):
             piloto = JOGADORES[idx]
-            piloto.fuelRemainingLaps = float(setup.m_fuel_load)  # Converte c_float para float
+            # 🛞 Aerodinâmica
+            piloto.front_wing = int(setup.m_front_wing)
+            piloto.rear_wing = int(setup.m_rear_wing)
+            # ⚙️ Diferencial
+            piloto.diff_on_throttle = int(setup.m_on_throttle)
+            piloto.diff_off_throttle = int(setup.m_off_throttle)
+             # 🛑 Freios
+            piloto.brake_pressure = int(setup.m_brake_pressure)
+            piloto.brake_bias = int(setup.m_brake_bias)
+
+            # 🔧 Suspensão
+            piloto.front_suspension = int(setup.m_front_suspension)
+            piloto.rear_suspension = int(setup.m_rear_suspension)
+            piloto.front_anti_roll_bar = int(setup.m_front_anti_roll_bar)
+            piloto.rear_anti_roll_bar = int(setup.m_rear_anti_roll_bar)
+            piloto.front_suspension_height = int(setup.m_front_suspension_height)
+            piloto.rear_suspension_height = int(setup.m_rear_suspension_height)
+            
+            # 🛞 Pressão dos Pneus (PSI)
+            piloto.tyre_pressure_fl = float(setup.m_front_left_tyre_pressure)
+            piloto.tyre_pressure_fr = float(setup.m_front_right_tyre_pressure)
+            piloto.tyre_pressure_rl = float(setup.m_rear_left_tyre_pressure)
+            piloto.tyre_pressure_rr = float(setup.m_rear_right_tyre_pressure)
+            # ⛽ Combustível (kg)
+            piloto.fuel_load = float(setup.m_fuel_load)
+            
+            # Mantém compatibilidade
+            piloto.fuelRemainingLaps = float(setup.m_fuel_load)
             if not hasattr(piloto, 'setup_array'):
                 piloto.setup_array = []
-            piloto.setup_array.extend([setup.m_front_wing, setup.m_rear_wing])
+            piloto.setup_array = [setup.m_front_wing, setup.m_rear_wing]
 
 def atualizar_vida_util(pacote_tyre_life):#12:Dados dos conjuntos de pneus disponíveis e usados (composto, desgaste, vida útil, etc).
     from Bot.jogadores import JOGADORES
@@ -1122,13 +1149,38 @@ def atualizar_lapdata(pacote_lap):
         else:
             piloto.delta_to_leader = delta_min * 60 + (delta_ms / 1000)
         piloto.pit = lap.m_pit_status != 0
-           # ⚠️ AVISOS E PUNIÇÕES
-        piloto.warnings = lap.m_total_warnings
-        piloto.corner_cutting_warnings = lap.m_corner_cutting_warnings
-        piloto.penalties_time = lap.m_penalties
-        piloto.drive_through_pens = lap.m_num_unserved_drive_through_pens
-        piloto.stop_go_pens = lap.m_num_unserved_stop_go_pens
-
+         
+                    # 🛞 Pneus
+        piloto.tyres = status.m_actual_tyre_compound
+        piloto.tyres_visual = status.m_visual_tyre_compound
+        piloto.tyresAgeLaps = status.m_tyres_age_laps
+            
+            # ⛽ Combustível (DADOS EM TEMPO REAL!)
+        piloto.fuel_in_tank = float(status.m_fuel_in_tank)        # kg atual
+        piloto.fuel_capacity = float(status.m_fuel_capacity)      # capacidade total
+        piloto.fuel_remaining_laps = float(status.m_fuel_remaining_laps)  # voltas restantes
+        piloto.fuel_mix = int(status.m_fuel_mix)                  # 0=Lean, 1=Std, 2=Rich, 3=Max
+            
+            # 🔋 ERS
+        piloto.ers_store_energy = float(status.m_ers_store_energy)
+        piloto.ers_deploy_mode = int(status.m_ers_deploy_mode)    # 0=None, 1=Med, 2=Hotlap, 3=Overtake
+        piloto.ers_harvested_mguk = float(status.m_ers_harvested_this_lap_mguk)
+        piloto.ers_harvested_mguh = float(status.m_ers_harvested_this_lap_mguh)
+        piloto.ers_deployed = float(status.m_ers_deployed_this_lap)
+            
+            # 🚦 DRS
+        piloto.drs_allowed = int(status.m_drs_allowed)            # 0=Não, 1=Sim
+        piloto.drs_activation_distance = int(status.m_drs_activation_distance)
+            
+            # 🚗 Assistências
+        piloto.traction_control = int(status.m_traction_control)  # 0=Off, 1=Med, 2=Full
+        piloto.anti_lock_brakes = int(status.m_anti_lock_brakes)  # 0=Off, 1=On
+        piloto.pit_limiter = int(status.m_pit_limiter_status)     # 0=Off, 1=On
+            
+            # 🏎️ Motor
+        piloto.engine_power_ice = float(status.m_engine_power_ice)
+        piloto.engine_power_mguk = float(status.m_engine_power_mguk)
+        
 def atualizar_participantes(pacote_participantes):
     from Bot.jogadores import JOGADORES
     for idx, participante in enumerate(pacote_participantes.m_participants):
