@@ -1597,3 +1597,4 @@ if __name__ == "__main__":
     threading.Thread(target=iniciar_painel_e_cloudflared, daemon=True).start()  
     
  #python Bot/bot_discord.py pra ativar
+bot.run(TOKEN)

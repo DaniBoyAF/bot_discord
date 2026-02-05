@@ -1,97 +1,78 @@
-# 🏎️ F1 24 Telemetry Discord Bot
+# 🏎️ F1 24 Telemetry Discord Bot & Web Dashboard
 
-Um bot para Discord que transmite dados de telemetria do F1 24 em tempo real, gera relatórios, gráficos e permite interações rápidas durante corridas.
+Um ecossistema completo para telemetria do F1 24 em tempo real. Inclui um bot para Discord para comandos rápidos e um Painel Web avançado para análise de engenharia de corrida.
 
 ---
 
 ## ✨ Funcionalidades
 
-- **Comandos ao vivo:** Gap, delta, pneus, pitstops, clima, status detalhado e mais.
-- **Relatórios em PDF:** Geração automática de relatórios completos e telemetria bruta.
-- **Gráficos:** Visualização dos tempos de volta de todos os pilotos.
-- **Totalmente integrado ao F1 24 via UDP.**
+- **🆕 Telemetria de Engenharia:** Acesso a dados de Setup (asas, diferencial, freios), monitoramento de combustível (kg e voltas) e SOC da bateria (ERS).
+- **📈 Análise de Pneus Pro:** Gráficos de degradação com regressão linear, cálculo de R² (precisão), remoção automática de outliers e suporte a todos os compostos (incluindo **Super Macio**).
+- **⚔️ Comparação de Pilotos:** Interface web para comparar ritmo e desgaste entre dois pilotos simultaneamente.
+- **📊 Relatórios Automáticos:** Geração de PDFs de sessão, boxplots de consistência e tabelas de tempos de setores.
+- **🌐 Dashboard Web:** Painel em tempo real sem delay via Flask/React.
 
 ---
 
 ## 📋 Comandos Principais
 
-| Comando               | Descrição                                                                 |
-|-----------------------|---------------------------------------------------------------------------|
-| `.ola`                | O bot cumprimenta você.                                                   |
-| `.status [nome]`      | Mostra o status de um piloto (ex: em pista, no pit, etc).                 |
-| `.clima`              | Mostra informações do clima atual.                                        |
-| `.delta`              | Mostra o delta de tempo dos pilotos.                                      |
-| `.pneusv`             | Mostra informações dos pneus dos pilotos.                                 |
-| `.danos [nome]`       | Mostra os danos do carro de um piloto.                                    |
-| `.pilotos`            | Lista os pilotos da sessão.                                               |
-| `.sobre`              | Mostra informações sobre o bot.                                           |
-| `.voltas [nome]`      | Mostra os tempos de volta de um piloto.                                   |
-| `.salvar_dados`       | Envia mensagens automáticas com setores e pneus dos pilotos.              |
-| `.parar_salvar`       | Para o envio automático de dados.                                         |
-| `.velocidade`         | Mostra o piloto mais rápido no speed trap.                                |
-| `.ranking`            | Mostra o top 10 da corrida.                                               |
-| `.grafico`            | Envia o gráfico dos tempos de volta.                                      |
-| `.grafico_midspeed`   | Envia o gráfico da velocidade média dos pilotos.                          |
-| `.media_setor`        | Mostra a média de tempo de setor dos pilotos.                             |
-| `.grafico_maxspeed`   | Envia o gráfico da velocidade máxima dos pilotos.                         |
-| `.media_lap`          | Mostra a média de tempo de volta dos pilotos.                             |
-| `.tabela`             | Envia a tabela ao vivo dos pilotos.                                       |
-| `.parartabela`        | Para o envio automático da tabela.                                        |
-| `.painel`             | Faz um HTML do painel sem delay grande.                                   |
-| `.pneusp`             | Faz um HTML dos pneus sem delay grande.                                   |
-| `.setor`              | Envia gráfico dos melhores setores de cada piloto.                        |
-| `.melhores_setores`   | Mostra os melhores setores de cada piloto no chat.                        |
-| `.grafico_velocidade` | Envia gráfico de barras das velocidades dos pilotos.                      |
----
+### 🔧 Telemetria de Engenharia
+| Comando | Descrição |
+| :--- | :--- |
+| `.setup [nome]` | Mostra o setup atual: asas, diferencial, freios, suspensão e pressões. |
+| `.ver_fuel` | Monitoramento de combustível (kg), voltas restantes e mapa de mistura. |
+| `.desgastes` | Desgaste físico em tempo real (0-100%) dos 4 pneus e idade da borracha. |
+| `.ver_ers` | Status da bateria (%), modo de deploy e disponibilidade de DRS. |
+| `.status [nome]` | Visão consolidada do piloto (posição, tempos, ERS, pneus). |
 
-## 📄 Relatórios
+### 🏁 Gestão de Prova
+| Comando | Descrição |
+| :--- | :--- |
+| `.ranking` | Top 10 atualizado com intervalos de tempo. |
+| `.delta` | Diferença de tempo (Gaps) entre todos os pilotos do grid. |
+| `.pneusv` | Composto atual (Visual) e quantos quilômetros/voltas o pneu possui. |
+| `.danos [nome]` | Relatório de danos: asas, assoalho, sidepods e desgaste de motor. |
 
-- **Relatório Completo:**  
-  - Informações da sessão  
-  - Dados de todos os pilotos (melhor volta, ERS, pneus, etc)  
-  - Estatísticas finais (pitstops, melhor volta)  
-  - Gráfico de tempos de volta
-
-- **Telemetria Bruta:**  
-  - PDF com dados crus da sessão
+### 📊 Análise & Web
+| Comando | Descrição |
+| :--- | :--- |
+| `.pit_stop` | Link para análise web de estratégia e degradação (Modo Grid/Comparação). |
+| `.painel` | Link para o dashboard de telemetria live. |
+| `.setor` | Gráfico comparativo dos melhores tempos de cada setor. |
+| `.corrida` | Boxplot de consistência para análise de ritmo de prova. |
 
 ---
 
 ## 🚀 Como Executar
 
-1. Instale os requisitos:
+1. **Instale os requisitos:**
     ```bash
     pip install -r requirements.txt
     ```
-2. Certifique-se de que o F1 24 está enviando dados UDP para o IP da sua máquina.
-3. Inicie o listener UDP (caso necessário):
-    ```python
-    start_udp_listener()
-    ```
-4. Execute o bot:
+2. **Configure o F1 24:**
+    - Vá em Opções de Telemetria.
+    - Ative o envio UDP para o IP da sua máquina na porta `20777`.
+3. **Inicie o sistema:**
     ```bash
     python main.py
     ```
+4. **Acesse a Web:** O painel estará disponível em `http://localhost:5000`.
 
 ---
 
-## 🌐 Requisitos
+## 🛠️ Tecnologias Utilizadas
 
-- Python 3.9+
-- [discord.py](https://github.com/Rapptz/discord.py)
-- matplotlib
-- reportlab
-- plotly
-
----
-
-## 📝 Observações
-
-- O bot precisa estar em um servidor Discord com permissões para ler e escrever mensagens.
-- Para comandos de gráficos e relatórios, os arquivos são enviados diretamente no chat.
+- **Backend:** Python, Flask, SQLite3, Ctypes (UDP Parser).
+- **Frontend:** React, Tailwind CSS, Chart.js.
+- **Relatórios:** ReportLab, Matplotlib, Plotly.
+- **Integração:** Discord.py.
 
 ---
 
-## 📧 Suporte
+## 📝 Análise de Degradação (Matemática)
 
-Dúvidas ou sugestões? Abra uma issue ou entre em contato pelo Discord!
+O bot utiliza **Regressão Linear Simples** com filtragem de **Outliers (IQR)** para calcular a perda de performance por volta ($\Delta/lap$). O valor de **R²** indica a confiabilidade dos dados (ex: tráfego ou erros de pilotagem baixam o R²).
+
+---
+
+**GitHub Copilot** | **Gemini 3 Flash (Preview)**
