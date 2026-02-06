@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Comparison - F1 Engineering</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap');
+        * { font-family: 'Titillium Web', sans-serif; box-sizing: border-box; }
+        body { background: #0f0f1a; color: white; margin: 0; padding: 20px; min-height: 100vh; }
+        
+        .main-container { max-width: 1600px; margin: 0 auto; }
+        
+        .header {
+            display: flex; align-items: center; gap: 15px;
+            margin-bottom: 30px; padding-bottom: 15px;
+            border-bottom: 3px solid #e10600;
+        }
+        .header h1 { font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
+        .header .track { font-size: 20px; color: #888; font-style: italic; }
+        
+        /* Seletor de Pilotos */
+        .selector-panel {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 12px; padding: 20px; margin-bottom: 25px;
+            border: 1px solid #2a2a4a;
+        }
+        .selector-panel h3 { margin: 0 0 15px; font-size: 16px; color: #aaa; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .driver-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+        .driver-chip {
+            padding: 10px 18px; border-radius: 25px; font-size: 13px;
+            font-weight: 700; cursor: pointer; transition: all 0.3s;
+            border: 2px solid transparent; display: flex; align-items: center; gap: 8px;
+        }
+        .driver-chip.idle { background: #2a2a4a; color: #666; }
+        .driver-chip.driver-a { background: #e10600; color: white; border-color: #ff4444; box-shadow: 0 0 20px rgba(225,6,0,0.3); }
+        .driver-chip.driver-b { background: #0072C6; color: white; border-color: #4AA8FF; box-shadow: 0 0 20px rgba(0,114,198,0.3); }
+        .driver-chip:hover { transform: scale(1.05); }
+        .driver-chip .pos { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+        
+        /* Cards dos Pilotos */
+        .comparison-area { display: grid; grid-template-columns: 1fr 80px 1fr; gap: 20px; align-items: start; }
+        
+        .driver-card {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%);
+            border-radius: 16px; overflow: hidden;
+            border: 2px solid #2a2a4a; transition: all 0.3s;
+        }
+        .driver-card.card-a { border-color: #e10600; }
+        .driver-card.card-b { border-color: #0072C6; }
+        
+        .card-header {
+            padding: 20px 25px; display: flex; align-items: center; gap: 15px;
+        }
+        .card-header.header-a { background: linear-gradient(135deg, #e10600 0%, #8b0000 100%); }
+        .card-header.header-b { background: linear-gradient(135deg, #0072C6 0%, #003d6b 100%); }
+        .card-header .name { font-size: 24px; font-weight: 900; text-transform: uppercase; }
+        .card-header .position { font-size: 14px; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 6px; }
+        .card-header .badge {
+            margin-left: auto; padding: 6px 14px; border-radius: 20px;
+            font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .badge-qualy { background: #9333ea; }
+        .badge-race { background: #22c55e; }
+        .badge-short { background: #eab308; color: #000; }
+        
+        .card-body { padding: 20px 25px; }
+        
+        /* Seções do Setup */
+        .setup-section { margin-bottom: 20px; }
+        .setup-section h4 {
+            font-size: 12px; color: #666; text-transform: uppercase;
+            letter-spacing: 2px; margin: 0 0 10px; padding-bottom: 8px;
+            border-bottom: 1px solid #2a2a4a;
+        }
+        
+        .setup-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid #1a1a2e;
+        }
+        .setup-row .label { font-size: 13px; color: #888; }
+        .setup-row .value { font-size: 15px; font-weight: 700; }
+        
+        /* Barra Visual de Setup */
+        .setup-bar-container { width: 100%; margin-top: 4px; }
+        .setup-bar {
+            height: 4px; border-radius: 2px; transition: width 0.5s;
+        }
+        .setup-bar.bar-a { background: #e10600; }
+        .setup-bar.bar-b { background: #0072C6; }
+        
+        /* VS Central */
+        .vs-column {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 15px; padding-top: 100px;
+        }
+        .vs-badge {
+            width: 70px; height: 70px; border-radius: 50%;
+            background: linear-gradient(135deg, #e10600 0%, #0072C6 100%);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 900;
+            box-shadow: 0 0 30px rgba(225,6,0,0.3), 0 0 30px rgba(0,114,198,0.3);
+        }
+        
+        /* Setor Comparison Bars */
+        .sector-compare {
+            background: #1a1a2e; border-radius: 8px; padding: 12px;
+            margin: 8px 0; position: relative; overflow: hidden;
+        }
+        .sector-compare .sector-label {
+            font-size: 11px; font-weight: 700; color: #666;
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
+        }
+        .sector-compare .times {
+            display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;
+        }
+        .sector-compare .times .time-a { color: #e10600; font-weight: 700; }
+        .sector-compare .times .time-b { color: #0072C6; font-weight: 700; }
+        .sector-compare .bar-track {
+            height: 6px; border-radius: 3px; background: #0d0d1a;
+            display: flex; overflow: hidden;
+        }
+        .sector-compare .bar-fill-a { background: #e10600; transition: width 0.5s; }
+        .sector-compare .bar-fill-b { background: #0072C6; transition: width 0.5s; }
+        .sector-compare .winner {
+            position: absolute; top: 8px; right: 12px;
+            font-size: 10px; font-weight: 800; padding: 2px 8px;
+            border-radius: 4px; text-transform: uppercase;
+        }
+        .sector-compare .winner.winner-a { background: #e10600; }
+        .sector-compare .winner.winner-b { background: #0072C6; }
+        
+        /* Diagnóstico */
+        .diagnosis {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 12px; padding: 20px; margin-top: 25px;
+            border: 1px solid #2a2a4a;
+        }
+        .diagnosis h3 {
+            font-size: 16px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 2px; margin: 0 0 15px; color: #fff;
+        }
+        .diagnosis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .diagnosis-item {
+            background: #0d0d1a; border-radius: 8px; padding: 15px;
+            border-left: 3px solid;
+        }
+        .diagnosis-item.diag-a { border-color: #e10600; }
+        .diagnosis-item.diag-b { border-color: #0072C6; }
+        .diagnosis-item .title { font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
+        .diagnosis-item .title.title-a { color: #e10600; }
+        .diagnosis-item .title.title-b { color: #0072C6; }
+        .diagnosis-item .desc { font-size: 13px; color: #aaa; line-height: 1.5; }
+        .diagnosis-item .emoji { font-size: 20px; margin-bottom: 5px; }
+        
+        /* Estilo Cards */
+        .style-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 20px; font-size: 12px;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .style-metronomico { background: #22c55e33; color: #22c55e; border: 1px solid #22c55e; }
+        .style-consistente { background: #3b82f633; color: #3b82f6; border: 1px solid #3b82f6; }
+        .style-agressivo { background: #e1060033; color: #e10600; border: 1px solid #e10600; }
+        .style-equilibrado { background: #eab30833; color: #eab308; border: 1px solid #eab308; }
+
+        /* Radar Chart */
+        .radar-container {
+            display: flex; justify-content: center; align-items: center;
+            padding: 20px; margin: 20px 0;
+        }
+        
+        /* Score Cards */
+        .score-row {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 25px;
+        }
+        .score-card {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%);
+            border-radius: 12px; padding: 20px; text-align: center;
+            border: 1px solid #2a2a4a;
+        }
+        .score-card .score-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .score-card .score-value { font-size: 32px; font-weight: 900; margin: 8px 0; }
+        .score-card .score-driver { font-size: 12px; font-weight: 600; }
+        .score-value.green { color: #22c55e; }
+        .score-value.red { color: #e10600; }
+        .score-value.blue { color: #0072C6; }
+        .score-value.yellow { color: #eab308; }
+        
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; min-height: 60vh; text-align: center;
+        }
+        .empty-state .icon { font-size: 80px; margin-bottom: 20px; }
+        .empty-state h2 { font-size: 24px; margin-bottom: 10px; }
+        .empty-state p { color: #666; font-size: 14px; max-width: 400px; }
+        
+        .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .loading-spinner { font-size: 5rem; animation: spin 1.5s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Sessão Selector */
+        .session-select {
+            padding: 10px 15px; font-size: 14px; border: 2px solid #2a2a4a;
+            border-radius: 8px; background: #1a1a2e; color: white;
+            cursor: pointer; font-weight: 600; min-width: 250px;
+        }
+        .session-select:focus { border-color: #e10600; outline: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+    {% raw %}
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const SetupComparisonApp = () => {
+            const [sessions, setSessions] = useState([]);
+            const [selectedSession, setSelectedSession] = useState(null);
+            const [data, setData] = useState(null);
+            const [driverA, setDriverA] = useState(null);
+            const [driverB, setDriverB] = useState(null);
+            const [isLoading, setIsLoading] = useState(true);
+
+            // Lê ?sessao=X da URL ao carregar
+            const getSessionFromURL = () => {
+                const params = new URLSearchParams(window.location.search);
+                const sessaoParam = params.get('sessao');
+                return sessaoParam ? parseInt(sessaoParam) : null;
+            };
+
+            useEffect(() => {
+                fetchSessions();
+            }, []);
+
+            useEffect(() => {
+                if (selectedSession) {
+                    fetchSetupData(selectedSession);
+                    // Atualiza a URL sem recarregar a página
+                    const url = new URL(window.location);
+                    url.searchParams.set('sessao', selectedSession);
+                    window.history.replaceState({}, '', url);
+                }
+            }, [selectedSession]);
+
+            const fetchSessions = async () => {
+                try {
+                    const resp = await fetch('/listar_sessoes_json');
+                    const sessions = await resp.json();
+                    setSessions(sessions);
+                    
+                    // Prioridade: URL > primeira sessão
+                    const urlSession = getSessionFromURL();
+                    if (urlSession && sessions.some(s => s.id === urlSession)) {
+                        setSelectedSession(urlSession);
+                    } else if (sessions.length > 0) {
+                        setSelectedSession(sessions[0].id);
+                    }
+                } catch (e) {
+                    console.error('Erro ao buscar sessões:', e);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const fetchSetupData = async (sessaoId) => {
+                try {
+                    setIsLoading(true);
+                    const resp = await fetch(`/dados_setups/${sessaoId}`);
+                    const result = await resp.json();
+                    setData(result);
+                    setDriverA(null);
+                    setDriverB(null);
+                } catch (e) {
+                    console.error('Erro ao buscar setups:', e);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const handleDriverClick = (driver) => {
+                if (driverA && driverA.nome === driver.nome) {
+                    setDriverA(null);
+                } else if (driverB && driverB.nome === driver.nome) {
+                    setDriverB(null);
+                } else if (!driverA) {
+                    setDriverA(driver);
+                } else if (!driverB) {
+                    setDriverB(driver);
+                } else {
+                    setDriverA(driverB);
+                    setDriverB(driver);
+                }
+            };
+
+            const getChipClass = (driver) => {
+                if (driverA && driverA.nome === driver.nome) return 'driver-chip driver-a';
+                if (driverB && driverB.nome === driver.nome) return 'driver-chip driver-b';
+                return 'driver-chip idle';
+            };
+
+            const formatTime = (seconds) => {
+                if (!seconds || seconds <= 0) return '--:--.---';
+                const mins = Math.floor(seconds / 60);
+                const secs = (seconds % 60).toFixed(3);
+                return `${mins}:${secs.padStart(6, '0')}`;
+            };
+
+            const formatSector = (seconds) => {
+                if (!seconds || seconds <= 0) return '--.---';
+                return seconds.toFixed(3);
+            };
+
+            const getStyleClass = (estilo) => {
+                if (!estilo) return 'style-equilibrado';
+                const e = estilo.toUpperCase();
+                if (e.includes('METRON')) return 'style-metronomico';
+                if (e.includes('CONSIST')) return 'style-consistente';
+                if (e.includes('AGRESS')) return 'style-agressivo';
+                return 'style-equilibrado';
+            };
+
+            const getBadgeClass = (tipo) => {
+                if (!tipo) return 'badge-race';
+                const t = tipo.toUpperCase();
+                if (t.includes('QUAL')) return 'badge-qualy';
+                if (t.includes('SHORT')) return 'badge-short';
+                return 'badge-race';
+            };
+
+            // Diagnóstico inteligente
+            const getDiagnosis = () => {
+                if (!driverA || !driverB) return [];
+                const a = driverA.performance;
+                const b = driverB.performance;
+                const sA = driverA.setup;
+                const sB = driverB.setup;
+                
+                const items = [];
+                
+                // Setor 1 (geralmente retas)
+                if (a.avg_s1 && b.avg_s1) {
+                    if (a.avg_s1 < b.avg_s1) {
+                        const diff = (b.avg_s1 - a.avg_s1).toFixed(3);
+                        items.push({
+                            side: 'a', emoji: '🚀',
+                            title: `Ganha ${diff}s no Setor 1`,
+                            desc: sA.asa_traseira < sB.asa_traseira 
+                                ? `Menos asa traseira (${sA.asa_traseira} vs ${sB.asa_traseira}) = mais velocidade em retas`
+                                : `Melhor eficiência aerodinâmica nas retas`
+                        });
+                    } else {
+                        const diff = (a.avg_s1 - b.avg_s1).toFixed(3);
+                        items.push({
+                            side: 'b', emoji: '🚀',
+                            title: `Ganha ${diff}s no Setor 1`,
+                            desc: sB.asa_traseira < sA.asa_traseira 
+                                ? `Menos asa traseira (${sB.asa_traseira} vs ${sA.asa_traseira}) = mais velocidade em retas`
+                                : `Melhor eficiência aerodinâmica nas retas`
+                        });
+                    }
+                }
+                
+                // Setor 2 (geralmente curvas técnicas)
+                if (a.avg_s2 && b.avg_s2) {
+                    if (a.avg_s2 < b.avg_s2) {
+                        const diff = (b.avg_s2 - a.avg_s2).toFixed(3);
+                        items.push({
+                            side: 'a', emoji: '🏎️',
+                            title: `Ganha ${diff}s no Setor 2`,
+                            desc: sA.asa_dianteira > sB.asa_dianteira
+                                ? `Mais asa dianteira (${sA.asa_dianteira} vs ${sB.asa_dianteira}) = melhor curva lenta`
+                                : `Melhor setup mecânico para curvas técnicas`
+                        });
+                    } else {
+                        const diff = (a.avg_s2 - b.avg_s2).toFixed(3);
+                        items.push({
+                            side: 'b', emoji: '🏎️',
+                            title: `Ganha ${diff}s no Setor 2`,
+                            desc: sB.asa_dianteira > sA.asa_dianteira
+                                ? `Mais asa dianteira (${sB.asa_dianteira} vs ${sA.asa_dianteira}) = melhor curva lenta`
+                                : `Melhor setup mecânico para curvas técnicas`
+                        });
+                    }
+                }
+                
+                // Setor 3
+                if (a.avg_s3 && b.avg_s3) {
+                    if (a.avg_s3 < b.avg_s3) {
+                        const diff = (b.avg_s3 - a.avg_s3).toFixed(3);
+                        items.push({
+                            side: 'a', emoji: '⚡',
+                            title: `Ganha ${diff}s no Setor 3`,
+                            desc: `Melhor tração na saída das curvas do terceiro setor`
+                        });
+                    } else {
+                        const diff = (a.avg_s3 - b.avg_s3).toFixed(3);
+                        items.push({
+                            side: 'b', emoji: '⚡',
+                            title: `Ganha ${diff}s no Setor 3`,
+                            desc: `Melhor tração na saída das curvas do terceiro setor`
+                        });
+                    }
+                }
+                
+                // Degradação
+                if (a.degradacao !== undefined && b.degradacao !== undefined) {
+                    if (Math.abs(a.degradacao) < Math.abs(b.degradacao)) {
+                        items.push({
+                            side: 'a', emoji: '🛞',
+                            title: 'Melhor Gestão de Pneus',
+                            desc: `Degrada ${(Math.abs(b.degradacao) - Math.abs(a.degradacao)).toFixed(3)}s/volta a menos. Setup mais gentil com a borracha.`
+                        });
+                    } else if (Math.abs(b.degradacao) < Math.abs(a.degradacao)) {
+                        items.push({
+                            side: 'b', emoji: '🛞',
+                            title: 'Melhor Gestão de Pneus',
+                            desc: `Degrada ${(Math.abs(a.degradacao) - Math.abs(b.degradacao)).toFixed(3)}s/volta a menos. Setup mais gentil com a borracha.`
+                        });
+                    }
+                }
+                
+                // Consistência
+                if (a.consistencia && b.consistencia) {
+                    if (a.consistencia > b.consistencia) {
+                        items.push({
+                            side: 'a', emoji: '📊',
+                            title: `Mais Consistente (${a.consistencia.toFixed(1)}% vs ${b.consistencia.toFixed(1)}%)`,
+                            desc: 'Menor variação entre voltas. Setup mais previsível e estável.'
+                        });
+                    } else {
+                        items.push({
+                            side: 'b', emoji: '📊',
+                            title: `Mais Consistente (${b.consistencia.toFixed(1)}% vs ${a.consistencia.toFixed(1)}%)`,
+                            desc: 'Menor variação entre voltas. Setup mais previsível e estável.'
+                        });
+                    }
+                }
+                
+                // Top Speed
+                if (a.top_speed && b.top_speed) {
+                    if (a.top_speed > b.top_speed) {
+                        items.push({
+                            side: 'a', emoji: '💨',
+                            title: `Mais Rápido em Reta (${a.top_speed.toFixed(0)} vs ${b.top_speed.toFixed(0)} km/h)`,
+                            desc: sA.asa_traseira < sB.asa_traseira
+                                ? `Asa traseira menor (${sA.asa_traseira}) reduz arrasto e aumenta velocidade final`
+                                : 'Melhor eficiência de motor/ERS nas retas'
+                        });
+                    } else {
+                        items.push({
+                            side: 'b', emoji: '💨',
+                            title: `Mais Rápido em Reta (${b.top_speed.toFixed(0)} vs ${a.top_speed.toFixed(0)} km/h)`,
+                            desc: sB.asa_traseira < sA.asa_traseira
+                                ? `Asa traseira menor (${sB.asa_traseira}) reduz arrasto e aumenta velocidade final`
+                                : 'Melhor eficiência de motor/ERS nas retas'
+                        });
+                    }
+                }
+                
+                return items;
+            };
+
+            // Canvas para Radar Chart
+            const RadarChart = ({ dA, dB }) => {
+                const canvasRef = useRef(null);
+                
+                useEffect(() => {
+                    if (!canvasRef.current || !dA || !dB) return;
+                    const canvas = canvasRef.current;
+                    const ctx = canvas.getContext('2d');
+                    const dpr = window.devicePixelRatio || 1;
+                    
+                    canvas.width = 400 * dpr;
+                    canvas.height = 400 * dpr;
+                    ctx.scale(dpr, dpr);
+                    
+                    const w = 400, h = 400;
+                    const cx = w / 2, cy = h / 2;
+                    const maxR = 140;
+                    
+                    ctx.clearRect(0, 0, w, h);
+                    
+                    const labels = ['Velocidade', 'Downforce', 'Freios', 'Consistência', 'Degradação', 'Ritmo'];
+                    const n = labels.length;
+                    const angleStep = (Math.PI * 2) / n;
+                    
+                    // Normaliza valores (0-100)
+                    const normalize = (val, min, max) => Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+                    
+                    const maxSpeed = Math.max(dA.performance.top_speed || 300, dB.performance.top_speed || 300, 300);
+                    
+                    const valsA = [
+                        normalize(dA.performance.top_speed || 0, 200, maxSpeed + 20),
+                        normalize((dA.setup.asa_dianteira || 0) + (dA.setup.asa_traseira || 0), 0, 40),
+                        normalize(dA.setup.freio_pressao || 50, 0, 100),
+                        dA.performance.consistencia || 0,
+                        normalize(100 - Math.abs(dA.performance.degradacao || 0) * 100, 0, 100),
+                        dA.performance.media_volta > 0 ? normalize(1 / dA.performance.media_volta, 0.005, 0.02) : 50
+                    ];
+                    
+                    const valsB = [
+                        normalize(dB.performance.top_speed || 0, 200, maxSpeed + 20),
+                        normalize((dB.setup.asa_dianteira || 0) + (dB.setup.asa_traseira || 0), 0, 40),
+                        normalize(dB.setup.freio_pressao || 50, 0, 100),
+                        dB.performance.consistencia || 0,
+                        normalize(100 - Math.abs(dB.performance.degradacao || 0) * 100, 0, 100),
+                        dB.performance.media_volta > 0 ? normalize(1 / dB.performance.media_volta, 0.005, 0.02) : 50
+                    ];
+                    
+                    // Grid
+                    for (let ring = 1; ring <= 4; ring++) {
+                        const r = (ring / 4) * maxR;
+                        ctx.beginPath();
+                        for (let i = 0; i <= n; i++) {
+                            const angle = i * angleStep - Math.PI / 2;
+                            const x = cx + r * Math.cos(angle);
+                            const y = cy + r * Math.sin(angle);
+                            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                        }
+                        ctx.closePath();
+                        ctx.strokeStyle = '#2a2a4a';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                    
+                    // Eixos + Labels
+                    for (let i = 0; i < n; i++) {
+                        const angle = i * angleStep - Math.PI / 2;
+                        const x = cx + maxR * Math.cos(angle);
+                        const y = cy + maxR * Math.sin(angle);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(cx, cy);
+                        ctx.lineTo(x, y);
+                        ctx.strokeStyle = '#2a2a4a';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        
+                        const lx = cx + (maxR + 25) * Math.cos(angle);
+                        const ly = cy + (maxR + 25) * Math.sin(angle);
+                        ctx.fillStyle = '#888';
+                        ctx.font = '12px Titillium Web';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(labels[i], lx, ly);
+                    }
+                    
+                    // Polígono A (Vermelho)
+                    const drawPoly = (vals, color, alpha) => {
+                        ctx.beginPath();
+                        for (let i = 0; i < n; i++) {
+                            const angle = i * angleStep - Math.PI / 2;
+                            const r = (vals[i] / 100) * maxR;
+                            const x = cx + r * Math.cos(angle);
+                            const y = cy + r * Math.sin(angle);
+                            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                        }
+                        ctx.closePath();
+                        ctx.fillStyle = color + alpha;
+                        ctx.fill();
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2.5;
+                        ctx.stroke();
+                        
+                        // Pontos
+                        for (let i = 0; i < n; i++) {
+                            const angle = i * angleStep - Math.PI / 2;
+                            const r = (vals[i] / 100) * maxR;
+                            const x = cx + r * Math.cos(angle);
+                            const y = cy + r * Math.sin(angle);
+                            ctx.beginPath();
+                            ctx.arc(x, y, 4, 0, Math.PI * 2);
+                            ctx.fillStyle = color;
+                            ctx.fill();
+                        }
+                    };
+                    
+                    drawPoly(valsA, '#e10600', '33');
+                    drawPoly(valsB, '#0072C6', '33');
+                    
+                }, [dA, dB]);
+                
+                return <canvas ref={canvasRef} style={{ width: '400px', height: '400px' }} />;
+            };
+
+            // Setup Row com barra visual
+            const SetupRow = ({ label, valueA, valueB, max = 20, unit = '' }) => {
+                const pctA = Math.min(100, (valueA / max) * 100);
+                const pctB = Math.min(100, (valueB / max) * 100);
+                const winner = valueA > valueB ? 'a' : valueA < valueB ? 'b' : 'tie';
+                
+                return (
+                    <div style={{ marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '12px', color: '#888' }}>{label}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ 
+                                fontSize: '14px', fontWeight: '700', minWidth: '40px', textAlign: 'right',
+                                color: winner === 'a' ? '#e10600' : '#888'
+                            }}>{valueA}{unit}</span>
+                            <div style={{ flex: 1, display: 'flex', gap: '2px' }}>
+                                <div style={{ flex: 1, background: '#1a1a2e', borderRadius: '3px', height: '6px', overflow: 'hidden', direction: 'rtl' }}>
+                                    <div className="setup-bar bar-a" style={{ width: `${pctA}%`, height: '100%' }}></div>
+                                </div>
+                                <div style={{ flex: 1, background: '#1a1a2e', borderRadius: '3px', height: '6px', overflow: 'hidden' }}>
+                                    <div className="setup-bar bar-b" style={{ width: `${pctB}%`, height: '100%' }}></div>
+                                </div>
+                            </div>
+                            <span style={{ 
+                                fontSize: '14px', fontWeight: '700', minWidth: '40px',
+                                color: winner === 'b' ? '#0072C6' : '#888'
+                            }}>{valueB}{unit}</span>
+                        </div>
+                    </div>
+                );
+            };
+
+            if (isLoading) {
+                return (
+                    <div className="loading">
+                        <div style={{ textAlign: 'center' }}>
+                            <div className="loading-spinner">🏎️</div>
+                            <h2 style={{ marginTop: '20px' }}>Carregando dados de setup...</h2>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="main-container">
+                    <div className="header">
+                        <h1>🔧 Setup Comparison</h1>
+                        <span className="track">{data?.sessao?.nome_pista || 'Selecione uma sessão'}</span>
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <a href="/setup_manual" style={{ color: '#ff9800', fontSize: '13px', fontWeight: '700', textDecoration: 'none' }}>
+                                ✏️ Criar Setup
+                            </a>
+                            <select 
+                                className="session-select"
+                                value={selectedSession || ''}
+                                onChange={(e) => setSelectedSession(parseInt(e.target.value))}
+                            >
+                                <option value="">Selecione a sessão...</option>
+                                {sessions.map(s => (
+                                    <option key={s.id} value={s.id}>
+                                        #{s.id} - {s.nome_pista} ({s.tipo_sessao})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Seletor de Pilotos */}
+                    <div className="selector-panel">
+                        <h3>
+                            Selecione 2 pilotos para comparar
+                            {driverA && <span style={{ color: '#e10600', marginLeft: '15px' }}>🔴 {driverA.nome}</span>}
+                            {driverB && <span style={{ color: '#0072C6', marginLeft: '15px' }}>🔵 {driverB.nome}</span>}
+                        </h3>
+                        <div className="driver-chips">
+                            {(data?.pilotos || []).map(driver => (
+                                <div 
+                                    key={driver.nome}
+                                    className={getChipClass(driver)}
+                                    onClick={() => handleDriverClick(driver)}
+                                >
+                                    <span className="pos">P{driver.posicao}</span>
+                                    {driver.nome}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {(!driverA || !driverB) ? (
+                        <div className="empty-state">
+                            <div className="icon">⚔️</div>
+                            <h2>Comparação de Engenharia</h2>
+                            <p>Selecione dois pilotos acima para comparar setups, performance por setor e estilo de pilotagem</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Score Cards */}
+                            <div className="score-row">
+                                <div className="score-card">
+                                    <div className="score-label">Mais Rápido (Melhor Volta)</div>
+                                    <div className={`score-value ${driverA.performance.melhor_volta < driverB.performance.melhor_volta ? 'red' : 'blue'}`}>
+                                        {Math.abs((driverA.performance.melhor_volta || 0) - (driverB.performance.melhor_volta || 0)).toFixed(3)}s
+                                    </div>
+                                    <div className="score-driver" style={{ color: driverA.performance.melhor_volta < driverB.performance.melhor_volta ? '#e10600' : '#0072C6' }}>
+                                        {driverA.performance.melhor_volta < driverB.performance.melhor_volta ? driverA.nome : driverB.nome}
+                                    </div>
+                                </div>
+                                <div className="score-card">
+                                    <div className="score-label">Melhor Ritmo (Média)</div>
+                                    <div className={`score-value ${driverA.performance.media_volta < driverB.performance.media_volta ? 'red' : 'blue'}`}>
+                                        {Math.abs((driverA.performance.media_volta || 0) - (driverB.performance.media_volta || 0)).toFixed(3)}s
+                                    </div>
+                                    <div className="score-driver" style={{ color: driverA.performance.media_volta < driverB.performance.media_volta ? '#e10600' : '#0072C6' }}>
+                                        {driverA.performance.media_volta < driverB.performance.media_volta ? driverA.nome : driverB.nome}
+                                    </div>
+                                </div>
+                                <div className="score-card">
+                                    <div className="score-label">Top Speed</div>
+                                    <div className={`score-value ${(driverA.performance.top_speed || 0) > (driverB.performance.top_speed || 0) ? 'red' : 'blue'}`}>
+                                        {Math.max(driverA.performance.top_speed || 0, driverB.performance.top_speed || 0).toFixed(0)} km/h
+                                    </div>
+                                    <div className="score-driver" style={{ color: (driverA.performance.top_speed || 0) > (driverB.performance.top_speed || 0) ? '#e10600' : '#0072C6' }}>
+                                        {(driverA.performance.top_speed || 0) > (driverB.performance.top_speed || 0) ? driverA.nome : driverB.nome}
+                                    </div>
+                                </div>
+                                <div className="score-card">
+                                    <div className="score-label">Mais Consistente</div>
+                                    <div className={`score-value ${(driverA.performance.consistencia || 0) > (driverB.performance.consistencia || 0) ? 'red' : 'blue'}`}>
+                                        {Math.max(driverA.performance.consistencia || 0, driverB.performance.consistencia || 0).toFixed(1)}%
+                                    </div>
+                                    <div className="score-driver" style={{ color: (driverA.performance.consistencia || 0) > (driverB.performance.consistencia || 0) ? '#e10600' : '#0072C6' }}>
+                                        {(driverA.performance.consistencia || 0) > (driverB.performance.consistencia || 0) ? driverA.nome : driverB.nome}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Comparação de Setores */}
+                            <div style={{ marginTop: '25px' }}>
+                                {['S1', 'S2', 'S3'].map(sector => {
+                                    const key = `avg_${sector.toLowerCase()}`;
+                                    const valA = driverA.performance[key] || 0;
+                                    const valB = driverB.performance[key] || 0;
+                                    const total = valA + valB || 1;
+                                    const winnerSide = valA < valB ? 'a' : 'b';
+                                    
+                                    return (
+                                        <div key={sector} className="sector-compare">
+                                            <div className="sector-label">{sector === 'S1' ? 'Setor 1 (Retas)' : sector === 'S2' ? 'Setor 2 (Curvas Técnicas)' : 'Setor 3 (Misto)'}</div>
+                                            <div className="times">
+                                                <span className="time-a">{formatSector(valA)}s</span>
+                                                <span style={{ color: '#444', fontSize: '11px' }}>Δ {Math.abs(valA - valB).toFixed(3)}s</span>
+                                                <span className="time-b">{formatSector(valB)}s</span>
+                                            </div>
+                                            <div className="bar-track">
+                                                <div className="bar-fill-a" style={{ width: `${(valB / total) * 100}%` }}></div>
+                                                <div className="bar-fill-b" style={{ width: `${(valA / total) * 100}%` }}></div>
+                                            </div>
+                                            <span className={`winner winner-${winnerSide}`}>
+                                                {winnerSide === 'a' ? driverA.nome : driverB.nome}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Área Principal: Cards + Radar */}
+                            <div className="comparison-area" style={{ marginTop: '25px' }}>
+                                {/* Card Piloto A */}
+                                <div className="driver-card card-a">
+                                    <div className="card-header header-a">
+                                        <div className="name">{driverA.nome}</div>
+                                        <div className="position">P{driverA.posicao}</div>
+                                        <div className={`badge ${getBadgeClass(driverA.performance.tipo_setup)}`}>
+                                            {driverA.performance.tipo_setup}
+                                        </div>
+                                    </div>
+                                    <div className="card-body">
+                                        <div style={{ marginBottom: '15px' }}>
+                                            <span className={`style-badge ${getStyleClass(driverA.performance.estilo)}`}>
+                                                {driverA.performance.estilo}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>✈️ Aerodinâmica</h4>
+                                            <div className="setup-row"><span className="label">Asa Dianteira</span><span className="value">{driverA.setup.asa_dianteira}</span></div>
+                                            <div className="setup-row"><span className="label">Asa Traseira</span><span className="value">{driverA.setup.asa_traseira}</span></div>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>🛑 Freios</h4>
+                                            <div className="setup-row"><span className="label">Pressão</span><span className="value">{driverA.setup.freio_pressao}%</span></div>
+                                            <div className="setup-row"><span className="label">Balanço</span><span className="value">{driverA.setup.freio_balanco}%</span></div>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>⚙️ Diferencial</h4>
+                                            <div className="setup-row"><span className="label">On Throttle</span><span className="value">{driverA.setup.diff_on}%</span></div>
+                                            <div className="setup-row"><span className="label">Off Throttle</span><span className="value">{driverA.setup.diff_off}%</span></div>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>⛽ Combustível</h4>
+                                            <div className="setup-row"><span className="label">Carga Inicial</span><span className="value">{(driverA.setup.combustivel || 0).toFixed(1)} kg</span></div>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>📊 Performance</h4>
+                                            <div className="setup-row"><span className="label">Melhor Volta</span><span className="value">{formatTime(driverA.performance.melhor_volta)}</span></div>
+                                            <div className="setup-row"><span className="label">Média</span><span className="value">{formatTime(driverA.performance.media_volta)}</span></div>
+                                            <div className="setup-row"><span className="label">Degradação</span><span className="value">{(driverA.performance.degradacao || 0).toFixed(3)}s/lap</span></div>
+                                            <div className="setup-row"><span className="label">Consistência</span><span className="value">{(driverA.performance.consistencia || 0).toFixed(1)}%</span></div>
+                                            <div className="setup-row"><span className="label">Total Voltas</span><span className="value">{driverA.performance.total_voltas}</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* VS + Radar */}
+                                <div className="vs-column">
+                                    <div className="vs-badge">VS</div>
+                                    <div className="radar-container">
+                                        <RadarChart dA={driverA} dB={driverB} />
+                                    </div>
+                                </div>
+
+                                {/* Card Piloto B */}
+                                <div className="driver-card card-b">
+                                    <div className="card-header header-b">
+                                        <div className="name">{driverB.nome}</div>
+                                        <div className="position">P{driverB.posicao}</div>
+                                        <div className={`badge ${getBadgeClass(driverB.performance.tipo_setup)}`}>
+                                            {driverB.performance.tipo_setup}
+                                        </div>
+                                    </div>
+                                    <div className="card-body">
+                                        <div style={{ marginBottom: '15px' }}>
+                                            <span className={`style-badge ${getStyleClass(driverB.performance.estilo)}`}>
+                                                {driverB.performance.estilo}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>✈️ Aerodinâmica</h4>
+                                            <div className="setup-row"><span className="label">Asa Dianteira</span><span className="value">{driverB.setup.asa_dianteira}</span></div>
+                                            <div className="setup-row"><span className="label">Asa Traseira</span><span className="value">{driverB.setup.asa_traseira}</span></div>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>🛑 Freios</h4>
+                                            <div className="setup-row"><span className="label">Pressão</span><span className="value">{driverB.setup.freio_pressao}%</span></div>
+                                            <div className="setup-row"><span className="label">Balanço</span><span className="value">{driverB.setup.freio_balanco}%</span></div>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>⚙️ Diferencial</h4>
+                                            <div className="setup-row"><span className="label">On Throttle</span><span className="value">{driverB.setup.diff_on}%</span></div>
+                                            <div className="setup-row"><span className="label">Off Throttle</span><span className="value">{driverB.setup.diff_off}%</span></div>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>⛽ Combustível</h4>
+                                            <div className="setup-row"><span className="label">Carga Inicial</span><span className="value">{(driverB.setup.combustivel || 0).toFixed(1)} kg</span></div>
+                                        </div>
+                                        
+                                        <div className="setup-section">
+                                            <h4>📊 Performance</h4>
+                                            <div className="setup-row"><span className="label">Melhor Volta</span><span className="value">{formatTime(driverB.performance.melhor_volta)}</span></div>
+                                            <div className="setup-row"><span className="label">Média</span><span className="value">{formatTime(driverB.performance.media_volta)}</span></div>
+                                            <div className="setup-row"><span className="label">Degradação</span><span className="value">{(driverB.performance.degradacao || 0).toFixed(3)}s/lap</span></div>
+                                            <div className="setup-row"><span className="label">Consistência</span><span className="value">{(driverB.performance.consistencia || 0).toFixed(1)}%</span></div>
+                                            <div className="setup-row"><span className="label">Total Voltas</span><span className="value">{driverB.performance.total_voltas}</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Setup Comparison Bars */}
+                            <div style={{ marginTop: '25px', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', borderRadius: '12px', padding: '25px', border: '1px solid #2a2a4a' }}>
+                                <h3 style={{ fontSize: '16px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '20px', color: '#888' }}>
+                                    Comparação Direta de Setup
+                                </h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                    <div>
+                                        <SetupRow label="Asa Dianteira" valueA={driverA.setup.asa_dianteira} valueB={driverB.setup.asa_dianteira} max={20} />
+                                        <SetupRow label="Asa Traseira" valueA={driverA.setup.asa_traseira} valueB={driverB.setup.asa_traseira} max={20} />
+                                        <SetupRow label="Diff On Throttle" valueA={driverA.setup.diff_on} valueB={driverB.setup.diff_on} max={100} unit="%" />
+                                        <SetupRow label="Diff Off Throttle" valueA={driverA.setup.diff_off} valueB={driverB.setup.diff_off} max={100} unit="%" />
+                                    </div>
+                                    <div>
+                                        <SetupRow label="Pressão Freio" valueA={driverA.setup.freio_pressao} valueB={driverB.setup.freio_pressao} max={100} unit="%" />
+                                        <SetupRow label="Balanço Freio" valueA={driverA.setup.freio_balanco} valueB={driverB.setup.freio_balanco} max={70} unit="%" />
+                                        <SetupRow label="Suspensão Diant" valueA={driverA.setup.suspensao_d} valueB={driverB.setup.suspensao_d} max={11} />
+                                        <SetupRow label="Suspensão Tras" valueA={driverA.setup.suspensao_t} valueB={driverB.setup.suspensao_t} max={11} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Diagnóstico de Engenharia */}
+                            <div className="diagnosis">
+                                <h3>🔬 Diagnóstico de Engenharia — Onde Cada Setup Ganha</h3>
+                                <div className="diagnosis-grid">
+                                    {getDiagnosis().map((item, idx) => (
+                                        <div key={idx} className={`diagnosis-item diag-${item.side}`}>
+                                            <div className="emoji">{item.emoji}</div>
+                                            <div className={`title title-${item.side}`}>
+                                                {item.side === 'a' ? driverA.nome : driverB.nome}: {item.title}
+                                            </div>
+                                            <div className="desc">{item.desc}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    
+                    <div style={{ textAlign: 'center', padding: '30px', color: '#333', fontSize: '12px' }}>
+                        F1 24 Setup Comparison Engine | Dados via UDP Telemetry
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SetupComparisonApp />);
+    </script>
+    {% endraw %}
+</body>
+</html>

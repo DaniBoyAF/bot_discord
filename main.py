@@ -1446,6 +1446,7 @@ async def ler_regra(ctx, regra_id: int):
         await ctx.send(f"📄 **{nome}** (Upload: {data})\n\n```{conteudo[:1900]}...```\n⚠️ Conteúdo muito longo (mostrados primeiros 1900 caracteres)")
     else:
         await ctx.send(f"📄 **{nome}** (Upload: {data})\n\n```{conteudo}```")
+
 async def _monitorar_e_atualizar_nome_sessao(sessao_id, timeout=300, intervalo=1.0):
     """Aguarda SESSION.track_name / m_track_id e atualiza sessoes.nome_pista quando disponível."""
     from Bot.Session import SESSION
@@ -1587,6 +1588,18 @@ try:
     import Server_20 as ws_server
 except Exception :
     ws_server = None
+@bot.command()
+async def setup_compare(ctx):
+    """Link para comparação de setups na web"""
+    if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+    await ctx.send(f"🔗 Painel disponível ver a corrida: {url}/setup_comparison")
+try:
+    import Server_20 as ws_server
+except Exception :
+    ws_server = None
+
 if __name__ == "__main__":
     import threading
     if ws_server: 

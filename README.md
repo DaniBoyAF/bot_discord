@@ -75,4 +75,4 @@ O bot utiliza **Regressão Linear Simples** com filtragem de **Outliers (IQR)** 
 
 ---
 
-**GitHub Copilot** | **Gemini 3 Flash (Preview)**
+****

@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Editor - F1 & F2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap');
+        * { font-family: 'Titillium Web', sans-serif; box-sizing: border-box; }
+        body { background: #0f0f1a; color: white; margin: 0; padding: 20px; min-height: 100vh; }
+        
+        .main-container { max-width: 1400px; margin: 0 auto; }
+        
+        .header {
+            display: flex; align-items: center; gap: 15px;
+            margin-bottom: 30px; padding-bottom: 15px;
+            border-bottom: 3px solid #e10600;
+        }
+        .header h1 { font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .category-tabs { display: flex; gap: 10px; margin-bottom: 25px; }
+        .cat-tab {
+            padding: 12px 30px; border-radius: 8px; font-size: 16px;
+            font-weight: 800; cursor: pointer; transition: all 0.3s;
+            border: 2px solid #2a2a4a; background: #1a1a2e; color: #666;
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+        .cat-tab.active-f1 { background: #e10600; color: white; border-color: #e10600; box-shadow: 0 0 25px rgba(225,6,0,0.4); }
+        .cat-tab.active-f2 { background: #0072C6; color: white; border-color: #0072C6; box-shadow: 0 0 25px rgba(0,114,198,0.4); }
+        .cat-tab:hover { transform: scale(1.03); }
+        
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        .form-section {
+            background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%);
+            border-radius: 12px; padding: 20px; border: 1px solid #2a2a4a;
+        }
+        .form-section h3 {
+            font-size: 14px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 2px; margin: 0 0 15px; padding-bottom: 10px;
+            border-bottom: 2px solid #2a2a4a;
+        }
+        .form-section h3.aero { color: #00bcd4; border-color: #00bcd4; }
+        .form-section h3.diff { color: #ff9800; border-color: #ff9800; }
+        .form-section h3.brake { color: #f44336; border-color: #f44336; }
+        .form-section h3.susp { color: #4caf50; border-color: #4caf50; }
+        .form-section h3.geom { color: #8bc34a; border-color: #8bc34a; }
+        .form-section h3.tyre { color: #9c27b0; border-color: #9c27b0; }
+        .form-section h3.fuel { color: #ffc107; border-color: #ffc107; }
+        .form-section h3.info { color: #2196f3; border-color: #2196f3; }
+        
+        .field { margin-bottom: 14px; }
+        .field label {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .field label .range-val { font-size: 11px; color: #555; font-weight: 400; }
+        
+        .field input[type="range"] {
+            width: 100%; height: 6px; border-radius: 3px;
+            -webkit-appearance: none; appearance: none; background: #2a2a4a; outline: none;
+        }
+        .field input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
+        }
+        .field.aero input::-webkit-slider-thumb { background: #00bcd4; }
+        .field.diff input::-webkit-slider-thumb { background: #ff9800; }
+        .field.brake input::-webkit-slider-thumb { background: #f44336; }
+        .field.susp input::-webkit-slider-thumb { background: #4caf50; }
+        .field.geom input::-webkit-slider-thumb { background: #8bc34a; }
+        .field.tyre input::-webkit-slider-thumb { background: #9c27b0; }
+        .field.fuel input::-webkit-slider-thumb { background: #ffc107; }
+        
+        .field .value-display { font-size: 22px; font-weight: 900; text-align: center; margin-top: 4px; }
+        
+        .field input[type="text"], .field input[type="number"], .field select {
+            width: 100%; padding: 10px 14px; border: 2px solid #2a2a4a;
+            border-radius: 8px; background: #0d0d1a; color: white;
+            font-size: 14px; font-weight: 600;
+        }
+        .field input:focus, .field select:focus { border-color: #e10600; outline: none; }
+        
+        .track-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .track-chip {
+            padding: 8px; border-radius: 8px; text-align: center;
+            font-size: 10px; font-weight: 700; cursor: pointer;
+            background: #2a2a4a; color: #666; transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .track-chip:hover { background: #3a3a5a; }
+        .track-chip.selected { border-color: #e10600; color: white; background: #e1060033; }
+        .track-chip .flag { font-size: 16px; display: block; margin-bottom: 3px; }
+        
+        .btn-save {
+            width: 100%; padding: 16px; font-size: 16px; font-weight: 900;
+            text-transform: uppercase; letter-spacing: 2px; border: none;
+            border-radius: 12px; cursor: pointer; transition: all 0.3s; margin-top: 20px;
+        }
+        .btn-save.f1 { background: linear-gradient(135deg, #e10600, #8b0000); color: white; }
+        .btn-save.f2 { background: linear-gradient(135deg, #0072C6, #003d6b); color: white; }
+        .btn-save:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
+        
+        .btn-compare {
+            width: 100%; padding: 14px; font-size: 14px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px; border: 2px solid #22c55e;
+            border-radius: 12px; cursor: pointer; background: transparent;
+            color: #22c55e; margin-top: 10px; transition: all 0.3s;
+        }
+        .btn-compare:hover { background: #22c55e; color: #000; }
+        
+        .history-panel {
+            margin-top: 30px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 12px; padding: 20px; border: 1px solid #2a2a4a;
+        }
+        .history-panel h3 {
+            font-size: 14px; font-weight: 800; color: #888;
+            text-transform: uppercase; letter-spacing: 2px; margin: 0 0 15px;
+        }
+        .setup-card {
+            display: grid; grid-template-columns: 60px 1fr 150px 100px 80px;
+            align-items: center; gap: 15px;
+            padding: 12px 15px; background: #0d0d1a; border-radius: 8px;
+            margin-bottom: 8px; border-left: 3px solid #2a2a4a; transition: all 0.2s;
+        }
+        .setup-card:hover { border-left-color: #e10600; background: #151525; }
+        .setup-card .cat-badge {
+            padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; text-align: center;
+        }
+        .setup-card .cat-badge.f1-badge { background: #e1060033; color: #e10600; }
+        .setup-card .cat-badge.f2-badge { background: #0072C633; color: #0072C6; }
+        .setup-card .name { font-weight: 700; font-size: 14px; }
+        .setup-card .track { font-size: 12px; color: #666; }
+        .setup-card .detail { font-size: 11px; color: #555; }
+        .setup-card .btn-del {
+            padding: 6px 12px; border: 1px solid #f44336; border-radius: 6px;
+            background: transparent; color: #f44336; font-size: 11px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .setup-card .btn-del:hover { background: #f44336; color: white; }
+        
+        .toast {
+            position: fixed; bottom: 30px; right: 30px;
+            padding: 15px 25px; border-radius: 10px;
+            font-weight: 700; font-size: 14px;
+            animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.5s forwards; z-index: 9999;
+        }
+        .toast.success { background: #22c55e; color: #000; }
+        .toast.error { background: #f44336; color: white; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(20px); } }
+
+        .preset-row { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+        .preset-chip {
+            padding: 6px 14px; border-radius: 20px; font-size: 11px;
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+            border: 1px solid #2a2a4a; background: #1a1a2e; color: #888;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .preset-chip:hover { border-color: #e10600; color: #e10600; }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+{% raw %}
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ===== PISTAS (mesmas para F1 e F2 + Portugal) =====
+const TRACKS = [
+    { name: 'Bahrain', flag: '🇧🇭' },
+    { name: 'Jeddah', flag: '🇸🇦' },
+    { name: 'Melbourne', flag: '🇦🇺' },
+    { name: 'Suzuka', flag: '🇯🇵' },
+    { name: 'Shanghai', flag: '🇨🇳' },
+    { name: 'Miami', flag: '🇺🇸' },
+    { name: 'Imola', flag: '🇮🇹' },
+    { name: 'Monaco', flag: '🇲🇨' },
+    { name: 'Montreal', flag: '🇨🇦' },
+    { name: 'Barcelona', flag: '🇪🇸' },
+    { name: 'Red Bull Ring', flag: '🇦🇹' },
+    { name: 'Silverstone', flag: '🇬🇧' },
+    { name: 'Hungaroring', flag: '🇭🇺' },
+    { name: 'Spa', flag: '🇧🇪' },
+    { name: 'Zandvoort', flag: '🇳🇱' },
+    { name: 'Monza', flag: '🇮🇹' },
+    { name: 'Baku', flag: '🇦🇿' },
+    { name: 'Singapore', flag: '🇸🇬' },
+    { name: 'Austin', flag: '🇺🇸' },
+    { name: 'Mexico City', flag: '🇲🇽' },
+    { name: 'Interlagos', flag: '🇧🇷' },
+    { name: 'Las Vegas', flag: '🇺🇸' },
+    { name: 'Lusail', flag: '🇶🇦' },
+    { name: 'Yas Marina', flag: '🇦🇪' },
+    { name: 'Portimão', flag: '🇵🇹' },
+];
+
+// ===== PRESETS (valores reais do jogo) =====
+const PRESETS = {
+    f1_low_downforce: {
+        label: 'Baixo Downforce (Monza)',
+        asa_d: 5, asa_t: 6, diff_on: 85, diff_off: 55,
+        freio_p: 100, freio_b: 54, freio_m: 100,
+        susp_d: 8, susp_t: 6, bar_d: 5, bar_t: 4,
+        alt_d: 25, alt_t: 55,
+        fc: -3.00, rc: -1.50, ft: 0.06, rt: 0.30,
+        pfl: 24.0, pfr: 24.0, prl: 22.5, prr: 22.5, fuel: 22
+    },
+    f1_high_downforce: {
+        label: 'Alto Downforce (Monaco)',
+        asa_d: 40, asa_t: 45, diff_on: 65, diff_off: 70,
+        freio_p: 100, freio_b: 58, freio_m: 80,
+        susp_d: 20, susp_t: 15, bar_d: 12, bar_t: 10,
+        alt_d: 15, alt_t: 40,
+        fc: -3.50, rc: -2.00, ft: 0.08, rt: 0.35,
+        pfl: 23.0, pfr: 23.0, prl: 21.5, prr: 21.5, fuel: 35
+    },
+    f1_balanced: {
+        label: 'Balanceado (Silverstone)',
+        asa_d: 22, asa_t: 25, diff_on: 75, diff_off: 60,
+        freio_p: 100, freio_b: 56, freio_m: 90,
+        susp_d: 15, susp_t: 10, bar_d: 8, bar_t: 7,
+        alt_d: 20, alt_t: 50,
+        fc: -3.00, rc: -1.50, ft: 0.05, rt: 0.20,
+        pfl: 23.5, pfr: 23.5, prl: 22.0, prr: 22.0, fuel: 50
+    },
+    f2_standard: {
+        label: 'F2 Padrão',
+        asa_d: 18, asa_t: 20, diff_on: 70, diff_off: 55,
+        freio_p: 95, freio_b: 54, freio_m: 85,
+        susp_d: 12, susp_t: 8, bar_d: 7, bar_t: 6,
+        alt_d: 18, alt_t: 45,
+        fc: -2.80, rc: -1.20, ft: 0.05, rt: 0.20,
+        pfl: 23.5, pfr: 23.5, prl: 22.0, prr: 22.0, fuel: 40
+    },
+};
+
+// ===== LIMITES REAIS DO JOGO (baseado no parser2024.py + screenshots) =====
+const LIMITS = {
+    F1: {
+        asa_d: [0, 50], asa_t: [0, 50],
+        diff_on: [50, 100], diff_off: [50, 100],
+        freio_p: [80, 100], freio_b: [50, 70], freio_m: [0, 100],
+        susp: [1, 41], bar: [1, 21],
+        alt_d: [10, 40], alt_t: [40, 100],
+        fc: [-3.50, -2.50], rc: [-2.20, -0.70],
+        ft: [0.00, 0.50], rt: [0.00, 0.50],
+        pres: [20.0, 26.0], fuel: [5, 110],
+        tem_freio_motor: true
+    },
+    F2: {
+        asa_d: [0, 50], asa_t: [0, 50],
+        diff_on: [10, 100], diff_off: [10, 100],
+        freio_p: [80, 100], freio_b: [50, 70], freio_m: [0, 100],
+        susp: [1, 41], bar: [1, 21],
+        alt_d: [10, 40], alt_t: [40, 100],
+        fc: [-3.50, -2.50], rc: [-2.20, -0.70],
+        ft: [0.00, 0.50], rt: [0.00, 0.50],
+        pres: [20.0, 26.0], fuel: [5, 110],
+        tem_freio_motor: false
+    },
+};
+
+const SetupEditorApp = () => {
+    const [cat, setCat] = useState('F1');
+    const [toast, setToast] = useState(null);
+    const [history, setHistory] = useState([]);
+    const [pista, setPista] = useState('');
+    const [lastSessaoId, setLastSessaoId] = useState(null);
+
+    // Info
+    const [pilotoNome, setPilotoNome] = useState('');
+    const [tipoSetup, setTipoSetup] = useState('RACE');
+
+    // Aero
+    const [asaD, setAsaD] = useState(22);
+    const [asaT, setAsaT] = useState(25);
+
+    // Diferencial
+    const [diffOn, setDiffOn] = useState(75);
+    const [diffOff, setDiffOff] = useState(60);
+
+    // Freios (Freio Motor só aparece na F1) 
+    const [freioPressao, setFreioPressao] = useState(100);
+    const [freioBalanco, setFreioBalanco] = useState(56);
+    const [freioMotor, setFreioMotor] = useState(100);
+
+    // Suspensão
+    const [suspD, setSuspD] = useState(15);
+    const [suspT, setSuspT] = useState(10);
+    const [barD, setBarD] = useState(8);
+    const [barT, setBarT] = useState(7);
+    const [altD, setAltD] = useState(20);
+    const [altT, setAltT] = useState(50);
+
+    // Geometria de Suspensão
+    const [frontCamber, setFrontCamber] = useState(-3.00);
+    const [rearCamber, setRearCamber] = useState(-1.50);
+    const [frontToe, setFrontToe] = useState(0.05);
+    const [rearToe, setRearToe] = useState(0.20);
+
+    // Pneus
+    const [pFL, setPFL] = useState(23.5);
+    const [pFR, setPFR] = useState(23.5);
+    const [pRL, setPRL] = useState(22.0);
+    const [pRR, setPRR] = useState(22.0);
+
+    // Combustível
+    const [fuel, setFuel] = useState(50);
+
+    useEffect(() => { fetchHistory(); }, []);
+
+    const fetchHistory = async () => {
+        try {
+            const r = await fetch('/listar_setups_manuais');
+            const data = await r.json();
+            setHistory(data);
+        } catch (e) { console.error(e); }
+    };
+
+    const showToast = (msg, type = 'success') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3000);
+    };
+
+    const applyPreset = (key) => {
+        const p = PRESETS[key];
+        if (!p) return;
+        setAsaD(p.asa_d); setAsaT(p.asa_t);
+        setDiffOn(p.diff_on); setDiffOff(p.diff_off);
+        setFreioPressao(p.freio_p); setFreioBalanco(p.freio_b); setFreioMotor(p.freio_m);
+        setSuspD(p.susp_d); setSuspT(p.susp_t);
+        setBarD(p.bar_d); setBarT(p.bar_t);
+        setAltD(p.alt_d); setAltT(p.alt_t);
+        setFrontCamber(p.fc); setRearCamber(p.rc);
+        setFrontToe(p.ft); setRearToe(p.rt);
+        setPFL(p.pfl); setPFR(p.pfr); setPRL(p.prl); setPRR(p.prr);
+        setFuel(p.fuel);
+        showToast(`Preset "${p.label}" aplicado!`);
+    };
+
+    const handleSave = async () => {
+        if (!pilotoNome.trim()) { showToast('Digite o nome do piloto!', 'error'); return; }
+        if (!pista) { showToast('Selecione uma pista!', 'error'); return; }
+
+        const payload = {
+            categoria: cat, piloto_nome: pilotoNome.trim(), pista,
+            tipo_setup: tipoSetup, numero: 0,
+            sessao_id: lastSessaoId,
+            asa_dianteira: asaD, asa_traseira: asaT,
+            diff_on: diffOn, diff_off: diffOff,
+            freio_pressao: freioPressao, freio_balanco: freioBalanco,
+            freio_motor: freioMotor,
+            suspensao_diant: suspD, suspensao_tras: suspT,
+            barra_anti_diant: barD, barra_anti_tras: barT,
+            altura_diant: altD, altura_tras: altT,
+            front_camber: frontCamber, rear_camber: rearCamber,
+            front_toe: frontToe, rear_toe: rearToe,
+            pressao_fl: pFL, pressao_fr: pFR, pressao_rl: pRL, pressao_rr: pRR,
+            combustivel: fuel, estilo: 'MANUAL'
+        };
+
+        try {
+            const r = await fetch('/salvar_setup_manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await r.json();
+
+            if (result.ok) {
+                setLastSessaoId(result.sessao_id);
+                showToast(`✅ Setup de ${pilotoNome} salvo! (Sessão #${result.sessao_id})`);
+                fetchHistory();
+            } else {
+                showToast(`Erro: ${result.erro}`, 'error');
+            }
+        } catch (e) {
+            showToast('Erro ao salvar!', 'error');
+        }
+    };
+
+    const handleDelete = async (id) => {
+        try {
+            await fetch(`/deletar_setup/${id}`, { method: 'POST' });
+            showToast('Setup deletado');
+            fetchHistory();
+        } catch (e) { showToast('Erro ao deletar', 'error'); }
+    };
+
+    const lim = LIMITS[cat];
+
+    const SliderField = ({ label, value, setter, min, max, step = 1, unit = '', colorClass }) => (
+        <div className={`field ${colorClass}`}>
+            <label>
+                <span>{label}</span>
+                <span className="range-val">Min {min} — {max} Max</span>
+            </label>
+            <input type="range" min={min} max={max} step={step} value={value}
+                onChange={(e) => setter(parseFloat(e.target.value))} />
+            <div className="value-display">{typeof value === 'number' && step < 1 ? value.toFixed(2) : value}{unit}</div>
+        </div>
+    );
+
+    return (
+        <div className="main-container">
+            <div className="header">
+                <h1>🔧 Setup Editor</h1>
+                <span style={{ color: '#666', fontSize: '16px' }}>F1 24 — Todos os parâmetros do jogo</span>
+                <a href="/setup_comparison" style={{ marginLeft: 'auto', color: '#22c55e', fontSize: '14px', fontWeight: '700', textDecoration: 'none' }}>
+                    ⚔️ Ir para Comparação →
+                </a>
+            </div>
+
+            {/* Tabs F1 / F2 */}
+            <div className="category-tabs">
+                <div className={`cat-tab ${cat === 'F1' ? 'active-f1' : ''}`} onClick={() => setCat('F1')}>
+                    🏎️ Formula 1
+                </div>
+                <div className={`cat-tab ${cat === 'F2' ? 'active-f2' : ''}`} onClick={() => setCat('F2')}>
+                    🏁 Formula 2
+                </div>
+            </div>
+
+            {/* Presets */}
+            <div className="preset-row">
+                <span style={{ fontSize: '12px', color: '#555', alignSelf: 'center', marginRight: '8px' }}>PRESETS:</span>
+                {Object.entries(PRESETS).filter(([k]) => cat === 'F1' ? k.startsWith('f1') : k.startsWith('f2')).map(([key, val]) => (
+                    <div key={key} className="preset-chip" onClick={() => applyPreset(key)}>
+                        {val.label}
+                    </div>
+                ))}
+            </div>
+
+            {/* Info do Piloto */}
+            <div className="form-section" style={{ marginBottom: '20px' }}>
+                <h3 className="info">👤 Informações</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                    <div className="field">
+                        <label>Nome do Piloto</label>
+                        <input type="text" value={pilotoNome} onChange={(e) => setPilotoNome(e.target.value)}
+                            placeholder="Ex: Hamilton, Verstappen..." />
+                    </div>
+                    <div className="field">
+                        <label>Tipo de Setup</label>
+                        <select value={tipoSetup} onChange={(e) => setTipoSetup(e.target.value)}>
+                            <option value="QUALIFYING">🟣 Qualifying</option>
+                            <option value="SHORT RUN">🟡 Short Run</option>
+                            <option value="RACE">🟢 Race</option>
+                        </select>
+                    </div>
+                    <div className="field">
+                        <label>Categoria</label>
+                        <input type="text" value={cat} disabled style={{ opacity: 0.5 }} />
+                    </div>
+                </div>
+                
+                <label style={{ fontSize: '12px', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', marginTop: '15px', marginBottom: '8px' }}>
+                    Pista
+                </label>
+                <div className="track-grid">
+                    {TRACKS.map(t => (
+                        <div key={t.name}
+                            className={`track-chip ${pista === t.name ? 'selected' : ''}`}
+                            onClick={() => setPista(t.name)}>
+                            <span className="flag">{t.flag}</span>
+                            {t.name}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* ===== SETUP GRID ===== */}
+            <div className="form-grid">
+
+                {/* Aerodinâmica */}
+                <div className="form-section">
+                    <h3 className="aero">✈️ Aerodinâmica</h3>
+                    <SliderField label="Asa Dianteira" value={asaD} setter={setAsaD}
+                        min={lim.asa_d[0]} max={lim.asa_d[1]} colorClass="aero" />
+                    <SliderField label="Asa Traseira" value={asaT} setter={setAsaT}
+                        min={lim.asa_t[0]} max={lim.asa_t[1]} colorClass="aero" />
+                </div>
+
+                {/* Diferencial */}
+                <div className="form-section">
+                    <h3 className="diff">⚙️ Diferencial</h3>
+                    <SliderField label="On Throttle" value={diffOn} setter={setDiffOn}
+                        min={lim.diff_on[0]} max={lim.diff_on[1]} unit="%" colorClass="diff" />
+                    <SliderField label="Off Throttle" value={diffOff} setter={setDiffOff}
+                        min={lim.diff_off[0]} max={lim.diff_off[1]} unit="%" colorClass="diff" />
+                </div>
+
+                {/* Freios (Freio Motor só aparece na F1) */}
+                <div className="form-section">
+                    <h3 className="brake">🛑 Freios</h3>
+                    <SliderField label="Pressão do Freio" value={freioPressao} setter={setFreioPressao}
+                        min={lim.freio_p[0]} max={lim.freio_p[1]} unit="%" colorClass="brake" />
+                    <SliderField label="Balanço do Freio (Front Bias)" value={freioBalanco} setter={setFreioBalanco}
+                        min={lim.freio_b[0]} max={lim.freio_b[1]} unit="%" colorClass="brake" />
+                    {lim.tem_freio_motor && (
+                        <SliderField label="Engine Braking (Freio Motor)" value={freioMotor} setter={setFreioMotor}
+                            min={lim.freio_m[0]} max={lim.freio_m[1]} unit="%" colorClass="brake" />
+                    )}
+                </div>
+
+                {/* Suspensão (valores reais 1-41, 1-21, ride height) */}
+                <div className="form-section">
+                    <h3 className="susp">🔩 Suspensão</h3>
+                    <SliderField label="Front Suspension" value={suspD} setter={setSuspD}
+                        min={lim.susp[0]} max={lim.susp[1]} colorClass="susp" />
+                    <SliderField label="Rear Suspension" value={suspT} setter={setSuspT}
+                        min={lim.susp[0]} max={lim.susp[1]} colorClass="susp" />
+                    <SliderField label="Front Anti-Roll Bar" value={barD} setter={setBarD}
+                        min={lim.bar[0]} max={lim.bar[1]} colorClass="susp" />
+                    <SliderField label="Rear Anti-Roll Bar" value={barT} setter={setBarT}
+                        min={lim.bar[0]} max={lim.bar[1]} colorClass="susp" />
+                    <SliderField label="Front Ride Height" value={altD} setter={setAltD}
+                        min={lim.alt_d[0]} max={lim.alt_d[1]} colorClass="susp" />
+                    <SliderField label="Rear Ride Height" value={altT} setter={setAltT}
+                        min={lim.alt_t[0]} max={lim.alt_t[1]} colorClass="susp" />
+                </div>
+
+                {/* Geometria de Suspensão (NOVO) */}
+                <div className="form-section">
+                    <h3 className="geom">📐 Geometria de Suspensão</h3>
+                    <SliderField label="Front Camber" value={frontCamber} setter={setFrontCamber}
+                        min={lim.fc[0]} max={lim.fc[1]} step={0.10} unit="°" colorClass="geom" />
+                    <SliderField label="Rear Camber" value={rearCamber} setter={setRearCamber}
+                        min={lim.rc[0]} max={lim.rc[1]} step={0.10} unit="°" colorClass="geom" />
+                    <SliderField label="Front Toe-Out" value={frontToe} setter={setFrontToe}
+                        min={lim.ft[0]} max={lim.ft[1]} step={0.01} unit="°" colorClass="geom" />
+                    <SliderField label="Rear Toe-In" value={rearToe} setter={setRearToe}
+                        min={lim.rt[0]} max={lim.rt[1]} step={0.01} unit="°" colorClass="geom" />
+                </div>
+
+                {/* Pneus */}
+                <div className="form-section">
+                    <h3 className="tyre">🛞 Pressão dos Pneus (PSI)</h3>
+                    <SliderField label="Front Left (FL)" value={pFL} setter={setPFL}
+                        min={lim.pres[0]} max={lim.pres[1]} step={0.1} unit=" psi" colorClass="tyre" />
+                    <SliderField label="Front Right (FR)" value={pFR} setter={setPFR}
+                        min={lim.pres[0]} max={lim.pres[1]} step={0.1} unit=" psi" colorClass="tyre" />
+                    <SliderField label="Rear Left (RL)" value={pRL} setter={setPRL}
+                        min={lim.pres[0]} max={lim.pres[1]} step={0.1} unit=" psi" colorClass="tyre" />
+                    <SliderField label="Rear Right (RR)" value={pRR} setter={setPRR}
+                        min={lim.pres[0]} max={lim.pres[1]} step={0.1} unit=" psi" colorClass="tyre" />
+                </div>
+
+                {/* Combustível */}
+                <div className="form-section">
+                    <h3 className="fuel">⛽ Combustível</h3>
+                    <SliderField label="Carga Inicial" value={fuel} setter={setFuel}
+                        min={lim.fuel[0]} max={lim.fuel[1]} unit=" kg" colorClass="fuel" />
+                    <div style={{ marginTop: '10px', padding: '10px', background: '#1a1a2e', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '11px', color: '#666', marginBottom: '5px' }}>ESTIMATIVA</div>
+                        <div style={{ fontSize: '14px', color: '#ffc107' }}>
+                            ~{Math.round(fuel / 1.8)} voltas (consumo médio ~1.8 kg/volta)
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Botões */}
+            <button className={`btn-save ${cat.toLowerCase()}`} onClick={handleSave}>
+                💾 Salvar Setup de {cat} — {pilotoNome || 'Piloto'} — {pista || '???'}
+            </button>
+            
+            {lastSessaoId ? (
+                <a href={`/setup_comparison?sessao=${lastSessaoId}`} style={{ textDecoration: 'none' }}>
+                    <button className="btn-compare">⚔️ Comparar Setups da Sessão #{lastSessaoId}</button>
+                </a>
+            ) : (
+                <a href="/setup_comparison" style={{ textDecoration: 'none' }}>
+                    <button className="btn-compare">⚔️ Ir para Comparação de Setups</button>
+                </a>
+            )}
+
+            {/* Histórico */}
+            <div className="history-panel">
+                <h3>📋 Setups Salvos ({history.length})</h3>
+                {history.length === 0 && (
+                    <div style={{ textAlign: 'center', color: '#444', padding: '30px' }}>
+                        Nenhum setup salvo ainda. Crie um acima!
+                    </div>
+                )}
+                {history.map(s => (
+                    <div key={s.id} className="setup-card">
+                        <span className={`cat-badge ${(s.tipo_sessao || '').includes('F2') ? 'f2-badge' : 'f1-badge'}`}>
+                            {(s.tipo_sessao || '').includes('F2') ? 'F2' : 'F1'}
+                        </span>
+                        <div>
+                            <div className="name">{s.piloto_nome || 'Piloto'}</div>
+                            <div className="track">{s.pista || s.nome_pista || '—'}</div>
+                        </div>
+                        <div className="detail">
+                            Asas: {s.asa_dianteira}/{s.asa_traseira} | Susp: {s.suspensao_diant}/{s.suspensao_tras}<br/>
+                            Fuel: {s.combustivel_inicial}kg | Freio Motor: {s.freio_motor || '—'}%
+                        </div>
+                        <div className="detail">
+                            {s.tipo_setup || '—'}<br/>
+                            <a href={`/setup_comparison?sessao=${s.sessao_id}`}
+                               style={{ color: '#22c55e', fontSize: '10px', textDecoration: 'none' }}>
+                                ⚔️ Comparar
+                            </a>
+                        </div>
+                        <button className="btn-del" onClick={() => handleDelete(s.id)}>🗑️</button>
+                    </div>
+                ))}
+            </div>
+
+            {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
+            
+            <div style={{ textAlign: 'center', padding: '30px', color: '#333', fontSize: '12px' }}>
+                F1 24 Setup Editor — Valores reais do jogo
+            </div>
+        </div>
+    );
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<SetupEditorApp />);
+</script>
+{% endraw %}
+</body>
+</html>
