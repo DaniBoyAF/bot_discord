@@ -17,28 +17,37 @@ def _ajustar_sqlite_sequence(conn, table_name):
     except sqlite3.OperationalError:
         return
 
-def atualizar_estrutura_setups(conn):
-    """Adiciona colunas que podem estar faltando em bancos de dados antigos"""
+def atualizar_estrutura_banco(conn):
+    """Adiciona colunas que podem estar faltando em bancos antigos"""
     cursor = conn.cursor()
-    colunas_novas = [
-        ("freio_motor", "INTEGER DEFAULT 100"),
-        ("front_camber", "REAL DEFAULT -3.00"),
-        ("rear_camber", "REAL DEFAULT -1.50"),
-        ("front_toe", "REAL DEFAULT 0.05"),
-        ("rear_toe", "REAL DEFAULT 0.20")
-    ]
     
-    for nome_col, tipo in colunas_novas:
-        try:
-            cursor.execute(f"ALTER TABLE setups ADD COLUMN {nome_col} {tipo}")
-            print(f"✅ Coluna {nome_col} adicionada à tabela setups.")
-        except sqlite3.OperationalError:
-            # Se der erro operacional, é porque a coluna já existe
-            pass
+    migrações = {
+        'pneus': [
+            ("timestamp", "REAL"),
+        ],
+        'setups': [
+            ("freio_motor", "INTEGER DEFAULT 100"),
+            ("front_camber", "REAL DEFAULT -3.00"),
+            ("rear_camber", "REAL DEFAULT -1.50"),
+            ("front_toe", "REAL DEFAULT 0.05"),
+            ("rear_toe", "REAL DEFAULT 0.20"),
+        ]
+    }
+    
+    for tabela, colunas in migrações.items():
+        for nome_col, tipo in colunas:
+            try:
+                cursor.execute(f"ALTER TABLE {tabela} ADD COLUMN {nome_col} {tipo}")
+                print(f"✅ {tabela}.{nome_col} adicionada")
+            except sqlite3.OperationalError:
+                pass  # já existe
 
 # Cria o banco de dados
 def criar_banco():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    
     cursor = conn.cursor()
     
     # Tabela de Sessões
@@ -114,6 +123,7 @@ def criar_banco():
         tyre_set_data REAL,
         lap_delta_time REAL,
         pit_stops INTEGER,
+        timestamp REAL,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
         FOREIGN KEY (piloto_id) REFERENCES pilotos(id)
     )

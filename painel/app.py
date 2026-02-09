@@ -57,18 +57,71 @@ def setup_comparison_page():
 @app.route('/listar_sessoes_json')
 def listar_sessoes_json():
     """Retorna lista de sessões em JSON para o React"""
-    conn = sqlite3.connect('f1_telemetry.db')
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM sessoes ORDER BY id DESC LIMIT 20")
-    sessoes = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return jsonify(sessoes)
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Lista TODAS as sessões que têm pelo menos 1 setup salvo
+        cursor.execute("""
+            SELECT sess.id, 
+                   sess.nome_pista, 
+                   sess.tipo_sessao,
+                   sess.total_voltas,
+                   COUNT(s.id) as total_setups
+            FROM sessoes sess
+            INNER JOIN setups s ON s.sessao_id = sess.id
+            GROUP BY sess.id
+            HAVING total_setups >= 1
+            ORDER BY sess.id DESC
+        """)
+        
+        sessoes = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        print(f"📋 listar_sessoes_json: {len(sessoes)} sessões com setups")
+        for s in sessoes:
+            print(f"   #{s['id']} - {s['nome_pista']} ({s['tipo_sessao']}) - {s['total_setups']} setups")
+        
+        return jsonify(sessoes)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"❌ Erro listar_sessoes_json: {e}")
+        return jsonify([])
 
 @app.route('/setup_manual')
 def setup_manual_page():
     """Página para criar setups manualmente"""
     return render_template('setup_manual.html')
+
+@app.route("/setup_comparison")
+def setup_comparison():
+    return render_template("setup_comparison.html")
+
+@app.route("/api/setups_para_comparar")
+def setups_para_comparar():
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        
+        sessao_id = request.args.get('sessao')
+        
+        if sessao_id:
+            cur.execute("SELECT * FROM setups WHERE sessao_id = ? ORDER BY id DESC", (sessao_id,))
+        else:
+            cur.execute("SELECT * FROM setups ORDER BY id DESC LIMIT 100")
+        
+        setups = [dict(row) for row in cur.fetchall()]
+        conn.close()
+        
+        return jsonify(setups)
+    except Exception as e:
+        print(f"Erro setups_para_comparar: {e}")
+        return jsonify([])
 
 # ========== ENDPOINTS DE DADOS ==========
 
@@ -76,7 +129,9 @@ def setup_manual_page():
 def historico_sessoes():
     """Lista todas as sessões do banco"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
@@ -111,7 +166,9 @@ def historico_sessoes():
 def dados_voltas(sessao_id):
     """JSON: Voltas e setores - direto do banco"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
@@ -223,7 +280,9 @@ def dados_completos(sessao_id):
 def dados_voltas_live():
     """Pega a última sessão do banco"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute("SELECT id FROM sessoes ORDER BY id DESC LIMIT 1")
@@ -294,7 +353,9 @@ def dados_pra_o_painel():
         print(f"Erro dados_pra_o_painel: {e}")
         # Fallback: tenta pegar do banco
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=30000")
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
             
@@ -335,7 +396,9 @@ def dados_pra_o_painel():
 def apagar_sessao(sessao_id):
     """Exclui uma sessão específica e todos os dados relacionados"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         cur = conn.cursor()
         
         # Busca pilotos da sessão para excluir dados relacionados
@@ -389,7 +452,9 @@ def apagar_db():
 def dados_completos_live():
     """JSON: Dados completos da sessão atual - direto do banco"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
@@ -444,7 +509,9 @@ def dados_completos_live():
 def dados_stints_ultimo():
     """JSON: Stints da última sessão do banco"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
@@ -469,7 +536,9 @@ def dados_stints_ultimo():
 def dados_stints(sessao_id):
     """JSON: Stints de uma sessão específica do banco"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
@@ -546,135 +615,83 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
 def dados_setups(sessao_id):
     """Retorna todos os setups de uma sessão para comparação"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # Seleciona todos os campos. O SQLite retornará apenas o que existir na tabela.
-        cursor.execute("SELECT * FROM setups WHERE sessao_id = ?", (sessao_id,))
-        setups = [dict(row) for row in cursor.fetchall()]
-        
+        # Info da sessão
         cursor.execute("SELECT * FROM sessoes WHERE id = ?", (sessao_id,))
-        sessao = dict(cursor.fetchone()) if cursor.rowcount != 0 else {}
+        sessao_row = cursor.fetchone()
+        sessao_info = dict(sessao_row) if sessao_row else {
+            "id": sessao_id, "nome_pista": "Desconhecida", "tipo_sessao": "Manual"
+        }
         
-        # Voltas por piloto (para cálculo de setores)
-        cursor.execute("""
-            SELECT v.piloto_id, p.nome as piloto_nome,
-                   AVG(v.setor1) as avg_s1,
-                   AVG(v.setor2) as avg_s2,
-                   AVG(v.setor3) as avg_s3,
-                   MIN(v.tempo_volta) as melhor_volta,
-                   AVG(v.tempo_volta) as media_volta,
-                   MAX(v.velocidade_max) as top_speed,
-                   COUNT(v.id) as total_voltas
-            FROM voltas v
-            JOIN pilotos p ON v.piloto_id = p.id
-            WHERE v.sessao_id = ? AND v.tempo_volta > 0
-            GROUP BY v.piloto_id
-            ORDER BY media_volta
-        """, (sessao_id,))
-        performance = cursor.fetchall()
+        # Busca todos os setups desta sessão
+        cursor.execute("SELECT * FROM setups WHERE sessao_id = ? ORDER BY id", (sessao_id,))
+        setups_rows = [dict(row) for row in cursor.fetchall()]
+        
+        print(f"📊 dados_setups/{sessao_id}: encontrou {len(setups_rows)} setups")
+        
+        # Transforma cada setup em um "piloto" para o frontend
+        pilotos = []
+        for i, s in enumerate(setups_rows):
+            piloto = {
+                "nome": s.get("piloto_nome") or f"Piloto {i+1}",
+                "posicao": i + 1,
+                "setup": {
+                    "asa_dianteira": s.get("asa_dianteira") or 0,
+                    "asa_traseira": s.get("asa_traseira") or 0,
+                    "diff_on": s.get("diff_on_throttle") or 50,
+                    "diff_off": s.get("diff_off_throttle") or 50,
+                    "freio_pressao": s.get("freio_pressao") or 100,
+                    "freio_balanco": s.get("freio_balanco") or 56,
+                    "freio_motor": s.get("freio_motor") or 100,
+                    "suspensao_d": s.get("suspensao_diant") or 15,
+                    "suspensao_t": s.get("suspensao_tras") or 10,
+                    "barra_anti_d": s.get("barra_antirrolagem_diant") or 8,
+                    "barra_anti_t": s.get("barra_antirrolagem_tras") or 7,
+                    "altura_d": s.get("altura_diant") or 20,
+                    "altura_t": s.get("altura_tras") or 50,
+                    "front_camber": s.get("front_camber") or -3.0,
+                    "rear_camber": s.get("rear_camber") or -1.5,
+                    "front_toe": s.get("front_toe") or 0.05,
+                    "rear_toe": s.get("rear_toe") or 0.20,
+                    "pressao_fl": s.get("pressao_pneu_fl") or 23.5,
+                    "pressao_fr": s.get("pressao_pneu_fr") or 23.5,
+                    "pressao_rl": s.get("pressao_pneu_rl") or 22.0,
+                    "pressao_rr": s.get("pressao_pneu_rr") or 22.0,
+                    "combustivel": s.get("combustivel_inicial") or 50,
+                },
+                "performance": {
+                    "melhor_volta": s.get("melhor_volta") or 0,
+                    "media_volta": s.get("media_volta") or 0,
+                    "avg_s1": s.get("avg_setor1") or 0,
+                    "avg_s2": s.get("avg_setor2") or 0,
+                    "avg_s3": s.get("avg_setor3") or 0,
+                    "top_speed": s.get("top_speed") or 0,
+                    "degradacao": s.get("degradacao_media") or 0,
+                    "consistencia": s.get("consistencia") or 0,
+                    "total_voltas": s.get("total_voltas") or 0,
+                    "tipo_setup": s.get("tipo_setup") or "RACE",
+                    "estilo": s.get("estilo_pilotagem") or "MANUAL",
+                }
+            }
+            pilotos.append(piloto)
+            print(f"   Piloto: {piloto['nome']} | Asas: {piloto['setup']['asa_dianteira']}/{piloto['setup']['asa_traseira']}")
         
         conn.close()
         
-        pilotos = []
-        for perf in performance:
-            # Encontra o setup correspondente
-            setup_data = next((dict(s) for s in setups if s['piloto_id'] == perf['piloto_id']), {})
-            
-            # Calcula consistência (desvio padrão)
-            conn2 = sqlite3.connect('f1_telemetry.db')
-            cur2 = conn2.cursor()
-            cur2.execute("""
-                SELECT tempo_volta FROM voltas 
-                WHERE sessao_id = ? AND piloto_id = ? AND tempo_volta > 0
-            """, (sessao_id, perf['piloto_id']))
-            tempos = [r[0] for r in cur2.fetchall()]
-            conn2.close()
-            
-            avg = perf['media_volta'] or 0
-            if len(tempos) > 1 and avg > 0:
-                import math
-                std = math.sqrt(sum((t - avg) ** 2 for t in tempos) / len(tempos))
-                consistencia = max(0, 100 - (std / avg) * 100)
-            else:
-                consistencia = 0
-            
-            # Calcula degradação
-            if len(tempos) >= 3:
-                n = len(tempos)
-                x = list(range(n))
-                x_mean = sum(x) / n
-                y_mean = sum(tempos) / n
-                num = sum((x[i] - x_mean) * (tempos[i] - y_mean) for i in range(n))
-                den = sum((x[i] - x_mean) ** 2 for i in range(n))
-                degradacao = num / den if den != 0 else 0
-            else:
-                degradacao = 0
-            
-            # Classifica tipo de setup
-            combustivel = setup_data.get('combustivel_inicial', 50)
-            if combustivel and combustivel < 15:
-                tipo_setup = 'QUALIFYING'
-            elif combustivel and combustivel < 30:
-                tipo_setup = 'SHORT RUN'
-            else:
-                tipo_setup = 'RACE'
-            
-            # Classifica estilo
-            if consistencia > 97:
-                estilo = 'METRONOMICO'
-            elif consistencia > 93:
-                estilo = 'CONSISTENTE'
-            elif degradacao > 0.08:
-                estilo = 'AGRESSIVO'
-            else:
-                estilo = 'EQUILIBRADO'
-            
-            pilotos.append({
-                'piloto_id': perf['piloto_id'],
-                'nome': perf['piloto_nome'],
-                'posicao': setup_data.get('posicao', 99),
-                'setup': {
-                    'asa_dianteira': setup_data.get('asa_dianteira', 0),
-                    'asa_traseira': setup_data.get('asa_traseira', 0),
-                    'diff_on': setup_data.get('diff_on_throttle', 0),
-                    'diff_off': setup_data.get('diff_off_throttle', 0),
-                    'freio_pressao': setup_data.get('freio_pressao', 0),
-                    'freio_balanco': setup_data.get('freio_balanco', 0),
-                    'suspensao_d': setup_data.get('suspensao_diant', 0),
-                    'suspensao_t': setup_data.get('suspensao_tras', 0),
-                    'altura_d': setup_data.get('altura_diant', 0),
-                    'altura_t': setup_data.get('altura_tras', 0),
-                    'pressao_fl': setup_data.get('pressao_pneu_fl', 0),
-                    'pressao_fr': setup_data.get('pressao_pneu_fr', 0),
-                    'pressao_rl': setup_data.get('pressao_pneu_rl', 0),
-                    'pressao_rr': setup_data.get('pressao_pneu_rr', 0),
-                    'combustivel': combustivel
-                },
-                'performance': {
-                    'melhor_volta': perf['melhor_volta'],
-                    'media_volta': perf['media_volta'],
-                    'avg_s1': perf['avg_s1'],
-                    'avg_s2': perf['avg_s2'],
-                    'avg_s3': perf['avg_s3'],
-                    'top_speed': perf['top_speed'],
-                    'total_voltas': perf['total_voltas'],
-                    'degradacao': round(degradacao, 4),
-                    'consistencia': round(consistencia, 1),
-                    'tipo_setup': tipo_setup,
-                    'estilo': estilo
-                }
-            })
-        
         return jsonify({
-            'sessao': dict(sessao) if sessao else {},
-            'pilotos': pilotos
+            "sessao": sessao_info,
+            "pilotos": pilotos
         })
         
     except Exception as e:
-        print(f"Erro dados_setups/{sessao_id}: {e}")
-        return jsonify({"sessao": {}, "pilotos": []})
+        import traceback
+        traceback.print_exc()
+        print(f"❌ Erro dados_setups/{sessao_id}: {e}")
+        return jsonify({"sessao": {}, "pilotos": [], "erro": str(e)}), 500
 
 
 @app.route("/salvar_setup_manual", methods=["POST"])
@@ -685,97 +702,114 @@ def salvar_setup_manual():
         if not data:
             return jsonify({"ok": False, "erro": "Dados inválidos"}), 400
         
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
         cur = conn.cursor()
         
-        # Verifica se existe uma sessão "manual" ou cria uma
-        sessao_id = data.get('sessao_id')
-        if not sessao_id:
-            cur.execute("""
-                INSERT INTO sessoes (nome_pista, tipo_sessao, total_voltas, clima)
-                VALUES (?, ?, 0, 'Manual')
-            """, (data.get('pista', 'Custom'), data.get('categoria', 'F1') + ' - Setup Manual'))
-            sessao_id = cur.lastrowid
+        # Descobre colunas existentes
+        cur.execute("PRAGMA table_info(setups)")
+        colunas_existentes = [col[1] for col in cur.fetchall()]
         
-        # Cria um piloto para o setup
+        # Usa sessao_id existente OU cria nova
+        sessao_id = data.get('sessao_id')
+        pista = data.get('pista', 'Custom')
+        categoria = data.get('categoria', 'F1')
+        
+        if sessao_id:
+            # Verifica se a sessão realmente existe
+            cur.execute("SELECT id FROM sessoes WHERE id = ?", (sessao_id,))
+            if not cur.fetchone():
+                sessao_id = None
+        
+        if not sessao_id:
+            # Procura sessão existente com mesma pista e categoria (setup manual)
+            cur.execute("""
+                SELECT id FROM sessoes 
+                WHERE nome_pista = ? AND tipo_sessao = ? AND clima = 'Manual'
+                ORDER BY id DESC LIMIT 1
+            """, (pista, categoria + ' - Setup Manual'))
+            row = cur.fetchone()
+            
+            if row:
+                sessao_id = row[0]
+                print(f"📌 Reutilizando sessão existente: #{sessao_id}")
+            else:
+                cur.execute("""
+                    INSERT INTO sessoes (nome_pista, tipo_sessao, total_voltas, clima)
+                    VALUES (?, ?, 0, 'Manual')
+                """, (pista, categoria + ' - Setup Manual'))
+                sessao_id = cur.lastrowid
+                print(f"📌 Nova sessão criada: #{sessao_id}")
+        
+        # Cria piloto
         cur.execute("""
             INSERT INTO pilotos (sessao_id, nome, numero, posicao)
             VALUES (?, ?, ?, 1)
         """, (sessao_id, data.get('piloto_nome', 'Piloto'), data.get('numero', 0)))
         piloto_id = cur.lastrowid
         
-        # Verifica quais colunas existem na tabela setups
-        cur.execute("PRAGMA table_info(setups)")
-        colunas_existentes = [col[1] for col in cur.fetchall()]
-        
-        # Colunas base (sempre presentes)
-        colunas = [
-            'sessao_id', 'piloto_id', 'piloto_nome', 'pista', 'tipo_sessao',
-            'asa_dianteira', 'asa_traseira',
-            'diff_on_throttle', 'diff_off_throttle',
-            'freio_pressao', 'freio_balanco',
-            'suspensao_diant', 'suspensao_tras',
-            'barra_antirrolagem_diant', 'barra_antirrolagem_tras',
-            'altura_diant', 'altura_tras',
-            'pressao_pneu_fl', 'pressao_pneu_fr',
-            'pressao_pneu_rl', 'pressao_pneu_rr',
-            'combustivel_inicial',
-            'tipo_setup', 'estilo_pilotagem'
-        ]
-        valores = [
-            sessao_id, piloto_id,
-            data.get('piloto_nome', 'Piloto'),
-            data.get('pista', 'Custom'),
-            data.get('categoria', 'F1') + ' - ' + data.get('tipo_setup', 'RACE'),
-            data.get('asa_dianteira', 0),
-            data.get('asa_traseira', 0),
-            data.get('diff_on', 50),
-            data.get('diff_off', 50),
-            data.get('freio_pressao', 100),
-            data.get('freio_balanco', 50),
-            data.get('suspensao_diant', 5),
-            data.get('suspensao_tras', 5),
-            data.get('barra_anti_diant', 5),
-            data.get('barra_anti_tras', 5),
-            data.get('altura_diant', 3),
-            data.get('altura_tras', 5),
-            data.get('pressao_fl', 23.5),
-            data.get('pressao_fr', 23.5),
-            data.get('pressao_rl', 22.0),
-            data.get('pressao_rr', 22.0),
-            data.get('combustivel', 50),
-            data.get('tipo_setup', 'RACE'),
-            data.get('estilo', 'EQUILIBRADO')
-        ]
-        
-        # Adiciona campos novos se existirem no banco
-        campos_novos = {
-            'freio_motor': data.get('freio_motor', 100),
-            'front_camber': data.get('front_camber', -3.00),
-            'rear_camber': data.get('rear_camber', -1.50),
-            'front_toe': data.get('front_toe', 0.05),
-            'rear_toe': data.get('rear_toe', 0.20),
+        # Todos os campos possíveis
+        todos_campos = {
+            'sessao_id': sessao_id,
+            'piloto_id': piloto_id,
+            'piloto_nome': data.get('piloto_nome', 'Piloto'),
+            'pista': pista,
+            'tipo_sessao': categoria + ' - ' + data.get('tipo_setup', 'RACE'),
+            'asa_dianteira': int(data.get('asa_dianteira', 0)),
+            'asa_traseira': int(data.get('asa_traseira', 0)),
+            'diff_on_throttle': int(data.get('diff_on', 50)),
+            'diff_off_throttle': int(data.get('diff_off', 50)),
+            'freio_pressao': int(data.get('freio_pressao', 100)),
+            'freio_balanco': int(data.get('freio_balanco', 56)),
+            'freio_motor': int(data.get('freio_motor', 100)),
+            'suspensao_diant': int(data.get('suspensao_diant', 15)),
+            'suspensao_tras': int(data.get('suspensao_tras', 10)),
+            'barra_antirrolagem_diant': int(data.get('barra_anti_diant', 8)),
+            'barra_antirrolagem_tras': int(data.get('barra_anti_tras', 7)),
+            'altura_diant': int(data.get('altura_diant', 20)),
+            'altura_tras': int(data.get('altura_tras', 50)),
+            'front_camber': float(data.get('front_camber', -3.00)),
+            'rear_camber': float(data.get('rear_camber', -1.50)),
+            'front_toe': float(data.get('front_toe', 0.05)),
+            'rear_toe': float(data.get('rear_toe', 0.20)),
+            'pressao_pneu_fl': float(data.get('pressao_fl', 23.5)),
+            'pressao_pneu_fr': float(data.get('pressao_fr', 23.5)),
+            'pressao_pneu_rl': float(data.get('pressao_rl', 22.0)),
+            'pressao_pneu_rr': float(data.get('pressao_rr', 22.0)),
+            'combustivel_inicial': float(data.get('combustivel', 50)),
+            'tipo_setup': data.get('tipo_setup', 'RACE'),
+            'estilo_pilotagem': data.get('estilo', 'MANUAL'),
         }
         
-        for col, val in campos_novos.items():
-            if col in colunas_existentes:
-                colunas.append(col)
-                valores.append(val)
+        # Filtra campos que existem no banco
+        campos_ok = {k: v for k, v in todos_campos.items() if k in colunas_existentes}
         
-        placeholders = ', '.join(['?'] * len(colunas))
-        colunas_sql = ', '.join(colunas)
+        colunas_sql = ', '.join(campos_ok.keys())
+        placeholders = ', '.join(['?'] * len(campos_ok))
+        valores = tuple(campos_ok.values())
         
-        cur.execute(f"""
-            INSERT INTO setups ({colunas_sql})
-            VALUES ({placeholders})
-        """, tuple(valores))
+        cur.execute(f"INSERT INTO setups ({colunas_sql}) VALUES ({placeholders})", valores)
+        
+        # Conta quantos setups tem na sessão
+        cur.execute("SELECT COUNT(*) FROM setups WHERE sessao_id = ?", (sessao_id,))
+        total = cur.fetchone()[0]
         
         conn.commit()
         conn.close()
         
-        return jsonify({"ok": True, "sessao_id": sessao_id, "piloto_id": piloto_id, "msg": "Setup salvo!"})
+        print(f"✅ Setup salvo! sessao={sessao_id}, piloto={piloto_id}, total_na_sessao={total}")
+        return jsonify({
+            "ok": True, 
+            "sessao_id": sessao_id, 
+            "piloto_id": piloto_id, 
+            "msg": f"Setup salvo! ({total} setups na sessão #{sessao_id})"
+        })
+        
     except Exception as e:
-        print(f"Erro salvar_setup_manual: {e}")
+        import traceback
+        traceback.print_exc()
+        print(f"❌ Erro salvar_setup_manual: {e}")
         return jsonify({"ok": False, "erro": str(e)}), 500
 
 
@@ -783,17 +817,38 @@ def salvar_setup_manual():
 def listar_setups_manuais():
     """Lista todos os setups salvos manualmente"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
-        cur.execute("""
-            SELECT s.*, se.nome_pista, se.tipo_sessao as sessao_tipo
-            FROM setups s
-            LEFT JOIN sessoes se ON s.sessao_id = se.id
-            ORDER BY s.data_registro DESC
+        # Pega colunas existentes para montar query segura
+        cur.execute("PRAGMA table_info(setups)")
+        colunas = [col[1] for col in cur.fetchall()]
+        
+        # Campos que queremos (se existirem)
+        campos_desejados = [
+            'id', 'sessao_id', 'piloto_nome', 'pista', 'tipo_sessao',
+            'asa_dianteira', 'asa_traseira', 'tipo_setup',
+            'suspensao_diant', 'suspensao_tras',
+            'combustivel_inicial', 'freio_motor', 'data_registro'
+        ]
+        
+        campos_ok = [c for c in campos_desejados if c in colunas]
+        campos_sql = ', '.join(campos_ok)
+        
+        cur.execute(f"""
+            SELECT {campos_sql}
+            FROM setups
+            WHERE tipo_sessao LIKE '%Setup Manual%' 
+               OR estilo_pilotagem = 'MANUAL'
+               OR tipo_sessao LIKE '%F1 -%'
+               OR tipo_sessao LIKE '%F2 -%'
+            ORDER BY id DESC
+            LIMIT 50
         """)
-        setups = [dict(r) for r in cur.fetchall()]
+        
+        setups = [dict(row) for row in cur.fetchall()]
         conn.close()
         
         return jsonify(setups)
@@ -801,14 +856,29 @@ def listar_setups_manuais():
         print(f"Erro listar_setups_manuais: {e}")
         return jsonify([])
 
-
 @app.route("/deletar_setup/<int:setup_id>", methods=["POST"])
 def deletar_setup(setup_id):
     """Deleta um setup manual"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
         cur = conn.cursor()
+        
+        # Pega sessao_id antes de deletar
+        cur.execute("SELECT sessao_id FROM setups WHERE id = ?", (setup_id,))
+        row = cur.fetchone()
+        
         cur.execute("DELETE FROM setups WHERE id = ?", (setup_id,))
+        
+        # Se a sessão ficou sem setups e é manual, deleta a sessão também
+        if row:
+            sessao_id = row[0]
+            cur.execute("SELECT COUNT(*) FROM setups WHERE sessao_id = ?", (sessao_id,))
+            count = cur.fetchone()[0]
+            if count == 0:
+                cur.execute("DELETE FROM sessoes WHERE id = ? AND clima = 'Manual'", (sessao_id,))
+                cur.execute("DELETE FROM pilotos WHERE sessao_id = ?", (sessao_id,))
+        
         conn.commit()
         conn.close()
         return jsonify({"ok": True})

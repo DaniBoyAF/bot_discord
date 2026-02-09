@@ -275,11 +275,19 @@
                     setIsLoading(true);
                     const resp = await fetch(`/dados_setups/${sessaoId}`);
                     const result = await resp.json();
+                    
+                    console.log('📊 Dados recebidos:', result);
+                    
+                    if (result.erro) {
+                        console.error('Erro do servidor:', result.erro);
+                    }
+                    
                     setData(result);
                     setDriverA(null);
                     setDriverB(null);
                 } catch (e) {
                     console.error('Erro ao buscar setups:', e);
+                    setData({ sessao: {}, pilotos: [] });
                 } finally {
                     setIsLoading(false);
                 }
@@ -663,18 +671,23 @@
                     <div className="selector-panel">
                         <h3>
                             Selecione 2 pilotos para comparar
+                            {data?.pilotos?.length === 0 && <span style={{ color: '#f44336', marginLeft: '15px' }}>⚠️ Nenhum setup encontrado nesta sessão</span>}
+                            {data?.pilotos?.length === 1 && <span style={{ color: '#ff9800', marginLeft: '15px' }}>⚠️ Apenas 1 setup — salve pelo menos 2 para comparar</span>}
                             {driverA && <span style={{ color: '#e10600', marginLeft: '15px' }}>🔴 {driverA.nome}</span>}
                             {driverB && <span style={{ color: '#0072C6', marginLeft: '15px' }}>🔵 {driverB.nome}</span>}
                         </h3>
                         <div className="driver-chips">
-                            {(data?.pilotos || []).map(driver => (
+                            {(data?.pilotos || []).map((driver, idx) => (
                                 <div 
-                                    key={driver.nome}
+                                    key={driver.nome + '_' + idx}
                                     className={getChipClass(driver)}
                                     onClick={() => handleDriverClick(driver)}
                                 >
                                     <span className="pos">P{driver.posicao}</span>
                                     {driver.nome}
+                                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>
+                                        ({driver.performance?.tipo_setup || 'SETUP'})
+                                    </span>
                                 </div>
                             ))}
                         </div>
@@ -875,16 +888,19 @@
                                 </h3>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                     <div>
-                                        <SetupRow label="Asa Dianteira" valueA={driverA.setup.asa_dianteira} valueB={driverB.setup.asa_dianteira} max={20} />
-                                        <SetupRow label="Asa Traseira" valueA={driverA.setup.asa_traseira} valueB={driverB.setup.asa_traseira} max={20} />
+                                        <SetupRow label="Asa Dianteira" valueA={driverA.setup.asa_dianteira} valueB={driverB.setup.asa_dianteira} max={50} />
+                                        <SetupRow label="Asa Traseira" valueA={driverA.setup.asa_traseira} valueB={driverB.setup.asa_traseira} max={50} />
                                         <SetupRow label="Diff On Throttle" valueA={driverA.setup.diff_on} valueB={driverB.setup.diff_on} max={100} unit="%" />
                                         <SetupRow label="Diff Off Throttle" valueA={driverA.setup.diff_off} valueB={driverB.setup.diff_off} max={100} unit="%" />
+                                        <SetupRow label="Freio Motor" valueA={driverA.setup.freio_motor || 0} valueB={driverB.setup.freio_motor || 0} max={100} unit="%" />
                                     </div>
                                     <div>
                                         <SetupRow label="Pressão Freio" valueA={driverA.setup.freio_pressao} valueB={driverB.setup.freio_pressao} max={100} unit="%" />
                                         <SetupRow label="Balanço Freio" valueA={driverA.setup.freio_balanco} valueB={driverB.setup.freio_balanco} max={70} unit="%" />
-                                        <SetupRow label="Suspensão Diant" valueA={driverA.setup.suspensao_d} valueB={driverB.setup.suspensao_d} max={11} />
-                                        <SetupRow label="Suspensão Tras" valueA={driverA.setup.suspensao_t} valueB={driverB.setup.suspensao_t} max={11} />
+                                        <SetupRow label="Suspensão Diant" valueA={driverA.setup.suspensao_d} valueB={driverB.setup.suspensao_d} max={41} />
+                                        <SetupRow label="Suspensão Tras" valueA={driverA.setup.suspensao_t} valueB={driverB.setup.suspensao_t} max={41} />
+                                        <SetupRow label="Ride Height D" valueA={driverA.setup.altura_d} valueB={driverB.setup.altura_d} max={40} />
+                                        <SetupRow label="Ride Height T" valueA={driverA.setup.altura_t} valueB={driverB.setup.altura_t} max={100} />
                                     </div>
                                 </div>
                             </div>
