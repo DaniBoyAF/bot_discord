@@ -457,20 +457,25 @@ def dados_completos_live():
         conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        
+
         # Pega a última sessão
         cur.execute("SELECT * FROM sessoes ORDER BY id DESC LIMIT 1")
         sessao = cur.fetchone()
         if not sessao:
             conn.close()
             return jsonify({"pilotos": [], "clima": {}, "sessao": {}})
-        
+
         sessao_id = sessao["id"]
         sessao_dict = dict(sessao)
-        
-        # Busca pilotos ÚNICOS da sessão (pega o registro mais recente de cada)
+
+        # Busca pilotos únicos com JOIN em pneus e danos para dados ao vivo
         cur.execute("""
-            SELECT p.*
+            SELECT
+                p.id, p.nome, p.numero, p.posicao,
+                pn.tipo_pneu       AS pneu_atual,
+                pn.idade_voltas    AS idade_pneu,
+                d.delta_to_leader,
+                d.combustivel_restante
             FROM pilotos p
             INNER JOIN (
                 SELECT nome, MAX(id) as max_id
@@ -478,11 +483,38 @@ def dados_completos_live():
                 WHERE sessao_id = ?
                 GROUP BY nome
             ) latest ON p.id = latest.max_id
+            -- pneu mais recente do piloto
+            LEFT JOIN pneus pn ON pn.id = (
+                SELECT id FROM pneus
+                WHERE sessao_id = ? AND piloto_id = p.id
+                ORDER BY timestamp DESC LIMIT 1
+            )
+            -- dano/delta mais recente do piloto
+            LEFT JOIN danos d ON d.id = (
+                SELECT id FROM danos
+                WHERE sessao_id = ? AND piloto_id = p.id
+                ORDER BY timestamp DESC LIMIT 1
+            )
             ORDER BY p.posicao
-        """, (sessao_id,))
+        """, (sessao_id, sessao_id, sessao_id))
         pilotos = [dict(r) for r in cur.fetchall()]
-        
-        # Busca clima (se existir tabela)
+
+        # Volta atual = maior numero_volta registrado na sessão
+        cur.execute("""
+            SELECT MAX(numero_volta) as volta_atual
+            FROM voltas
+            WHERE sessao_id = ?
+        """, (sessao_id,))
+        row_volta = cur.fetchone()
+        sessao_dict["volta_atual"] = row_volta["volta_atual"] if row_volta and row_volta["volta_atual"] else "-"
+
+        # Campos de clima da tabela sessoes
+        sessao_dict["temp_pista"] = sessao_dict.get("temperatura_pista") or sessao_dict.get("temp_pista") or "-"
+        sessao_dict["temp_ar"]    = sessao_dict.get("temperatura_ar")   or sessao_dict.get("temp_ar")    or "-"
+        sessao_dict["chance_chuva"] = sessao_dict.get("porcentagem_chuva") or sessao_dict.get("chance_chuva") or "-"
+        sessao_dict["bandeira"]   = sessao_dict.get("flag") or "Verde"
+
+        # Busca clima (se existir tabela separada)
         clima = {}
         try:
             cur.execute("PRAGMA table_info(clima)")
@@ -493,9 +525,9 @@ def dados_completos_live():
                     clima = dict(clima_row)
         except:
             pass
-        
+
         conn.close()
-        
+
         return jsonify({
             "pilotos": pilotos,
             "clima": clima,

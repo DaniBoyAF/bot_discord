@@ -609,7 +609,13 @@
                     const voltas = voltasPorPiloto[piloto.nome] || [];
                     const stints = piloto.stints || [];
                     
-                    const stintsComTempos = stints.map((stint) => {
+                    // filtra stints sem composto válido antes de processar
+                    const stintsValidos = stints.filter(s =>
+                        s.tipo_pneu &&
+                        s.tipo_pneu.trim() !== '' &&
+                        s.tipo_pneu.toUpperCase() !== 'DESCONHECIDO'
+                    );
+                    const stintsComTempos = stintsValidos.map((stint) => {
                         const voltasDoStint = voltas.filter(v => {
                             const numVolta = v.numero_volta;
                             return numVolta >= stint.volta_inicio && numVolta <= stint.volta_fim;
@@ -677,7 +683,10 @@
                         stints: stintsComTempos,
                         posicao: piloto.posicao || piloto.position || 99
                     };
-                }).sort((a, b) => (a.posicao || 99) - (b.posicao || 99));
+                })
+                // remove pilotos que ficaram sem nenhum stint válido
+                .filter(p => p.stints && p.stints.length > 0)
+                .sort((a, b) => (a.posicao || 99) - (b.posicao || 99));
             };
 
             // 🆕 FUNÇÃO: Remove outliers usando IQR (Interquartile Range)

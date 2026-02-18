@@ -4,334 +4,205 @@
   <meta charset="UTF-8">
   <title>Painel F1</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #0a0e17 0%, #1a1f2e 100%);
-      color: white;
-      padding: 20px;
-      min-height: 100vh;
+      color: white; padding: 20px; min-height: 100vh;
     }
-
     h1 {
       text-align: center;
       background: linear-gradient(90deg, #ff3c00, #ff6b00, #ff3c00);
       background-size: 200% 100%;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      font-size: 2.5em;
-      margin-bottom: 20px;
-      text-shadow: 0 0 30px rgba(255, 60, 0, 0.3);
-      animation: gradientShift 3s ease infinite;
-      letter-spacing: 2px;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      font-size: 2.5em; margin-bottom: 20px;
+      animation: gradientShift 3s ease infinite; letter-spacing: 2px;
     }
-
     @keyframes gradientShift {
       0%, 100% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
+      50%       { background-position: 100% 50%; }
     }
-
     table {
-      width: 90%;
-      max-width: 1200px;
-      margin: 80px auto 20px;
-      border-collapse: separate;
-      border-spacing: 0;
+      width: 90%; max-width: 1200px; margin: 80px auto 20px;
+      border-collapse: separate; border-spacing: 0;
       background: linear-gradient(145deg, #1a1f2e, #141821);
-      border-radius: 15px;
-      overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5),
-                  0 0 0 1px rgba(255, 255, 255, 0.1);
+      border-radius: 15px; overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1);
     }
-
-    th, td {
-      padding: 16px;
-      text-align: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
+    th, td { padding: 16px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
     th {
       background: linear-gradient(135deg, #252b3a, #1e2330);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-size: 0.85em;
-      color: #a8b2d1;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+      font-size: 0.85em; color: #a8b2d1; position: sticky; top: 0; z-index: 10;
     }
-
-    tbody tr {
-      transition: background 260ms ease, transform 260ms ease, opacity 260ms ease;
-      will-change: transform, opacity, background;
-    }
-
-    /* marcador discreto quando um row muda */
+    tbody tr { transition: background 260ms ease, transform 260ms ease, opacity 260ms ease; }
     tbody tr.updating {
-      background: linear-gradient(90deg, rgba(255, 60, 0, 0.06), rgba(255, 107, 0, 0.03));
-      transform: translateY(2px);
-      opacity: 0.98;
+      background: linear-gradient(90deg, rgba(255,60,0,0.06), rgba(255,107,0,0.03));
+      transform: translateY(2px); opacity: 0.98;
     }
-
     tbody tr:hover {
-      background: linear-gradient(90deg, rgba(255, 60, 0, 0.1), rgba(255, 107, 0, 0.05));
+      background: linear-gradient(90deg, rgba(255,60,0,0.1), rgba(255,107,0,0.05));
       transform: scale(1.01);
     }
+    tbody tr:last-child td { border-bottom: none; }
 
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
+    /* Cores dos pneus - classes em ingles para bater com o JS */
+    .soft, .macio       { color: #ff3c00; text-shadow: 0 0 10px rgba(255,60,0,0.5); font-weight: 600; }
+    .medium, .medio     { color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.5); font-weight: 600; }
+    .hard, .duro        { color: #ffffff; text-shadow: 0 0 10px rgba(255,255,255,0.3); font-weight: 600; }
+    .intermediate, .inter { color: #4cf509; text-shadow: 0 0 10px rgba(76,245,9,0.5); font-weight: 600; }
+    .wet, .chuva        { color: #0095ff; text-shadow: 0 0 10px rgba(0,149,255,0.5); font-weight: 600; }
+    .supersoft, .ss     { color: #cc00ff; text-shadow: 0 0 10px rgba(204,0,255,0.5); font-weight: 600; }
 
-    /* Cores dos pneus com brilho */
-    .wet { 
-      color: #0095ff;
-      text-shadow: 0 0 10px rgba(0, 149, 255, 0.5);
-      font-weight: 600;
-    }
-    .int { 
-      color: #4cf509;
-      text-shadow: 0 0 10px rgba(76, 245, 9, 0.5);
-      font-weight: 600;
-    }
-    .médio { 
-      color: #ffd700;
-      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-      font-weight: 600;
-    }
-    .duro { 
-      color: #ffffff;
-      text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-      font-weight: 600;
-    }
-    .macio { 
-      color: #ff3c00;
-      text-shadow: 0 0 10px rgba(255, 60, 0, 0.5);
-      font-weight: 600;
-    }
-    .ss {
-      color: #cc00ff;
-      text-shadow: 0 0 10px rgba(204, 0, 255, 0.5);
-      font-weight: 600;
-    }
-    
-    /* Painéis informativos */
+    /* Paineis informativos */
     .info-panel {
       position: fixed;
-      background: linear-gradient(135deg, rgba(26, 31, 46, 0.95), rgba(20, 24, 33, 0.95));
-      backdrop-filter: blur(10px);
-      color: white;
-      padding: 12px 18px;
-      border-radius: 12px;
-      font-family: 'Segoe UI', sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
-                  0 0 0 1px rgba(255, 255, 255, 0.1),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      z-index: 999;
-      transition: all 0.3s ease;
+      background: linear-gradient(135deg, rgba(26,31,46,0.95), rgba(20,24,33,0.95));
+      backdrop-filter: blur(10px); color: white; padding: 12px 18px; border-radius: 12px;
+      font-family: 'Segoe UI', sans-serif; font-size: 14px; font-weight: 500;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1),
+                  inset 0 1px 0 rgba(255,255,255,0.1);
+      z-index: 999; transition: all 0.3s ease;
     }
+    .info-panel:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
 
-    .info-panel:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5),
-                  0 0 0 1px rgba(255, 255, 255, 0.2);
-    }
-
-    #clima-painel { top: 10px; left: 10px; }
+    #clima-painel  { top: 10px; left: 10px; }
     #clima-painel2 { top: 60px; left: 10px; }
     #clima-painel3 { top: 60px; right: 10px; }
-    #clima-painel4 { 
-      top: 10px; 
-      right: 10px;
-      background: linear-gradient(135deg, rgba(255, 60, 0, 0.2), rgba(255, 107, 0, 0.1));
-      border: 1px solid rgba(255, 60, 0, 0.3);
-      font-weight: 700;
-      font-size: 16px;
+    #clima-painel4 {
+      top: 10px; right: 10px;
+      background: linear-gradient(135deg, rgba(255,60,0,0.2), rgba(255,107,0,0.1));
+      border: 1px solid rgba(255,60,0,0.3); font-weight: 700; font-size: 16px;
     }
-    #nome_de_circuito-painel5 { 
-      top: 10px; 
-      right: 200px;
-      background: linear-gradient(135deg, rgba(46, 161, 190, 0.3), rgba(31, 108, 128, 0.3));
-      padding: 10px 24px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
+    #circuito-painel {
+      top: 10px; right: 200px;
+      background: linear-gradient(135deg, rgba(46,161,190,0.3), rgba(31,108,128,0.3));
+      padding: 10px 24px; font-weight: 600; letter-spacing: 0.5px;
     }
-    #Umidade { top: 10px; left: 200px; }
-    #Flag { 
-      top: 60px; 
-      left: 200px;
-      font-weight: 600;
-    }
+    #umidade-painel { top: 10px; left: 200px; }
+    #flag-painel    { top: 60px; left: 200px; font-weight: 600; }
 
-    /* Animação de entrada */
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    /* Destaque para posição */
-    td:first-child {
-      font-weight: 700;
-      font-size: 1.1em;
-      color: #ff6b00;
-    }
-
-    /* Estilo para o número do piloto */
-    td:nth-child(2) {
-      font-weight: 600;
-      color: #a8b2d1;
-    }
-
-    /* Destaque para nome do piloto */
-    td:nth-child(3) {
-      font-weight: 600;
-      text-align: left;
-      padding-left: 30px;
-    }
+    td:first-child  { font-weight: 700; font-size: 1.1em; color: #ff6b00; }
+    td:nth-child(2) { font-weight: 600; color: #a8b2d1; }
+    td:nth-child(3) { font-weight: 600; text-align: left; padding-left: 30px; }
   </style>
 
   <script>
-async function atualizar() {
-  try {
-    const res = await fetch("/dados_completos_live", { cache: "no-store" });
-    if (!res.ok) return;
-    const dados = await res.json();
-    const pilotos = Array.isArray(dados.pilotos) ? dados.pilotos : [];
-    const sessao = dados.sessao || {};
-    const clima = dados.clima || {};
-    const tbody = document.getElementById("tabela_pilotos");
-    if (!tbody) return;
+    async function atualizar() {
+      try {
+        const res = await fetch("/dados_completos_live", { cache: "no-store" });
+        if (!res.ok) return;
+        const dados  = await res.json();
+        const pilotos = Array.isArray(dados.pilotos) ? dados.pilotos : [];
+        const sessao  = dados.sessao || {};
+        const clima   = dados.clima  || {};
+        const tbody   = document.getElementById("tabela_pilotos");
+        if (!tbody) return;
 
-    // Atualiza painéis de info
-    const climaEl = document.getElementById("clima-painel");
-    const pistaEl = document.getElementById("clima-painel2");
-    const arEl = document.getElementById("clima-painel3");
-    const voltaEl = document.getElementById("clima-painel4");
-    const circuitoEl = document.getElementById("nome_de_circuito-painel5");
-    const umidadeEl = document.getElementById("Umidade");
-    const flagEl = document.getElementById("Flag");
+        // Paineis de info
+        const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+        set("clima-painel",    `Clima: ${clima.condicao || sessao.clima || "—"}`);
+        set("clima-painel2",   `Pista: ${sessao.temp_pista ?? "—"}°C`);
+        set("clima-painel3",   `Ar: ${sessao.temp_ar ?? "—"}°C`);
+        set("clima-painel4",   `Volta: ${sessao.volta_atual ?? "—"}/${sessao.total_voltas ?? "—"}`);
+        set("circuito-painel", `Track: ${sessao.nome_pista || "—"}`);
+        set("umidade-painel",  `Rain: ${sessao.chance_chuva ?? "—"}%`);
+        set("flag-painel",     `Bandeira: ${sessao.bandeira || "Verde"}`);
 
-    if (climaEl) climaEl.textContent = `☁ Clima: ${clima.condicao || sessao.clima || "—"}`;
-    if (pistaEl) pistaEl.textContent = `🌡 Pista: ${clima.temp_pista || sessao.temp_pista || "—"}°C`;
-    if (arEl) arEl.textContent = `🌡 Ar: ${clima.temp_ar || sessao.temp_ar || "—"}°C`;
-    if (voltaEl) voltaEl.textContent = `🏁 Volta: ${sessao.volta_atual || "—"}/${sessao.total_voltas || "—"}`;
-    if (circuitoEl) circuitoEl.textContent = `🗺 Track: ${sessao.nome_pista || "—"}`;
-    if (umidadeEl) umidadeEl.textContent = `🌧 Rain: ${clima.chance_chuva || "—"}%`;
-    if (flagEl) flagEl.textContent = `🚩 Bandeira: ${sessao.bandeira || clima.bandeira || "Verde"}`;
+        const existing = {};
+        tbody.querySelectorAll("tr[data-pid]").forEach(tr => existing[tr.dataset.pid] = tr);
 
-    // mapa de linhas existentes (pid -> tr)
-    const existing = {};
-    tbody.querySelectorAll("tr[data-pid]").forEach(tr => existing[tr.dataset.pid] = tr);
+        const fragment = document.createDocumentFragment();
 
-    // manter ordem desejada e diffs
-    const fragment = document.createDocumentFragment();
-    const desiredOrder = [];
+        pilotos
+          .sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999))
+          .forEach((p, idx) => {
+            const pid      = `p-${p.numero ?? idx}`;
+            const position = p.posicao ?? "-";
+            const numero   = p.numero  ?? "-";
+            const nome     = p.nome    ?? "—";
+            const deltaRaw = p.delta_to_leader ?? null;
+            const delta    = deltaRaw === 0       ? "Leader"
+                           : deltaRaw != null     ? `+${Number(deltaRaw).toFixed(3)}s`
+                           : "-";
 
-    pilotos
-      .sort((a,b) => (a.posicao ?? a.position ?? 999) - (b.posicao ?? b.position ?? 999))
-      .forEach((p, idx) => {
-        const pid = `p-${p.numero || idx}`;
-        desiredOrder.push(pid);
+            // FIX: pneu vem do JOIN com pneus - campo pneu_atual
+            const tyresRaw   = (p.pneu_atual ?? p.tyres ?? "").toUpperCase();
+            const tyresClass = tyresRaw.includes("SUPER") || tyresRaw === "SS" ? "supersoft"
+                             : tyresRaw.includes("SOFT")  || tyresRaw.includes("MACIO")          ? "soft"
+                             : tyresRaw.includes("MEDIUM")|| tyresRaw.includes("MEDIO")          ? "medium"
+                             : tyresRaw.includes("HARD")  || tyresRaw.includes("DURO")           ? "hard"
+                             : tyresRaw.includes("INTER")                                         ? "intermediate"
+                             : tyresRaw.includes("WET")   || tyresRaw.includes("CHUVA")          ? "wet"
+                             : "";
 
-        const position = p.posicao ?? p.position ?? "-";
-        const numero = p.numero ?? p.number ?? "-";
-        const nome = p.nome ?? p.name ?? "—";
-        const deltaRaw = p.delta_to_leader ?? p.delta ?? null;
-        const deltaFormatado = deltaRaw === 0 ? "Leader" : (deltaRaw ? `+${Number(deltaRaw).toFixed(3)}s` : "-");
-        const tyresText = p.pneu_atual ?? p.tyres ?? p.tyre_compound ?? "—";
-        const tyresClass = (typeof tyresText === "string") ? tyresText.toLowerCase().normalize('NFKD').replace(/\s+/g, "_").replace(/[^\w-]/g, "") : "";
-        const tyresAge = p.idade_pneu ?? p.tyresAgeLaps ?? p.tyres_age_laps ?? "-";
+            const tyresAge = p.idade_pneu ?? p.tyresAgeLaps ?? "-";
 
-        const html = `
-          <td>${position}</td>
-          <td>${numero}</td>
-          <td>${nome}</td>
-          <td>${deltaFormatado}</td>
-          <td class="${tyresClass}">${tyresText}</td>
-          <td>${tyresAge}</td>`;
+            const html = `
+              <td>${position}</td>
+              <td>${numero}</td>
+              <td>${nome}</td>
+              <td>${delta}</td>
+              <td class="${tyresClass}">${tyresRaw || "—"}</td>
+              <td>${tyresAge}</td>`;
 
-        let tr = existing[pid];
-        if (tr) {
-          if (tr._lastHtml !== html) {
-            tr.classList.add('updating');
-            tr.innerHTML = html;
-            setTimeout(() => tr.classList.remove('updating'), 350);
-            tr._lastHtml = html;
+            let tr = existing[pid];
+            if (tr) {
+              if (tr._lastHtml !== html) {
+                tr.classList.add("updating");
+                tr.innerHTML = html;
+                setTimeout(() => tr.classList.remove("updating"), 350);
+                tr._lastHtml = html;
+              }
+              delete existing[pid];
+            } else {
+              tr = document.createElement("tr");
+              tr.dataset.pid = pid;
+              tr._lastHtml   = html;
+              tr.innerHTML   = html;
+              tr.classList.add("updating");
+              setTimeout(() => tr.classList.remove("updating"), 500);
+            }
+            fragment.appendChild(tr);
+          });
+
+        Object.values(existing).forEach(tr => tr.remove());
+
+        requestAnimationFrame(() => {
+          let same = tbody.children.length === fragment.childElementCount;
+          if (same) {
+            const nodes = Array.from(fragment.children);
+            for (let i = 0; i < nodes.length; i++) {
+              if (tbody.children[i]?.dataset.pid !== nodes[i].dataset.pid) { same = false; break; }
+            }
           }
-          delete existing[pid];
-        } else {
-          tr = document.createElement("tr");
-          tr.dataset.pid = pid;
-          tr._lastHtml = html;
-          tr.innerHTML = html;
-          tr.classList.add('updating');
-          setTimeout(() => tr.classList.remove('updating'), 500);
-        }
-        fragment.appendChild(tr);
-      });
+          if (!same) { tbody.innerHTML = ""; tbody.appendChild(fragment); }
+        });
 
-    // remove linhas que não existem mais
-    Object.values(existing).forEach(tr => tr.remove());
-
-    // aplica a nova ordem
-    requestAnimationFrame(() => {
-      let same = tbody.children.length === fragment.childElementCount;
-      if (same) {
-        const newNodes = Array.from(fragment.children);
-        for (let i = 0; i < newNodes.length; i++) {
-          if (tbody.children[i]?.dataset.pid !== newNodes[i].dataset.pid) { same = false; break; }
-        }
+      } catch (err) {
+        console.error("Erro ao atualizar painel:", err);
       }
-      if (!same) {
-        tbody.innerHTML = "";
-        tbody.appendChild(fragment);
-      }
-    });
+    }
 
-  } catch (error) {
-    console.error("Erro ao atualizar painel:", error);
-  }
-}
-
-const POLL_INTERVAL = 1200;
-setInterval(atualizar, POLL_INTERVAL);
-atualizar();
+    setInterval(atualizar, 1200);
+    atualizar();
   </script>
 </head>
 <body>
-  <h1>🔧 Painel Dinâmico F1 🏎️</h1>
-  
-  <div id="clima-painel" class="info-panel">☁ Clima: Carregando...</div>
-  <div id="clima-painel2" class="info-panel">🌡 Pista: Carregando...</div>
-  <div id="clima-painel3" class="info-panel">🌡 Ar: Carregando...</div>
-  <div id="clima-painel4" class="info-panel">🏁 Carregando...</div>
-  <div id="nome_de_circuito-painel5" class="info-panel">🗺 Track: Carregando...</div>
-  <div id="Umidade" class="info-panel">🌧 PorRain: Carregando...</div>
-  <div id="Flag" class="info-panel">🚩 Bandeira: Carregando...</div>
-  
+  <h1>Painel Dinamico F1</h1>
+
+  <div id="clima-painel"    class="info-panel">Clima: Carregando...</div>
+  <div id="clima-painel2"   class="info-panel">Pista: Carregando...</div>
+  <div id="clima-painel3"   class="info-panel">Ar: Carregando...</div>
+  <div id="clima-painel4"   class="info-panel">Volta: Carregando...</div>
+  <div id="circuito-painel" class="info-panel">Track: Carregando...</div>
+  <div id="umidade-painel"  class="info-panel">Rain: Carregando...</div>
+  <div id="flag-painel"     class="info-panel">Bandeira: Carregando...</div>
+
   <table>
     <thead>
       <tr>
-        <th>P</th>
-        <th>#</th>
-        <th>NOME</th>
-        <th>GAP</th>
-        <th>TYRES 🛞</th>
-        <th>TYRES_AGE</th>
+        <th>P</th><th>#</th><th>NOME</th><th>GAP</th><th>TYRES</th><th>TYRES AGE</th>
       </tr>
     </thead>
     <tbody id="tabela_pilotos">

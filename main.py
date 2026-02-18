@@ -672,8 +672,7 @@ async def volta_salvar(bot):
                         sec2_cum = volta.get('sector2_cum') or volta.get('setor2_acum') or volta.get('sector_2_cum')
 
                         # normaliza com _norm (ms->s etc.)
-                        def _maybe_norm(v):
-                            return _norm(v) if v is not None else None
+                        _maybe_norm = lambda v: _norm(v) if v is not None else None
 
                         s1_n = _maybe_norm(s1)
                         s2_n = _maybe_norm(s2)
@@ -702,8 +701,10 @@ async def volta_salvar(bot):
                             s2_val = s2_n
                             s3_val = s3_n
 
-                        # if no time info at all, skip
-                        if tempo_total_val is None and s1_n is None and s2_n is None and s3_n is None:
+                        # if no time info at all, skip (inclui campos acumulados como fonte)
+                        if (tempo_total_val is None
+                                and s1_n is None and s2_n is None and s3_n is None
+                                and sec1_n is None and sec2_n is None):
                             continue
 
                         # DEBUG opcional: descomente para inspecionar voltas que ainda ficam sem setores
@@ -724,8 +725,7 @@ async def volta_salvar(bot):
                             )
                             row = cursor.fetchone()
 
-                            def _coalesce(new, old):
-                                return new if new is not None else old
+                            _coalesce = lambda new, old: new if new is not None else old
 
                             if row:
                                 vid, old_tempo, old_s1, old_s2, old_s3 = row

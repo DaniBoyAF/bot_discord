@@ -971,11 +971,11 @@ def start_udp_listener():
             print("DEBUG: event_code =", event_code, "event_details =", getattr(body, "m_event_details", None))
         if header.m_packet_id == 1:  # PacketSessionData
             session.atualizar(body)
-        if header.m_packet_id == 4:
+        if header.m_packet_id == 4:  # PacketParticipantsData — if separado, não elif
             atualizar_participantes(body)
-        elif header.m_packet_id == 2:  # PacketLapData
+        if header.m_packet_id == 2:  # PacketLapData
             atualizar_lapdata(body)
-        elif header.m_packet_id == 5:  # PacketCarSetupData
+        elif header.m_packet_id == 5:  # PacketCarSetupData — elif de packet_id==2
             atualizar_CarSetupData(body)
         elif header.m_packet_id == 12:
             atualizar_vida_util(body)
@@ -1082,8 +1082,20 @@ def atualizar_speed_trap(pacote_telemetry):
             piloto.tyres_temp_surface[0:4] = [float(t) for t in telemetry.m_tyres_surface_temperature[0:4]]
 def atualizar_CarSetupData(pacote_setup):
     from Bot.jogadores import JOGADORES
+    from Bot.Session import SESSION
+
+    # Na corrida (session_type 10/11) o F1 24 bloqueia setup dos outros carros (anti-cheat EA).
+    # O jogo manda zeros para todos exceto o carro do próprio jogador.
+    # player_car_idx = -1 significa que não sabemos ainda — processa tudo normalmente.
+    session_type = getattr(SESSION, "m_session_type", 0)
+    em_corrida = session_type in (10, 11)  # 10=Race, 11=Race2
+    player_idx = getattr(pacote_setup.m_header, "m_player_car_index", 255)
+
     for idx, setup in enumerate(pacote_setup.m_car_setups):
         if idx < len(JOGADORES):
+            # Na corrida pula carros que não são o jogador (dados serão todos zero)
+            if em_corrida and idx != player_idx:
+                continue
             piloto = JOGADORES[idx]
             # 🛞 Aerodinâmica
             piloto.front_wing = int(setup.m_front_wing)
@@ -1163,7 +1175,11 @@ def atualizar_participantes(pacote_participantes):
         except Exception:
             pass  # mantém o nome anterior se falhar
         piloto.numero = participante.m_race_number
+        # m_my_team=1 indica modo "My Team" — team_id genérico (41) não identifica o time
         piloto.m_team_id = participante.m_team_id
+        piloto.m_my_team = participante.m_my_team
+        # guarda o ai_controlled para saber se é humano ou IA
+        piloto.m_ai_controlled = participante.m_ai_controlled
 def atualizar_car_status(pacote_status):
     from Bot.jogadores import JOGADORES
     for idx, status in enumerate(pacote_status.m_car_status_data):
@@ -1196,7 +1212,10 @@ def atualizar_setores(pacote_setores_history):
     piloto = JOGADORES[car_idx]
     num_laps = getattr(pacote_setores_history, "m_num_laps", 0)
     lap_history = getattr(pacote_setores_history, "m_lap_history_data", [])
-    piloto.todas_voltas_setores = []
+
+    # RACE CONDITION CORRIGIDA: monta lista temporária e só substitui no final,
+    # evitando que o loop de salvamento (thread asyncio) leia a lista no meio da reconstrução
+    novas_voltas = []
 
     for i in range(min(num_laps, len(lap_history))):
         lap = lap_history[i]
@@ -1226,11 +1245,14 @@ def atualizar_setores(pacote_setores_history):
         else:
             tempo_total = None
 
-        piloto.todas_voltas_setores.append({
+        novas_voltas.append({
             "volta": i + 1,
             "tempo_total": tempo_total,
             "setores": setores
         })
+
+    # substituição atômica — o salvador nunca vê lista pela metade
+    piloto.todas_voltas_setores = novas_voltas
 
     # Stints de pneus
     num_stints = getattr(pacote_setores_history, "m_num_tyre_stints", 0)
