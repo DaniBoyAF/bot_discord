@@ -467,116 +467,120 @@ async def salvar_dados(ctx):
     await ctx.send("🔄 Salvando dados dos pilotos...")
     bot.loop.create_task(volta_salvar(bot))
 async def volta_salvar(bot):
-    global TEMPO_INICIO_VOLTAS, sessao_id_atual, voltas_ja_salvas  # ← Adiciona voltas_ja_salvas
+    global TEMPO_INICIO_VOLTAS, sessao_id_atual, voltas_ja_salvas, ultimo_pneu_por_piloto
     from Bot.jogadores import get_jogadores
-    from utils.dictionnaries import tyres_dictionnary, weather_dictionary,  safetyCarStatusDict, session_dictionary
+    from utils.dictionnaries import tyres_dictionnary, weather_dictionary, safetyCarStatusDict, session_dictionary
     from Bot.Session import SESSION
-    
+
+    async def send_or_edit(msg, text):
+        try:
+            if msg:
+                await msg.edit(content=text)
+        except Exception:
+            try:
+                await canal.send(text)
+            except Exception:
+                pass
+
     canal_id = 1382050740922482892
-    canal = bot.get_channel(canal_id)
+    canal = bot.get_channel(canal_id) or await bot.fetch_channel(canal_id)
     if not canal:
         print("❌ Canal não encontrado.")
         return
-    
+
     mensagem = await canal.send("🔄 Iniciando salvamento no banco de dados...")
-    
-    # 🏁 Aguarda dados válidos da sessão
+
+    def _norm(v):
+        try:
+            if v is None:
+                return None
+            fv = float(v)
+            if fv > 1000:  # ms -> s
+                return fv / 1000.0
+            return fv
+        except Exception:
+            return None
+
+    # aguarda dados da sessão
     if sessao_id_atual is None:
-        # 🆕 Limpa caches
         voltas_ja_salvas.clear()
-        ultimo_pneu_por_piloto.clear()  # ← ADICIONA ISSO
-        
-        wait_seconds = 0
-        last_progress_update = 0
-        detected = False
-        # Espera até SESSION ter track_id válido, nome_pista ou total_voltas > 0
-        while True:
-            track_id = getattr(SESSION, 'm_track_id', -1)
-            nome_pista_raw = getattr(SESSION, 'track_name', None) or getattr(SESSION, 'm_track_name', None)
-            total_voltas = getattr(SESSION, 'm_total_laps', 0)
-            if (track_id not in (-1, None)) or (nome_pista_raw not in (None, '', 'Unknown Track')) or (total_voltas and total_voltas > 0):
-                detected = True
-                break
+        ultimo_pneu_por_piloto.clear()
 
+        waited = 0
+        while waited < 60:
+            nome_pista_raw = getattr(SESSION, "track_name", None) or getattr(SESSION, "m_track_name", None)
+            track_id = getattr(SESSION, "m_track_id", -1)
+            total_laps = getattr(SESSION, "m_total_laps", 0)
+            if (track_id not in (-1, None)) or (nome_pista_raw not in (None, "", "Unknown Track")) or (total_laps and total_laps > 0):
+                break
             await asyncio.sleep(0.5)
-            wait_seconds += 0.5
+            waited += 0.5
+            if int(waited) % 5 == 0:
+                await send_or_edit(mensagem, f"🔄 Aguardando dados do jogo... {int(waited)}s")
 
-            # atualiza a mensagem no Discord a cada 5s para mostrar progresso
-            if wait_seconds - last_progress_update >= 5:
-                last_progress_update = wait_seconds
-                try:
-                    await mensagem.edit(content=f"🔄 Aguardando dados do jogo... {int(wait_seconds)}s")
-                except Exception:
-                    pass
-
-            # timeout seguro após 60s
-            if wait_seconds >= 60:
-                print("⚠️ Timeout aguardando dados do jogo. Criando sessão com dados atuais (parciais).")
-                break
-
-        # cria sessão no DB (caso detectado ou timeout)
-        # usa dados disponíveis no momento (se detectado, normalmente já há track_id/nome)
-        track_id = getattr(SESSION, 'm_track_id', -1)
-        nome_pista = get_track_name(track_id) if track_id not in (-1, None) else (nome_pista_raw or "Unknown Track")
-        tipo_sessao = session_dictionary.get(getattr(SESSION, 'm_session_type', 0), 'Desconhecido')
-        total_voltas = getattr(SESSION, 'm_total_laps', 0) or 0
-        clima = weather_dictionary.get(getattr(SESSION, 'm_weather', 0), 'Desconhecido')
-        temp_ar = getattr(SESSION, 'm_air_temperature', 0)
-        temp_pista = getattr(SESSION, 'm_track_temperature', 0)
+        nome_pista = get_track_name(getattr(SESSION, "m_track_id", -1)) or (getattr(SESSION, "track_name", None) or "Unknown Track")
+        tipo_sessao = session_dictionary.get(getattr(SESSION, "m_session_type", 0), "Desconhecido")
+        total_voltas = getattr(SESSION, "m_total_laps", 0) or 0
+        clima = weather_dictionary.get(getattr(SESSION, "m_weather", 0), "Desconhecido")
+        temp_ar = getattr(SESSION, "m_air_temperature", 0)
+        temp_pista = getattr(SESSION, "m_track_temperature", 0)
         chuva = getattr(SESSION, "rainPercentage", 0)
         safety = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
         flag = getattr(SESSION, "m_zone_flag", "Verde")
 
-        conn = sqlite3.connect('f1_telemetry.db')
-        cursor = conn.cursor()
-
-        cursor.execute('''
-        INSERT INTO sessoes (nome_pista, tipo_sessao, total_voltas, clima, 
-                            temperatura_ar, temperatura_pista, porcentagem_chuva,
-                            safety_car_status, flag, velocidade_maxima_geral)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (nome_pista, tipo_sessao, total_voltas, clima, temp_ar, temp_pista, 
-              chuva, safety, flag, 0))
-
-        sessao_id_atual = cursor.lastrowid
-        conn.commit()
-        conn.close()
-
-        print(f"✅ Sessão criada: #{sessao_id_atual} | {nome_pista} | {tipo_sessao}")
+        conn = db_connect()
+        cur = conn.cursor()
         try:
-            if detected:
-                await mensagem.edit(content=f"✅ Dados do jogo recebidos: **{nome_pista}** — Sessão criada (#{sessao_id_atual})")
-            else:
-                await mensagem.edit(content=f"✅ Sessão criada (dados parciais): **{nome_pista}** ({tipo_sessao}) — Sessão #{sessao_id_atual}")
-        except Exception:
-            pass
-
-        # inicia task que atualiza nome da sessão caso o parser traga info mais tarde
+            cur.execute('''
+                INSERT INTO sessoes (nome_pista, tipo_sessao, total_voltas, clima, 
+                                    temperatura_ar, temperatura_pista, porcentagem_chuva,
+                                    safety_car_status, flag, velocidade_maxima_geral)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (nome_pista, tipo_sessao, total_voltas, clima, temp_ar, temp_pista, chuva, safety, flag, 0))
+            sessao_id_atual = cur.lastrowid
+            execute_with_retry(lambda: conn.commit())
+            print(f"✅ Sessão criada: #{sessao_id_atual} | {nome_pista} | {tipo_sessao}")
+            await send_or_edit(mensagem, f"✅ Sessão criada: **{nome_pista}** (#{sessao_id_atual})")
+        except Exception as e:
+            print("❌ Erro ao criar sessão:", e)
+        finally:
+            conn.close()
         try:
             asyncio.create_task(_monitorar_e_atualizar_nome_sessao(sessao_id_atual, timeout=300, intervalo=1.0))
         except Exception:
-            # ambiente sem loop? ignora sem travar
             pass
 
     pit_quant = {}
     tyres_nomes = tyres_dictionnary
-    
-    # 🔄 Loop principal de salvamento
+
+    # BUG3 CORRIGIDO: _norm_tyre definida uma vez fora do loop
+    def _norm_tyre(raw):
+        if raw is None: return "DESCONHECIDO"
+        if isinstance(raw, str):
+            s = raw.strip().upper()
+            if "SUPER" in s or s == "SS" or "SUPERSOFT" in s: return "SUPERSOFT"
+            if "SOFT" in s and "SUPER" not in s: return "SOFT"
+            if "MEDIUM" in s or "MEDIO" in s: return "MEDIUM"
+            if "HARD" in s: return "HARD"
+            if "INTER" in s or "INT" in s: return "INTERMEDIÁRIO"
+            if "WET" in s or "CHUVA" in s: return "CHUVA"
+            return s
+        try:
+            return tyres_nomes.get(int(raw), str(raw)).upper()
+        except Exception:
+            return str(raw)
+
     while TEMPO_INICIO_VOLTAS:
         try:
-            if time.time() - inicio >= tempo_maximo:
-                print("⏱️ Tempo limite atingido (10 horas).")
-                break
-            
             jogadores = get_jogadores()
             if not jogadores:
                 await asyncio.sleep(1)
                 continue
-            
-            conn = sqlite3.connect('f1_telemetry.db')
+
+            conn = db_connect()
             cursor = conn.cursor()
-            
-            # Atualiza velocidade máxima geral da sessão
+
+            # atualiza velocidade maxima geral
             maior_speed_geral = 0
             for j in jogadores:
                 speed = getattr(j, 'speed_trap', 0)
@@ -584,287 +588,439 @@ async def volta_salvar(bot):
                     speed = max(speed)
                 if isinstance(speed, (int, float)) and speed > maior_speed_geral:
                     maior_speed_geral = speed
-            
-            # atualiza diretamente no banco (o commit é feito mais abaixo após processar todos os pilotos)
-            cursor.execute("UPDATE sessoes SET velocidade_maxima_geral = ? WHERE id = ?", (maior_speed_geral, sessao_id_atual))
-            
-            # 📊 Salva dados de cada piloto
+            try:
+                cursor.execute("UPDATE sessoes SET velocidade_maxima_geral = ? WHERE id = ?", (maior_speed_geral, sessao_id_atual))
+            except Exception as e:
+                print("Erro update velocidade_maxima_geral:", e)
+
             for j in jogadores:
-                nome = getattr(j, 'name', '').strip()
+                nome = getattr(j, 'name', None)
+                if not nome:
+                    continue
+                nome = nome.strip()
                 try:
-                    if not nome:
-                        continue
-                    
-                    # Inicializa contador de pit stops
+                    # pit counter
                     if nome not in pit_quant:
                         pit_quant[nome] = 0
                     if getattr(j, 'pit', False):
                         pit_quant[nome] += 1
-                    
-                    # Variáveis auxiliares
-                    todas_voltas = getattr(j, "todas_voltas_setores", [])
+
+                    # upsert piloto: INSERT OR IGNORE preserva o id existente,
+                    # UPDATE mantém posição/numero atualizados sem apagar o registro.
+                    try:
+                        cursor.execute(
+                            'INSERT OR IGNORE INTO pilotos (sessao_id, nome, numero, posicao) VALUES (?, ?, ?, ?)',
+                            (sessao_id_atual, nome, getattr(j, 'numero', 0), getattr(j, 'position', 0))
+                        )
+                        cursor.execute(
+                            'UPDATE pilotos SET numero = ?, posicao = ? WHERE sessao_id = ? AND nome = ?',
+                            (getattr(j, 'numero', 0), getattr(j, 'position', 0), sessao_id_atual, nome)
+                        )
+                    except Exception as e:
+                        print("Erro upsert pilotos:", e)
+
+                    # get piloto_id
+                    piloto_id = None
+                    try:
+                        cursor.execute('SELECT id FROM pilotos WHERE sessao_id = ? AND nome = ?', (sessao_id_atual, nome))
+                        row = cursor.fetchone()
+                        if row:
+                            piloto_id = row[0]
+                        else:
+                            print(f"⚠️ piloto_id não encontrado para {nome}, pulando.")
+                            continue
+                    except Exception as e:
+                        print("Erro ao obter piloto_id:", e)
+                        continue
+
+                    todas_voltas = getattr(j, "todas_voltas_setores", []) or []
                     Gas = getattr(j, "fuelRemainingLaps", 0)
                     delta = getattr(j, "delta_to_leader", "—")
-                    num = getattr(j, 'numero', 0)
-                    
-                    speed_trap = getattr(j, 'speed_trap', 0)
-                    if isinstance(speed_trap, list) and speed_trap:
-                        maior_speed = max(speed_trap)
-                    else:
-                        maior_speed = speed_trap if isinstance(speed_trap, (int, float)) else 0
-                    
-                    # 1. Insere ou atualiza piloto
-                    cursor.execute('''
-                    INSERT OR REPLACE INTO pilotos (sessao_id, nome, numero, posicao)
-                    VALUES (?, ?, ?, ?)
-                    ''', (sessao_id_atual, nome, num, getattr(j, 'position', 0)))
-                    
-                    # Pega o ID do piloto (robusto contra fetchone() == None)
-                    cursor.execute('SELECT id FROM pilotos WHERE sessao_id = ? AND nome = ?',
-                                  (sessao_id_atual, nome))
-                    row = cursor.fetchone()
-                    if row:
-                        piloto_id = row[0]
-                    else:
-                        # fallback: tenta buscar pelo número
-                        cursor.execute('SELECT id FROM pilotos WHERE sessao_id = ? AND numero = ?',
-                                       (sessao_id_atual, num))
-                        row2 = cursor.fetchone()
-                        if row2:
-                            piloto_id = row2[0]
-                        else:
-                            # garante que existe um piloto mínimo e pega lastrowid
-                            cursor.execute('INSERT INTO pilotos (sessao_id, nome, numero, posicao) VALUES (?, ?, ?, ?)',
-                                           (sessao_id_atual, nome, num, getattr(j, 'position', 0)))
-                            piloto_id = cursor.lastrowid
+                    maior_speed = getattr(j, 'speed_trap', 0)
+                    if isinstance(maior_speed, list) and maior_speed:
+                        maior_speed = max(maior_speed)
+                    maior_speed = maior_speed if isinstance(maior_speed, (int, float)) else 0
 
-                    # 2. Salva voltas - COM CACHE para evitar duplicatas
+                    # salvar voltas
                     for volta in todas_voltas:
-                        num_volta = volta.get('volta', 0)
-                        chave_volta = (sessao_id_atual, piloto_id, num_volta)
-                        
-                        # Pula se já salvou essa volta
-                        if chave_volta in voltas_ja_salvas:
+                        num_volta = volta.get('volta') or volta.get('lap') or volta.get('lap_number')
+                        if not num_volta or num_volta <= 0:
                             continue
-                        
-                        # Marca como salva
-                        voltas_ja_salvas[chave_volta] = True
-                        
-                        # DEBUG: mostra a volta antes de inserir
-                        # print("DEBUG: volta raw:", volta)
+                        chave_volta = (sessao_id_atual, piloto_id, int(num_volta))
+                        # só pula se a volta já foi salva COM os 3 setores completos
+                        if voltas_ja_salvas.get(chave_volta) == "complete":
+                            continue
 
-                        # tempo total (aceita vários nomes possíveis)
-                        tempo_total = volta.get('tempo_total') or volta.get('tempo') or volta.get('tempo_volta') or volta.get('lap_time')
+                        tempo_raw = (volta.get('tempo_total') or volta.get('tempo') or volta.get('tempo_volta') or volta.get('lap_time'))
+                        tempo_total_val = _norm(tempo_raw)
 
-                        # tenta obter setores por chaves diferentes
-                        s1 = volta.get('setor1')
-                        s2 = volta.get('setor2')
-                        s3 = volta.get('setor3')
+                        # Obtém tempos de setor de várias fontes possíveis
+                        s1_val = s2_val = s3_val = None
 
-                        # alternativa inglês
-                        if (s1 is None or s2 is None or s3 is None) and 'sector1' in volta:
-                            s1 = volta.get('sector1')
-                            s2 = volta.get('sector2')
-                            s3 = volta.get('sector3')
+                        # possíveis campos em português/inglês
+                        s1 = volta.get('setor1') or volta.get('sector1') or volta.get('sector_1') or volta.get('sectorOne')
+                        s2 = volta.get('setor2') or volta.get('sector2') or volta.get('sector_2') or volta.get('sectorTwo')
+                        s3 = volta.get('setor3') or volta.get('sector3') or volta.get('sector_3') or volta.get('sectorThree')
 
-                        # formato parser: lista em 'setores' -> [s1,s2,s3]
-                        if (s1 is None or s2 is None or s3 is None) and isinstance(volta.get('setores'), (list, tuple)):
-                            setores = volta.get('setores', [])
-                            s1 = s1 if s1 is not None else (setores[0] if len(setores) > 0 else None)
-                            s2 = s2 if s2 is not None else (setores[1] if len(setores) > 1 else None)
-                            s3 = s3 if s3 is not None else (setores[2] if len(setores) > 2 else None)
+                        # lista de setores
+                        setores = volta.get('setores') or volta.get('sectors') or volta.get('sector_times') or volta.get('sectors_list')
+                        if isinstance(setores, (list, tuple)) and len(setores) >= 3:
+                            s1, s2, s3 = setores[0], setores[1], setores[2]
 
-                        # normaliza: se valor parece ms (>=1000) converte pra s
-                        def _norm(v):
+                        # campos acumulados (ex.: sec1_cum, sector1_cum)
+                        sec1_cum = volta.get('sector1_cum') or volta.get('setor1_acum') or volta.get('sector_1_cum')
+                        sec2_cum = volta.get('sector2_cum') or volta.get('setor2_acum') or volta.get('sector_2_cum')
+
+                        # normaliza com _norm (ms->s etc.)
+                        def _maybe_norm(v):
+                            return _norm(v) if v is not None else None
+
+                        s1_n = _maybe_norm(s1)
+                        s2_n = _maybe_norm(s2)
+                        s3_n = _maybe_norm(s3)
+                        sec1_n = _maybe_norm(sec1_cum)
+                        sec2_n = _maybe_norm(sec2_cum)
+                        total_n = _norm(volta.get('tempo_total') or volta.get('tempo') or volta.get('lap_time') or volta.get('tempo_volta'))
+
+                        # se já tem setores diretos, usa
+                        if s1_n is not None and s2_n is not None and s3_n is not None:
+                            s1_val, s2_val, s3_val = s1_n, s2_n, s3_n
+                        # se tem tempos acumulados (sec1, sec2), calcula diferenças
+                        elif sec1_n is not None and sec2_n is not None and total_n is not None:
+                            s1_val = sec1_n
+                            s2_val = max(0.0, sec2_n - sec1_n)
+                            s3_val = max(0.0, total_n - sec2_n)
+                        # se tem apenas sec1 acumulado e total, tenta dividir restante proporcionalmente (fallback)
+                        elif sec1_n is not None and total_n is not None and s2_n is None and s3_n is None:
+                            remaining = max(0.0, total_n - sec1_n)
+                            s1_val = sec1_n
+                            s2_val = remaining * 0.5
+                            s3_val = remaining * 0.5
+                        else:
+                            # último recurso: tenta usar qualquer campo existente normalizado
+                            s1_val = s1_n
+                            s2_val = s2_n
+                            s3_val = s3_n
+
+                        # if no time info at all, skip
+                        if tempo_total_val is None and s1_n is None and s2_n is None and s3_n is None:
+                            continue
+
+                        # DEBUG opcional: descomente para inspecionar voltas que ainda ficam sem setores
+                        # if s1_val is None or s2_val is None or s3_val is None:
+                        #     print("WARN: volta sem 3 setores completos:", volta)
+
+                        try:
+                            # Determina número da volta com fallback
                             try:
-                                if v is None:
-                                    return None
-                                fv = float(v)
-                                if fv >= 1000:
-                                    return fv / 1000.0
-                                return fv
+                                nv = int(num_volta)
                             except Exception:
-                                return None
+                                nv = int(volta.get('volta') or volta.get('lap') or volta.get('lap_number') or 0)
 
-                        s1_val = _norm(s1)
-                        s2_val = _norm(s2)
-                        s3_val = _norm(s3)
-                        tempo_total_val = _norm(tempo_total)
+                            # busca existente e faz merge de setores/tempo (coalesce)
+                            cursor.execute(
+                                "SELECT id, tempo_volta, setor1, setor2, setor3 FROM voltas WHERE sessao_id=? AND piloto_id=? AND numero_volta=?",
+                                (sessao_id_atual, piloto_id, nv)
+                            )
+                            row = cursor.fetchone()
 
-                        cursor.execute('''
-                        INSERT OR REPLACE INTO voltas (sessao_id, piloto_id, numero_volta, tempo_volta, setor1, setor2, setor3)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ''', (
-                            sessao_id_atual, piloto_id,
-                            num_volta,
-                            tempo_total_val,
-                            s1_val,
-                            s2_val,
-                            s3_val
-                        ))
+                            def _coalesce(new, old):
+                                return new if new is not None else old
 
-                    # 3. Salva dados de pneus - COM INSERT OR REPLACE (só 1 registro)
-                    tyre_wear = getattr(j, 'tyre_wear', None)
-                    if not isinstance(tyre_wear, (list, tuple)):
-                        tyre_wear = [0, 0, 0, 0]
+                            if row:
+                                vid, old_tempo, old_s1, old_s2, old_s3 = row
+                                merged_s1 = _coalesce(s1_val, old_s1)
+                                merged_s2 = _coalesce(s2_val, old_s2)
+                                merged_s3 = _coalesce(s3_val, old_s3)
+                                merged_tempo = _coalesce(tempo_total_val, old_tempo)
+                                # se tempo total faltando mas tem todos os setores, soma
+                                if merged_tempo is None and merged_s1 is not None and merged_s2 is not None and merged_s3 is not None:
+                                    merged_tempo = merged_s1 + merged_s2 + merged_s3
+
+                                try:
+                                    cursor.execute('''
+                                        UPDATE voltas
+                                        SET tempo_volta = ?, setor1 = ?, setor2 = ?, setor3 = ?
+                                        WHERE id = ?
+                                    ''', (merged_tempo, merged_s1, merged_s2, merged_s3, vid))
+                                except Exception as e:
+                                    print("Erro update volta:", e)
+                            else:
+                                try:
+                                    cursor.execute('''
+                                        INSERT INTO voltas (sessao_id, piloto_id, numero_volta, tempo_volta, setor1, setor2, setor3)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                                    ''', (sessao_id_atual, piloto_id, nv, tempo_total_val, s1_val, s2_val, s3_val))
+                                except Exception as e:
+                                    print("Erro insert volta:", e)
+
+                            # commit e marca só após sucesso
+                            try:
+                                execute_with_retry(lambda: conn.commit())
+                                chave_volta = (sessao_id_atual, piloto_id, int(nv))
+                                # "complete" só quando os 3 setores estão salvos
+                                if s1_val is not None and s2_val is not None and s3_val is not None:
+                                    voltas_ja_salvas[chave_volta] = "complete"
+                                else:
+                                    voltas_ja_salvas[chave_volta] = "partial"
+                                print("✅ volta salva/atualizada:", chave_volta)
+                            except Exception as e:
+                                print("commit erro ao salvar volta:", e)
+                        except Exception as e:
+                            print("Erro ao processar salvar/atualizar volta:", e)
+
+                    # pneus
+                    tyre_wear = getattr(j, 'tyre_wear', [0, 0, 0, 0]) or [0, 0, 0, 0]
                     if isinstance(tyre_wear, tuple):
                         tyre_wear = list(tyre_wear)
                     while len(tyre_wear) < 4:
                         tyre_wear.append(0)
-
-                    temp_inner = getattr(j, 'tyres_temp_inner', None)
-                    if not isinstance(temp_inner, (list, tuple)):
-                        temp_inner = [0, 0, 0, 0]
+                    temp_inner = getattr(j, 'tyres_temp_inner', [0, 0, 0, 0]) or [0, 0, 0, 0]
                     if isinstance(temp_inner, tuple):
                         temp_inner = list(temp_inner)
                     while len(temp_inner) < 4:
                         temp_inner.append(0)
-
-                    temp_surface = getattr(j, 'tyres_temp_surface', None)
-                    if not isinstance(temp_surface, (list, tuple)):
-                        temp_surface = [0, 0, 0, 0]
+                    temp_surface = getattr(j, 'tyres_temp_surface', [0, 0, 0, 0]) or [0, 0, 0, 0]
                     if isinstance(temp_surface, tuple):
                         temp_surface = list(temp_surface)
                     while len(temp_surface) < 4:
                         temp_surface.append(0)
-
                     pit_count = pit_quant.get(nome, 0)
+                    # composto 0 = não inicializado, aguarda pacote CarStatus real
+                    _composto_raw = getattr(j, 'tyres', 0)
+                    if _composto_raw and _composto_raw != 0:
+                        try:
+                            cursor.execute('''
+                                INSERT OR REPLACE INTO pneus (sessao_id, piloto_id, tipo_pneu, idade_voltas,
+                                            desgaste_RL, desgaste_RR, desgaste_FL, desgaste_FR,
+                                            temp_interna_RL, temp_interna_RR, temp_interna_FL, temp_interna_FR,
+                                            temp_superficie_RL, temp_superficie_RR, temp_superficie_FL, temp_superficie_FR,
+                                            vida_util, tyre_set_data, lap_delta_time, pit_stops, timestamp)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (sessao_id_atual, piloto_id,
+                                  tyres_nomes.get(_composto_raw, 'Desconhecido'),
+                                  getattr(j, 'tyresAgeLaps', 0),
+                                  tyre_wear[0], tyre_wear[1], tyre_wear[2], tyre_wear[3],
+                                  temp_inner[0], temp_inner[1], temp_inner[2], temp_inner[3],
+                                  temp_surface[0], temp_surface[1], temp_surface[2], temp_surface[3],
+                                  getattr(j, 'tyre_life', 100),
+                                  getattr(j, 'tyre_set_data', 0),
+                                  getattr(j, 'm_lap_delta_time', 0),
+                                  pit_count,
+                                  time.time()))
+                        except Exception as e:
+                            print("Erro insert pneus:", e)
 
-                    cursor.execute('''
-                    INSERT OR REPLACE INTO pneus (sessao_id, piloto_id, tipo_pneu, idade_voltas,
-                                     desgaste_RL, desgaste_RR, desgaste_FL, desgaste_FR,
-                                     temp_interna_RL, temp_interna_RR, temp_interna_FL, temp_interna_FR,
-                                     temp_superficie_RL, temp_superficie_RR, temp_superficie_FL, temp_superficie_FR,
-                                     vida_util, tyre_set_data, lap_delta_time, pit_stops, timestamp)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        sessao_id_atual, piloto_id,
-                        tyres_nomes.get(getattr(j, 'tyres', 0), 'Desconhecido'),
-                        getattr(j, 'tyresAgeLaps', 0),
-                        tyre_wear[0], tyre_wear[1], tyre_wear[2], tyre_wear[3],
-                        temp_inner[0], temp_inner[1], temp_inner[2], temp_inner[3],
-                        temp_surface[0], temp_surface[1], temp_surface[2], temp_surface[3],
-                        getattr(j, 'tyre_life', 100),
-                        getattr(j, 'tyre_set_data', 0),
-                        getattr(j, 'm_lap_delta_time', 0),
-                        pit_count,
-                        time.time()
-                    ))
-                    
-                    # 4. Salva danos - COM INSERT OR REPLACE (só 1 registro)
-                    cursor.execute('''
-                    INSERT OR REPLACE INTO danos (sessao_id, piloto_id, delta_to_leader, combustivel_restante,
-                                     dano_asa_esquerda, dano_asa_direita, dano_asa_traseira,
-                                     dano_assoalho, dano_difusor, dano_sidepods, timestamp)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        sessao_id_atual, piloto_id, str(delta), Gas,
-                        getattr(j, 'FrontLeftWingDamage', 0),
-                        getattr(j, 'FrontRightWingDamage', 0),
-                        getattr(j, 'rearWingDamage', 0),
-                        getattr(j, 'floorDamage', 0),
-                        getattr(j, 'diffuserDamage', 0),
-                        getattr(j, 'sidepodDamage', 0),
-                        time.time()
-                    ))
-                    
-                    # 5. Salva telemetria - COM INSERT OR REPLACE (só 1 registro)
-                    cursor.execute('''
-                    INSERT OR REPLACE INTO telemetria (sessao_id, piloto_id, velocidade, timestamp)
-                    VALUES (?, ?, ?, ?)
-                    ''', (sessao_id_atual, piloto_id, maior_speed, time.time()))
+                    # danos
+                    try:
+                        cursor.execute('''
+                            INSERT OR REPLACE INTO danos (sessao_id, piloto_id, delta_to_leader, combustivel_restante,
+                                         dano_asa_esquerda, dano_asa_direita, dano_asa_traseira,
+                                         dano_assoalho, dano_difusor, dano_sidepods, timestamp)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (sessao_id_atual, piloto_id, str(delta), Gas,
+                              getattr(j, 'FrontLeftWingDamage', 0),
+                              getattr(j, 'FrontRightWingDamage', 0),
+                              getattr(j, 'rearWingDamage', 0),
+                              getattr(j, 'floorDamage', 0),
+                              getattr(j, 'diffuserDamage', 0),
+                              getattr(j, 'sidepodDamage', 0),
+                              time.time()))
+                    except Exception as e:
+                        print("Erro insert danos:", e)
 
-                    # ========== 6. SALVA STINTS ==========
-                    pneu_atual = tyres_nomes.get(getattr(j, 'tyres', 0), 'Desconhecido')
-                    volta_atual = getattr(j, 'currentLapNum', 1) or getattr(j, 'current_lap', 1) or 1
-                    
-                    chave_stint = (sessao_id_atual, piloto_id)
-                    
-                    # Primeira vez: inicializa stint 1
-                    if chave_stint not in ultimo_pneu_por_piloto:
-                        ultimo_pneu_por_piloto[chave_stint] = {
-                            'pneu': pneu_atual, 
-                            'volta_inicio': volta_atual, 
-                            'stint': 1
-                        }
-                        # Salva stint 1
+                    # telemetria
+                    try:
                         cursor.execute('''
-                        INSERT OR REPLACE INTO pneu_stints 
-                        (sessao_id, piloto_id, stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ''', (sessao_id_atual, piloto_id, 1, pneu_atual, volta_atual, volta_atual, 1))
-                    
-                    stint_info = ultimo_pneu_por_piloto[chave_stint]
-                    
-                    # Se mudou de pneu = novo stint (pit stop)
-                    if pneu_atual != stint_info['pneu'] and pneu_atual != 'Desconhecido':
-                        # Atualiza stint anterior (fecha)
-                        cursor.execute('''
-                        UPDATE pneu_stints 
-                        SET volta_fim = ?, total_voltas = ?
-                        WHERE sessao_id = ? AND piloto_id = ? AND stint_numero = ?
-                        ''', (
-                            volta_atual - 1,
-                            volta_atual - stint_info['volta_inicio'],
-                            sessao_id_atual, piloto_id, stint_info['stint']
-                        ))
-                        
-                        # Inicia novo stint
-                        novo_stint = stint_info['stint'] + 1
-                        cursor.execute('''
-                        INSERT OR REPLACE INTO pneu_stints 
-                        (sessao_id, piloto_id, stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ''', (sessao_id_atual, piloto_id, novo_stint, pneu_atual, volta_atual, volta_atual, 1))
-                        
-                        ultimo_pneu_por_piloto[chave_stint] = {
-                            'pneu': pneu_atual, 
-                            'volta_inicio': volta_atual, 
-                            'stint': novo_stint
-                        }
-                        print(f"🔄 {nome}: Stint {novo_stint} - {pneu_atual}")
-                    
-                    else:
-                        # Atualiza volta_fim do stint atual
-                        cursor.execute('''
-                        UPDATE pneu_stints 
-                        SET volta_fim = ?, total_voltas = ?
-                        WHERE sessao_id = ? AND piloto_id = ? AND stint_numero = ?
-                        ''', (
-                            volta_atual,
-                            volta_atual - stint_info['volta_inicio'] + 1,
-                            sessao_id_atual, piloto_id, stint_info['stint']
-                        ))
+                            INSERT OR REPLACE INTO telemetria (sessao_id, piloto_id, velocidade, timestamp)
+                            VALUES (?, ?, ?, ?)
+                        ''', (sessao_id_atual, piloto_id, maior_speed, time.time()))
+                    except Exception as e:
+                        print("Erro insert telemetria:", e)
+
+                    # stints
+                    try:
+                        # detecta volta atual (múltiplos fallbacks)
+                        volta_atual = None
+                        for a in ("currentLapNum","current_lap","current_lap_num","lap","lap_number"):
+                            v = getattr(j, a, None)
+                            if v is not None and int(v) > 0:
+                                volta_atual = int(v); break
+                        if volta_atual is None:
+                            ult = getattr(j, "todas_voltas_setores", []) or []
+                            if ult:
+                                last = ult[-1].get("volta") or ult[-1].get("lap")
+                                try: volta_atual = int(last)
+                                except: volta_atual = None
+                        if volta_atual is None: volta_atual = 1
+
+                        # BUG2 CORRIGIDO: fallback correto para tyre_wear
+                        tyre_wear = getattr(j, "tyre_wear", None)
+                        if not tyre_wear:
+                            tyre_wear = [0, 0, 0, 0]
+                        if isinstance(tyre_wear, tuple): tyre_wear = list(tyre_wear)
+                        while len(tyre_wear) < 4: tyre_wear.append(0)
+                        desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr = map(float, tyre_wear[:4])
+                        idade_volta_atual = int(getattr(j, "tyresAgeLaps", 0) or 0)
+
+                        pneu_atual = _norm_tyre(getattr(j, "tyres", None) or getattr(j, "m_visual_tyre_compound", None))
+
+                        # não salva stint se o composto ainda não veio do jogo
+                        if pneu_atual in ("DESCONHECIDO", None, ""):
+                            pass  # pula stints mas não interrompe o loop do piloto
+
+                        else:
+                            chave_stint = (sessao_id_atual, piloto_id)
+
+                            # determina próximo número de stint a partir do DB
+                            cursor.execute('SELECT MAX(stint_numero) FROM pneu_stints WHERE sessao_id = ? AND piloto_id = ?', (sessao_id_atual, piloto_id))
+                            row_max = cursor.fetchone()
+                            next_stint = (row_max[0] or 0) + 1
+
+                            # decide número do stint atual
+                            if chave_stint in ultimo_pneu_por_piloto:
+                                current_stint_num = ultimo_pneu_por_piloto[chave_stint]['stint']
+                            else:
+                                current_stint_num = next_stint
+
+                            # BUG4 CORRIGIDO: só detecta troca de pneu fora do pit
+                            piloto_no_pit = getattr(j, 'pit', False)
+                            pneu_mudou = (
+                                chave_stint in ultimo_pneu_por_piloto
+                                and pneu_atual != ultimo_pneu_por_piloto[chave_stint]['pneu']
+                                and pneu_atual != "DESCONHECIDO"
+                                and not piloto_no_pit  # ignora troca enquanto ainda na garagem
+                            )
+
+                            if pneu_mudou:
+                                prev = ultimo_pneu_por_piloto[chave_stint]
+                                fim = max(0, volta_atual - 1)
+                                total_prev = max(0, fim - prev['volta_inicio'] + 1)
+
+                                # BUG1 CORRIGIDO: usa desgaste cacheado do pneu ANTERIOR
+                                deg_fim = prev.get('desgaste_atual', prev.get('desgaste_inicio', (0,0,0,0)))
+
+                                cursor.execute('SELECT id FROM pneu_stints WHERE sessao_id=? AND piloto_id=? AND stint_numero=?', (sessao_id_atual, piloto_id, prev['stint']))
+                                r = cursor.fetchone()
+                                if r:
+                                    try:
+                                        cursor.execute('''
+                                            UPDATE pneu_stints
+                                            SET volta_fim = ?, total_voltas = ?,
+                                                desgaste_fim_rl = ?, desgaste_fim_rr = ?,
+                                                desgaste_fim_fl = ?, desgaste_fim_fr = ?
+                                            WHERE id = ?
+                                        ''', (fim, total_prev, deg_fim[0], deg_fim[1], deg_fim[2], deg_fim[3], r[0]))
+                                    except Exception as e:
+                                        print("Erro update fechar stint anterior:", e)
+
+                                novo = prev['stint'] + 1
+                                try:
+                                    cursor.execute('''
+                                        INSERT INTO pneu_stints
+                                        (sessao_id,piloto_id,piloto_nome,stint_numero,tipo_pneu,volta_inicio,volta_fim,total_voltas,
+                                         idade_volta_inicio,desgaste_inicio_rl,desgaste_inicio_rr,desgaste_inicio_fl,desgaste_inicio_fr,
+                                         desgaste_fim_rl,desgaste_fim_rr,desgaste_fim_fl,desgaste_fim_fr)
+                                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                                    ''', (sessao_id_atual, piloto_id, nome, novo, pneu_atual, volta_atual, volta_atual, 1,
+                                          idade_volta_atual, desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr,
+                                          desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr))
+                                    ultimo_pneu_por_piloto[chave_stint] = {
+                                        'pneu': pneu_atual,
+                                        'volta_inicio': volta_atual,
+                                        'stint': novo,
+                                        'idade_inicio': idade_volta_atual,
+                                        'desgaste_inicio': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
+                                        'desgaste_atual': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
+                                    }
+                                except Exception as e:
+                                    print("Erro insert novo stint:", e)
+
+                            else:
+                                # atualiza cache de desgaste atual do pneu corrente (para fechar corretamente depois)
+                                if chave_stint in ultimo_pneu_por_piloto:
+                                    ultimo_pneu_por_piloto[chave_stint]['desgaste_atual'] = (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr)
+
+                                cursor.execute('SELECT id FROM pneu_stints WHERE sessao_id=? AND piloto_id=? AND stint_numero=?', (sessao_id_atual, piloto_id, current_stint_num))
+                                existing = cursor.fetchone()
+                                if existing:
+                                    try:
+                                        cur_total = max(1, volta_atual - (ultimo_pneu_por_piloto.get(chave_stint, {}).get('volta_inicio', volta_atual)) + 1)
+                                    except Exception:
+                                        cur_total = 1
+                                    try:
+                                        cursor.execute('''
+                                            UPDATE pneu_stints
+                                            SET volta_fim = ?, total_voltas = ?,
+                                                desgaste_fim_rl = ?, desgaste_fim_rr = ?,
+                                                desgaste_fim_fl = ?, desgaste_fim_fr = ?
+                                            WHERE id = ?
+                                        ''', (volta_atual, cur_total, desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr, existing[0]))
+                                    except Exception as e:
+                                        print("Erro update stint existente:", e)
+                                else:
+                                    try:
+                                        cursor.execute('''
+                                            INSERT INTO pneu_stints
+                                            (sessao_id,piloto_id,piloto_nome,stint_numero,tipo_pneu,volta_inicio,volta_fim,total_voltas,
+                                             idade_volta_inicio,desgaste_inicio_rl,desgaste_inicio_rr,desgaste_inicio_fl,desgaste_inicio_fr,
+                                             desgaste_fim_rl,desgaste_fim_rr,desgaste_fim_fl,desgaste_fim_fr)
+                                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                                        ''', (sessao_id_atual, piloto_id, nome, current_stint_num, pneu_atual, volta_atual, volta_atual, 1,
+                                              idade_volta_atual, desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr,
+                                              desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr))
+                                    except Exception as e:
+                                        print("Erro insert stint:", e)
+
+                                if chave_stint not in ultimo_pneu_por_piloto:
+                                    ultimo_pneu_por_piloto[chave_stint] = {
+                                        'pneu': pneu_atual,
+                                        'volta_inicio': volta_atual,
+                                        'stint': current_stint_num,
+                                        'idade_inicio': idade_volta_atual,
+                                        'desgaste_inicio': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
+                                        'desgaste_atual': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
+                                    }
+                    except Exception as e:
+                        print("Erro stints:", e)
 
                 except Exception as e:
-                    print(f"❌ Erro ao salvar piloto {nome or 'Desconhecido'}: {e}")
+                    print(f"❌ Erro ao processar piloto {nome}: {e}")
                     continue
-            
-            # ✅ Commit com retry (SUBSTITUA o bloco for tentativa in range(6))
-            def _commit():
-                conn.commit()
-            
+
+            # commit com retry e fechar
             try:
-                execute_with_retry(_commit)
+                execute_with_retry(lambda: conn.commit())
             except Exception as e:
-                print(f"❌ Erro ao commitar (após retries): {e}")
+                print("❌ Erro ao commitar (após retries):", e)
             finally:
                 try:
                     conn.close()
                 except Exception:
                     pass
-            
+
+            # pruning cache
+            if len(voltas_ja_salvas) > 20000:
+                keys = list(voltas_ja_salvas.keys())
+                # remove itens de sessões antigas primeiro
+                removed = 0
+                for k in keys:
+                    if k[0] != sessao_id_atual:
+                        del voltas_ja_salvas[k]
+                        removed += 1
+                        if removed >= 5000:
+                            break
+
             await asyncio.sleep(0.5)
-        
+
         except Exception as e:
-            print(f"❌ Erro crítico no salvamento: {e}")
+            print("❌ Erro crítico no salvamento:", e)
             import traceback
             traceback.print_exc()
             await asyncio.sleep(2)
             continue
-    
-    
-    await mensagem.edit(content=f"🏁 Salvamento finalizado! Sessão #{sessao_id_atual}")
+
+    await send_or_edit(mensagem, f"🏁 Salvamento finalizado! Sessão #{sessao_id_atual}")
 @bot.command()
 async def parar_salvar(ctx):#pronto
     global TEMPO_INICIO_VOLTAS
@@ -1092,12 +1248,18 @@ def criar_tabelas():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sessao_id INTEGER,
         piloto_id INTEGER,
+        piloto_nome TEXT,
         stint_numero INTEGER,
         tipo_pneu TEXT,
         composto_real INTEGER,
         volta_inicio INTEGER,
         volta_fim INTEGER,
         total_voltas INTEGER,
+        idade_volta_inicio INTEGER,
+        desgaste_inicio_rl REAL, desgaste_inicio_rr REAL,
+        desgaste_inicio_fl REAL, desgaste_inicio_fr REAL,
+        desgaste_fim_rl REAL, desgaste_fim_rr REAL,
+        desgaste_fim_fl REAL, desgaste_fim_fr REAL,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
         FOREIGN KEY (piloto_id) REFERENCES pilotos(id),
         UNIQUE(sessao_id, piloto_id, stint_numero)

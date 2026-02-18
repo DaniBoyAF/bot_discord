@@ -25,6 +25,12 @@ def atualizar_estrutura_banco(conn):
         'pneus': [
             ("timestamp", "REAL"),
         ],
+        'danos': [
+            ("timestamp", "REAL"),
+        ],
+        'telemetria': [
+            ("timestamp", "REAL"),
+        ],
         'setups': [
             ("freio_motor", "INTEGER DEFAULT 100"),
             ("front_camber", "REAL DEFAULT -3.00"),
@@ -143,6 +149,7 @@ def criar_banco():
         dano_assoalho REAL,
         dano_difusor REAL,
         dano_sidepods REAL,
+        timestamp REAL,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
         FOREIGN KEY (piloto_id) REFERENCES pilotos(id)
     )
@@ -168,6 +175,7 @@ def criar_banco():
         combustivel_mix INTEGER,
         drs_ativo INTEGER,
         distancia_volta REAL,
+        timestamp REAL,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
         FOREIGN KEY (piloto_id) REFERENCES pilotos(id)
     )
@@ -252,10 +260,18 @@ def criar_banco():
         volta_inicio INTEGER,
         volta_fim INTEGER,
         total_voltas INTEGER,
-        desgaste_inicio REAL,
-        desgaste_fim REAL,
+        idade_volta_inicio INTEGER,
+        desgaste_inicio_rl REAL,
+        desgaste_inicio_rr REAL,
+        desgaste_inicio_fl REAL,
+        desgaste_inicio_fr REAL,
+        desgaste_fim_rl REAL,
+        desgaste_fim_rr REAL,
+        desgaste_fim_fl REAL,
+        desgaste_fim_fr REAL,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
-        FOREIGN KEY (piloto_id) REFERENCES pilotos(id)
+        FOREIGN KEY (piloto_id) REFERENCES pilotos(id),
+        UNIQUE(sessao_id, piloto_id, stint_numero)
     )
     ''')
 

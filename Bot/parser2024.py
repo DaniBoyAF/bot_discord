@@ -1150,42 +1150,18 @@ def atualizar_lapdata(pacote_lap):
             piloto.delta_to_leader = delta_min * 60 + (delta_ms / 1000)
         piloto.pit = lap.m_pit_status != 0
          
-                    # 🛞 Pneus
-        piloto.tyres = status.m_actual_tyre_compound
-        piloto.tyres_visual = status.m_visual_tyre_compound
-        piloto.tyresAgeLaps = status.m_tyres_age_laps
-            
-            # ⛽ Combustível (DADOS EM TEMPO REAL!)
-        piloto.fuel_in_tank = float(status.m_fuel_in_tank)        # kg atual
-        piloto.fuel_capacity = float(status.m_fuel_capacity)      # capacidade total
-        piloto.fuel_remaining_laps = float(status.m_fuel_remaining_laps)  # voltas restantes
-        piloto.fuel_mix = int(status.m_fuel_mix)                  # 0=Lean, 1=Std, 2=Rich, 3=Max
-            
-            # 🔋 ERS
-        piloto.ers_store_energy = float(status.m_ers_store_energy)
-        piloto.ers_deploy_mode = int(status.m_ers_deploy_mode)    # 0=None, 1=Med, 2=Hotlap, 3=Overtake
-        piloto.ers_harvested_mguk = float(status.m_ers_harvested_this_lap_mguk)
-        piloto.ers_harvested_mguh = float(status.m_ers_harvested_this_lap_mguh)
-        piloto.ers_deployed = float(status.m_ers_deployed_this_lap)
-            
-            # 🚦 DRS
-        piloto.drs_allowed = int(status.m_drs_allowed)            # 0=Não, 1=Sim
-        piloto.drs_activation_distance = int(status.m_drs_activation_distance)
-            
-            # 🚗 Assistências
-        piloto.traction_control = int(status.m_traction_control)  # 0=Off, 1=Med, 2=Full
-        piloto.anti_lock_brakes = int(status.m_anti_lock_brakes)  # 0=Off, 1=On
-        piloto.pit_limiter = int(status.m_pit_limiter_status)     # 0=Off, 1=On
-            
-            # 🏎️ Motor
-        piloto.engine_power_ice = float(status.m_engine_power_ice)
-        piloto.engine_power_mguk = float(status.m_engine_power_mguk)
         
 def atualizar_participantes(pacote_participantes):
     from Bot.jogadores import JOGADORES
     for idx, participante in enumerate(pacote_participantes.m_participants):
         piloto = JOGADORES[idx]
-        piloto.name = participante.m_name.decode('utf-8').strip('\x00')
+        try:
+            raw = participante.m_name
+            # decodifica e limpa: remove nulos, espaços extras e caracteres de controle
+            nome = raw.decode('utf-8', errors='replace').split('\x00')[0].strip()
+            piloto.name = nome if nome else piloto.name
+        except Exception:
+            pass  # mantém o nome anterior se falhar
         piloto.numero = participante.m_race_number
         piloto.m_team_id = participante.m_team_id
 def atualizar_car_status(pacote_status):
@@ -1224,41 +1200,37 @@ def atualizar_setores(pacote_setores_history):
 
     for i in range(min(num_laps, len(lap_history))):
         lap = lap_history[i]
-        if (getattr(lap, "m_sector1_time_in_ms", 0) > 0 or
-            getattr(lap, "m_sector2_time_in_ms", 0) > 0 or
-            getattr(lap, "m_sector3_time_in_ms", 0) > 0):
-            setores = []
-            tempo_total = 0.0
 
-            # Setor 1
-            if lap.m_sector1_time_in_ms > 0:
-                setor1 = lap.m_sector1_time_in_ms / 1000
-                setores.append(setor1)
-                tempo_total += setor1
-            else:
-                setores.append(0.0)
+        s1_ms  = getattr(lap, "m_sector1_time_in_ms", 0) or 0
+        s2_ms  = getattr(lap, "m_sector2_time_in_ms", 0) or 0
+        s3_ms  = getattr(lap, "m_sector3_time_in_ms", 0) or 0
+        lap_ms = getattr(lap, "m_lap_time_in_ms",     0) or 0
 
-            # Setor 2
-            if lap.m_sector2_time_in_ms > 0:
-                setor2 = lap.m_sector2_time_in_ms / 1000
-                setores.append(setor2)
-                tempo_total += setor2
-            else:
-                setores.append(0.0)
+        # pula voltas totalmente vazias
+        if lap_ms <= 0 and s1_ms <= 0 and s2_ms <= 0 and s3_ms <= 0:
+            continue
 
-            # Setor 3
-            if lap.m_sector3_time_in_ms > 0:
-                setor3 = lap.m_sector3_time_in_ms / 1000
-                setores.append(setor3)
-                tempo_total += setor3
-            else:
-                setores.append(0.0)
+        setores = [None, None, None]
+        if s1_ms > 0:
+            setores[0] = s1_ms / 1000.0
+        if s2_ms > 0:
+            setores[1] = s2_ms / 1000.0
+        if s3_ms > 0:
+            setores[2] = s3_ms / 1000.0
 
-            piloto.todas_voltas_setores.append({
-                "volta": i + 1,
-                "tempo_total": tempo_total,
-                "setores": setores
-            })
+        # usa m_lap_time_in_ms como fonte primária de tempo total
+        if lap_ms > 0:
+            tempo_total = lap_ms / 1000.0
+        elif setores[0] is not None and setores[1] is not None and setores[2] is not None:
+            tempo_total = setores[0] + setores[1] + setores[2]
+        else:
+            tempo_total = None
+
+        piloto.todas_voltas_setores.append({
+            "volta": i + 1,
+            "tempo_total": tempo_total,
+            "setores": setores
+        })
 
     # Stints de pneus
     num_stints = getattr(pacote_setores_history, "m_num_tyre_stints", 0)
