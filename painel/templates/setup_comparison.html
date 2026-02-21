@@ -477,7 +477,7 @@
             };
 
             // Canvas para Radar Chart
-            const RadarChart = ({ dA, dB }) => {
+            const RadarChart = ({ dA, dB, size = 400 }) => {
                 const canvasRef = useRef(null);
                 
                 useEffect(() => {
@@ -486,41 +486,40 @@
                     const ctx = canvas.getContext('2d');
                     const dpr = window.devicePixelRatio || 1;
                     
-                    canvas.width = 400 * dpr;
-                    canvas.height = 400 * dpr;
+                    canvas.width = size * dpr;
+                    canvas.height = size * dpr;
                     ctx.scale(dpr, dpr);
                     
-                    const w = 400, h = 400;
+                    const w = size, h = size;
                     const cx = w / 2, cy = h / 2;
                     const maxR = 140;
                     
                     ctx.clearRect(0, 0, w, h);
                     
-                    const labels = ['Velocidade', 'Downforce', 'Freios', 'Consistência', 'Degradação', 'Ritmo'];
+                    const labels = ['Vel. Reta', 'Downforce', 'Freios', 'Consistência', 'Durabilidade', 'Tração S3'];
                     const n = labels.length;
                     const angleStep = (Math.PI * 2) / n;
                     
                     // Normaliza valores (0-100)
                     const normalize = (val, min, max) => Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
                     
-                    const maxSpeed = Math.max(dA.performance.top_speed || 300, dB.performance.top_speed || 300, 300);
-                    
+                    // Usa estimativas do backend (sempre populadas, não dependem de corrida real)
                     const valsA = [
-                        normalize(dA.performance.top_speed || 0, 200, maxSpeed + 20),
-                        normalize((dA.setup.asa_dianteira || 0) + (dA.setup.asa_traseira || 0), 0, 40),
-                        normalize(dA.setup.freio_pressao || 50, 0, 100),
-                        dA.performance.consistencia || 0,
-                        normalize(100 - Math.abs(dA.performance.degradacao || 0) * 100, 0, 100),
-                        dA.performance.media_volta > 0 ? normalize(1 / dA.performance.media_volta, 0.005, 0.02) : 50
+                        dA.performance.reta_idx        || 0,   // Velocidade em reta
+                        dA.performance.curva_idx       || 0,   // Downforce / Curva
+                        normalize(dA.setup.freio_pressao || 50, 0, 100),  // Freios
+                        dA.performance.consistencia_est || dA.performance.consistencia || 0,  // Consistência
+                        normalize(100 - (dA.performance.degradacao_est || 0) * 500, 0, 100),  // Durabilidade pneu
+                        dA.performance.tracao_idx      || 0,   // Tração S3
                     ];
                     
                     const valsB = [
-                        normalize(dB.performance.top_speed || 0, 200, maxSpeed + 20),
-                        normalize((dB.setup.asa_dianteira || 0) + (dB.setup.asa_traseira || 0), 0, 40),
+                        dB.performance.reta_idx        || 0,
+                        dB.performance.curva_idx       || 0,
                         normalize(dB.setup.freio_pressao || 50, 0, 100),
-                        dB.performance.consistencia || 0,
-                        normalize(100 - Math.abs(dB.performance.degradacao || 0) * 100, 0, 100),
-                        dB.performance.media_volta > 0 ? normalize(1 / dB.performance.media_volta, 0.005, 0.02) : 50
+                        dB.performance.consistencia_est || dB.performance.consistencia || 0,
+                        normalize(100 - (dB.performance.degradacao_est || 0) * 500, 0, 100),
+                        dB.performance.tracao_idx      || 0,
                     ];
                     
                     // Grid
@@ -813,21 +812,21 @@
                                         
                                         <div className="setup-section">
                                             <h4>📊 Performance</h4>
-                                            <div className="setup-row"><span className="label">Melhor Volta</span><span className="value">{formatTime(driverA.performance.melhor_volta)}</span></div>
-                                            <div className="setup-row"><span className="label">Média</span><span className="value">{formatTime(driverA.performance.media_volta)}</span></div>
-                                            <div className="setup-row"><span className="label">Degradação</span><span className="value">{(driverA.performance.degradacao || 0).toFixed(3)}s/lap</span></div>
-                                            <div className="setup-row"><span className="label">Consistência</span><span className="value">{(driverA.performance.consistencia || 0).toFixed(1)}%</span></div>
-                                            <div className="setup-row"><span className="label">Total Voltas</span><span className="value">{driverA.performance.total_voltas}</span></div>
+                                            {driverA.performance.melhor_volta > 0 && <div className="setup-row"><span className="label">Melhor Volta</span><span className="value">{formatTime(driverA.performance.melhor_volta)}</span></div>}
+                                            {driverA.performance.media_volta > 0 && <div className="setup-row"><span className="label">Média</span><span className="value">{formatTime(driverA.performance.media_volta)}</span></div>}
+                                            <div className="setup-row"><span className="label">Top Speed <span style={{fontSize:'10px',color:'#888'}}>(est.)</span></span><span className="value" style={{color:'#0df'}}>{(driverA.performance.top_speed_est || 0).toFixed(0)} km/h</span></div>
+                                            <div className="setup-row"><span className="label">Degradação <span style={{fontSize:'10px',color:'#888'}}>(est.)</span></span><span className="value" style={{color:'#0df'}}>{(driverA.performance.degradacao_est || 0).toFixed(3)}s/lap</span></div>
+                                            <div className="setup-row"><span className="label">Consistência <span style={{fontSize:'10px',color:'#888'}}>(est.)</span></span><span className="value" style={{color:'#0df'}}>{(driverA.performance.consistencia_est || 0).toFixed(1)}%</span></div>
+                                            <div className="setup-row"><span className="label">S1 (reta)</span><span className="value" style={{color:'#0df'}}>{(driverA.performance.s1_idx || 0).toFixed(0)}</span></div>
+                                            <div className="setup-row"><span className="label">S2 (curvas)</span><span className="value" style={{color:'#0df'}}>{(driverA.performance.s2_idx || 0).toFixed(0)}</span></div>
+                                            <div className="setup-row"><span className="label">S3 (tração)</span><span className="value" style={{color:'#0df'}}>{(driverA.performance.s3_idx || 0).toFixed(0)}</span></div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* VS + Radar */}
+                                {/* VS central — só o badge, radar foi para o fim */}
                                 <div className="vs-column">
                                     <div className="vs-badge">VS</div>
-                                    <div className="radar-container">
-                                        <RadarChart dA={driverA} dB={driverB} />
-                                    </div>
                                 </div>
 
                                 {/* Card Piloto B */}
@@ -871,11 +870,14 @@
                                         
                                         <div className="setup-section">
                                             <h4>📊 Performance</h4>
-                                            <div className="setup-row"><span className="label">Melhor Volta</span><span className="value">{formatTime(driverB.performance.melhor_volta)}</span></div>
-                                            <div className="setup-row"><span className="label">Média</span><span className="value">{formatTime(driverB.performance.media_volta)}</span></div>
-                                            <div className="setup-row"><span className="label">Degradação</span><span className="value">{(driverB.performance.degradacao || 0).toFixed(3)}s/lap</span></div>
-                                            <div className="setup-row"><span className="label">Consistência</span><span className="value">{(driverB.performance.consistencia || 0).toFixed(1)}%</span></div>
-                                            <div className="setup-row"><span className="label">Total Voltas</span><span className="value">{driverB.performance.total_voltas}</span></div>
+                                            {driverB.performance.melhor_volta > 0 && <div className="setup-row"><span className="label">Melhor Volta</span><span className="value">{formatTime(driverB.performance.melhor_volta)}</span></div>}
+                                            {driverB.performance.media_volta > 0 && <div className="setup-row"><span className="label">Média</span><span className="value">{formatTime(driverB.performance.media_volta)}</span></div>}
+                                            <div className="setup-row"><span className="label">Top Speed <span style={{fontSize:'10px',color:'#888'}}>(est.)</span></span><span className="value" style={{color:'#0df'}}>{(driverB.performance.top_speed_est || 0).toFixed(0)} km/h</span></div>
+                                            <div className="setup-row"><span className="label">Degradação <span style={{fontSize:'10px',color:'#888'}}>(est.)</span></span><span className="value" style={{color:'#0df'}}>{(driverB.performance.degradacao_est || 0).toFixed(3)}s/lap</span></div>
+                                            <div className="setup-row"><span className="label">Consistência <span style={{fontSize:'10px',color:'#888'}}>(est.)</span></span><span className="value" style={{color:'#0df'}}>{(driverB.performance.consistencia_est || 0).toFixed(1)}%</span></div>
+                                            <div className="setup-row"><span className="label">S1 (reta)</span><span className="value" style={{color:'#0df'}}>{(driverB.performance.s1_idx || 0).toFixed(0)}</span></div>
+                                            <div className="setup-row"><span className="label">S2 (curvas)</span><span className="value" style={{color:'#0df'}}>{(driverB.performance.s2_idx || 0).toFixed(0)}</span></div>
+                                            <div className="setup-row"><span className="label">S3 (tração)</span><span className="value" style={{color:'#0df'}}>{(driverB.performance.s3_idx || 0).toFixed(0)}</span></div>
                                         </div>
                                     </div>
                                 </div>
@@ -923,6 +925,29 @@
                         </>
                     )}
                     
+                            {/* Radar Chart — fim da página, tamanho expandido */}
+                            <div style={{ marginTop: '30px', background: 'linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 100%)', borderRadius: '16px', padding: '30px', border: '1px solid #2a2a4a', textAlign: 'center' }}>
+                                <h3 style={{ fontSize: '16px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '6px', color: '#888' }}>
+                                    🕸️ Radar de Performance — Estimativa por Setup
+                                </h3>
+                                <p style={{ fontSize: '12px', color: '#555', marginBottom: '20px' }}>
+                                    Calculado a partir dos parâmetros do setup. Não usa dados reais de corrida.
+                                </p>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '12px' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '700', color: '#e10600' }}>
+                                        <span style={{ width: '20px', height: '3px', background: '#e10600', display: 'inline-block', borderRadius: '2px' }}></span>
+                                        {driverA.nome}
+                                    </span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '700', color: '#0072C6' }}>
+                                        <span style={{ width: '20px', height: '3px', background: '#0072C6', display: 'inline-block', borderRadius: '2px' }}></span>
+                                        {driverB.nome}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                    <RadarChart dA={driverA} dB={driverB} size={520} />
+                                </div>
+                            </div>
+
                     <div style={{ textAlign: 'center', padding: '30px', color: '#333', fontSize: '12px' }}>
                         F1 24 Setup Comparison Engine | Dados via UDP Telemetry
                     </div>

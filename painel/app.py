@@ -56,27 +56,28 @@ def setup_comparison_page():
 
 @app.route('/listar_sessoes_json')
 def listar_sessoes_json():
-    """Retorna lista de sessões em JSON para o React"""
+    """Retorna lista de sessões em JSON para o React — manuais separadas de corrida"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
-        # Lista TODAS as sessões que têm pelo menos 1 setup salvo
+
+        # Lista APENAS sessões de setup manual (clima = 'Manual')
         cursor.execute("""
-            SELECT sess.id, 
-                   sess.nome_pista, 
+            SELECT sess.id,
+                   sess.nome_pista,
                    sess.tipo_sessao,
                    sess.total_voltas,
                    COUNT(s.id) as total_setups
             FROM sessoes sess
             INNER JOIN setups s ON s.sessao_id = sess.id
+            WHERE sess.clima = 'Manual'
             GROUP BY sess.id
             HAVING total_setups >= 1
             ORDER BY sess.id DESC
         """)
-        
+
         sessoes = [dict(row) for row in cursor.fetchall()]
         conn.close()
         
@@ -643,6 +644,82 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
         print(f"Erro _dados_stints_por_sessao: {e}")
         return jsonify({"sessao": {}, "pilotos": []})
     
+
+def estimar_performance(s):
+    """
+    Estima métricas de performance a partir dos parâmetros do setup.
+    Retorna índices 0-100 e deltas estimados para o radar/cards.
+
+    Lógica F1 simplificada:
+      - Asa baixa  → mais velocidade em reta, pior curva lenta
+      - Asa alta   → mais downforce, melhor curva, pior reta
+      - Diff alto no acelerador → mais tração, especialmente S3
+      - Balanço freio traseiro  → mais estabilidade na frenagem (S1)
+      - Suspensão rígida        → consistência maior, menos grip em curva
+      - Pressão pneu alta       → desgaste rápido, degradação maior
+    """
+    asa_d  = float(s.get("asa_dianteira")  or 20)
+    asa_t  = float(s.get("asa_traseira")   or 20)
+    diff_on  = float(s.get("diff_on_throttle")  or 50)
+    diff_off = float(s.get("diff_off_throttle") or 50)
+    freio_b  = float(s.get("freio_balanco")     or 56)  # 50-70; 56 = neutro
+    susp_d   = float(s.get("suspensao_diant")   or 15)
+    susp_t   = float(s.get("suspensao_tras")    or 10)
+    barra_d  = float(s.get("barra_antirrolagem_diant") or 8)
+    barra_t  = float(s.get("barra_antirrolagem_tras")  or 7)
+    press_fl = float(s.get("pressao_pneu_fl") or 23.5)
+    press_rr = float(s.get("pressao_pneu_rr") or 22.0)
+
+    asa_media = (asa_d + asa_t) / 2.0  # 0-50
+
+    # --- Velocidade máxima estimada (asa baixa = mais rápido) ---
+    # asa_media 5  → ~340 km/h | asa_media 40 → ~295 km/h
+    top_speed_est = 340 - (asa_media * 1.1)
+    top_speed_est = max(280, min(350, top_speed_est))
+
+    # --- Índice de curva (asa alta = melhor) 0-100 ---
+    curva_idx = min(100, (asa_media / 50) * 100)
+
+    # --- Índice de reta (asa baixa = melhor) 0-100 ---
+    reta_idx  = min(100, max(0, 100 - curva_idx))
+
+    # --- Tração S3 (diff on alto = melhor saída de curva) ---
+    tracao_idx = min(100, (diff_on / 100) * 100)
+
+    # --- Estabilidade frenagem (freio balanco perto de 56 = neutro; >60 = instável atrás) ---
+    estab_freio = max(0, 100 - abs(freio_b - 56) * 3)
+
+    # --- Consistência (suspensão mais rígida = linha mais previsível) ---
+    rigidez = ((susp_d + susp_t) / 2 + (barra_d + barra_t) / 2) / 2  # 0-50
+    consistencia_est = min(100, 50 + rigidez * 1.0)
+
+    # --- Degradação (pressão alta + muita asa = mais calor = mais desgaste) ---
+    press_media = (press_fl + press_rr) / 2
+    # pressão ideal ~22.5; cada 1 PSI acima adiciona desgaste
+    deg_factor = max(0, (press_media - 22.0) * 0.8 + (asa_media / 50) * 3)
+    degradacao_est = round(deg_factor * 0.05, 3)  # s/lap
+
+    # --- Setor 1 (retas) — beneficia asa baixa, freio estável ---
+    s1_idx = (reta_idx * 0.6 + estab_freio * 0.4)
+
+    # --- Setor 2 (curvas técnicas) — beneficia asa alta, suspensão equilibrada ---
+    s2_idx = (curva_idx * 0.7 + estab_freio * 0.3)
+
+    # --- Setor 3 (misto) — beneficia tração + asa moderada ---
+    s3_idx = (tracao_idx * 0.5 + curva_idx * 0.3 + reta_idx * 0.2)
+
+    return {
+        "top_speed_est":    round(top_speed_est, 1),
+        "consistencia_est": round(consistencia_est, 1),
+        "degradacao_est":   round(degradacao_est, 3),
+        "s1_idx":           round(s1_idx, 1),
+        "s2_idx":           round(s2_idx, 1),
+        "s3_idx":           round(s3_idx, 1),
+        "curva_idx":        round(curva_idx, 1),
+        "reta_idx":         round(reta_idx, 1),
+        "tracao_idx":       round(tracao_idx, 1),
+    }
+
 @app.route("/dados_setups/<int:sessao_id>")
 def dados_setups(sessao_id):
     """Retorna todos os setups de uma sessão para comparação"""
@@ -695,19 +772,29 @@ def dados_setups(sessao_id):
                     "pressao_rr": s.get("pressao_pneu_rr") or 22.0,
                     "combustivel": s.get("combustivel_inicial") or 50,
                 },
-                "performance": {
+                "performance": (lambda est: {
                     "melhor_volta": s.get("melhor_volta") or 0,
-                    "media_volta": s.get("media_volta") or 0,
-                    "avg_s1": s.get("avg_setor1") or 0,
-                    "avg_s2": s.get("avg_setor2") or 0,
-                    "avg_s3": s.get("avg_setor3") or 0,
-                    "top_speed": s.get("top_speed") or 0,
-                    "degradacao": s.get("degradacao_media") or 0,
+                    "media_volta":  s.get("media_volta")  or 0,
+                    "avg_s1":       s.get("avg_setor1")   or 0,
+                    "avg_s2":       s.get("avg_setor2")   or 0,
+                    "avg_s3":       s.get("avg_setor3")   or 0,
+                    "top_speed":    s.get("top_speed")    or 0,
+                    "degradacao":   s.get("degradacao_media") or 0,
                     "consistencia": s.get("consistencia") or 0,
                     "total_voltas": s.get("total_voltas") or 0,
-                    "tipo_setup": s.get("tipo_setup") or "RACE",
-                    "estilo": s.get("estilo_pilotagem") or "MANUAL",
-                }
+                    "tipo_setup":   s.get("tipo_setup")   or "RACE",
+                    "estilo":       s.get("estilo_pilotagem") or "MANUAL",
+                    # estimativas calculadas sempre a partir do setup
+                    "top_speed_est":    est["top_speed_est"],
+                    "consistencia_est": est["consistencia_est"],
+                    "degradacao_est":   est["degradacao_est"],
+                    "s1_idx":           est["s1_idx"],
+                    "s2_idx":           est["s2_idx"],
+                    "s3_idx":           est["s3_idx"],
+                    "curva_idx":        est["curva_idx"],
+                    "reta_idx":         est["reta_idx"],
+                    "tracao_idx":       est["tracao_idx"],
+                })(estimar_performance(s))
             }
             pilotos.append(piloto)
             print(f"   Piloto: {piloto['nome']} | Asas: {piloto['setup']['asa_dianteira']}/{piloto['setup']['asa_traseira']}")
@@ -744,7 +831,13 @@ def salvar_setup_manual():
         colunas_existentes = [col[1] for col in cur.fetchall()]
         
         # Usa sessao_id existente OU cria nova
+        # Nota: por padrão não vinculamos setups manuais à sessão de corrida atual
+        # a menos que o front-end envie 'attach_to_session': True
         sessao_id = data.get('sessao_id')
+        attach_to_session = bool(data.get('attach_to_session', False))
+        if sessao_id and not attach_to_session:
+            # ignora sessao_id se não for para anexar ao evento atual
+            sessao_id = None
         pista = data.get('pista', 'Custom')
         categoria = data.get('categoria', 'F1')
         
@@ -787,7 +880,8 @@ def salvar_setup_manual():
             'piloto_id': piloto_id,
             'piloto_nome': data.get('piloto_nome', 'Piloto'),
             'pista': pista,
-            'tipo_sessao': categoria + ' - ' + data.get('tipo_setup', 'RACE'),
+            # mantém tipo_sessao consistente com sessão manual
+            'tipo_sessao': categoria + ' - Setup Manual',
             'asa_dianteira': int(data.get('asa_dianteira', 0)),
             'asa_traseira': int(data.get('asa_traseira', 0)),
             'diff_on_throttle': int(data.get('diff_on', 50)),
