@@ -90,15 +90,23 @@
             try {
                 const response = await fetch('/historico_sessoes');
                 const sessoes = await response.json();
-                todasSessoes = sessoes;
+                
+                // Filtra sessões de setup (clima "Manual" = setup criado manualmente)
+                const sessoesFiltradas = sessoes.filter(s => {
+                    const clima = (s.clima || '').toLowerCase();
+                    if (clima === 'manual') return false;
+                    return true;
+                });
+                
+                todasSessoes = sessoesFiltradas;
                 const container = document.getElementById('sessoes-lista');
 
-                if (!sessoes || sessoes.length === 0) {
+                if (!sessoesFiltradas || sessoesFiltradas.length === 0) {
                     container.innerHTML = `<div class="text-center py-20 col-span-full"><p class="text-xl text-gray-400">Nenhuma sessão encontrada</p></div>`;
                     return;
                 }
 
-                renderizarSessoes(sessoes);
+                renderizarSessoes(sessoesFiltradas);
             } catch (error) {
                 console.error('Erro ao carregar sessões:', error);
                 document.getElementById('sessoes-lista').innerHTML = `<div class="text-center py-20 col-span-full"><p class="text-xl text-red-500">Erro ao carregar dados</p></div>`;

@@ -56,28 +56,27 @@ def setup_comparison_page():
 
 @app.route('/listar_sessoes_json')
 def listar_sessoes_json():
-    """Retorna lista de sessões em JSON para o React — manuais separadas de corrida"""
+    """Retorna lista de sessões em JSON para o React"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-
-        # Lista APENAS sessões de setup manual (clima = 'Manual')
+        
+        # Lista TODAS as sessões que têm pelo menos 1 setup salvo
         cursor.execute("""
-            SELECT sess.id,
-                   sess.nome_pista,
+            SELECT sess.id, 
+                   sess.nome_pista, 
                    sess.tipo_sessao,
                    sess.total_voltas,
                    COUNT(s.id) as total_setups
             FROM sessoes sess
             INNER JOIN setups s ON s.sessao_id = sess.id
-            WHERE sess.clima = 'Manual'
             GROUP BY sess.id
             HAVING total_setups >= 1
             ORDER BY sess.id DESC
         """)
-
+        
         sessoes = [dict(row) for row in cursor.fetchall()]
         conn.close()
         
@@ -96,10 +95,6 @@ def listar_sessoes_json():
 def setup_manual_page():
     """Página para criar setups manualmente"""
     return render_template('setup_manual.html')
-
-@app.route("/setup_comparison")
-def setup_comparison():
-    return render_template("setup_comparison.html")
 
 @app.route("/api/setups_para_comparar")
 def setups_para_comparar():
@@ -136,24 +131,22 @@ def historico_sessoes():
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
-        # Verifica se coluna nome_customizado existe
+        # Verifica colunas existentes
         cur.execute("PRAGMA table_info(sessoes)")
         colunas = [col[1] for col in cur.fetchall()]
         
+        # Monta campos dinamicamente
+        campos = ["id", "nome_pista", "tipo_sessao", "data_hora", "total_voltas", "velocidade_maxima_geral"]
+        
         if "nome_customizado" in colunas:
-            cur.execute("""
-                SELECT id, nome_pista, nome_customizado, tipo_sessao, data_hora, 
-                       total_voltas, velocidade_maxima_geral
-                FROM sessoes 
-                ORDER BY id DESC
-            """)
-        else:
-            cur.execute("""
-                SELECT id, nome_pista, NULL as nome_customizado, tipo_sessao, data_hora, 
-                       total_voltas, velocidade_maxima_geral
-                FROM sessoes 
-                ORDER BY id DESC
-            """)
+            campos.append("nome_customizado")
+        
+        if "clima" in colunas:
+            campos.append("clima")
+        
+        campos_sql = ", ".join(campos)
+        
+        cur.execute(f"SELECT {campos_sql} FROM sessoes ORDER BY id DESC")
         
         sessoes = [dict(r) for r in cur.fetchall()]
         conn.close()
@@ -644,82 +637,6 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
         print(f"Erro _dados_stints_por_sessao: {e}")
         return jsonify({"sessao": {}, "pilotos": []})
     
-
-def estimar_performance(s):
-    """
-    Estima métricas de performance a partir dos parâmetros do setup.
-    Retorna índices 0-100 e deltas estimados para o radar/cards.
-
-    Lógica F1 simplificada:
-      - Asa baixa  → mais velocidade em reta, pior curva lenta
-      - Asa alta   → mais downforce, melhor curva, pior reta
-      - Diff alto no acelerador → mais tração, especialmente S3
-      - Balanço freio traseiro  → mais estabilidade na frenagem (S1)
-      - Suspensão rígida        → consistência maior, menos grip em curva
-      - Pressão pneu alta       → desgaste rápido, degradação maior
-    """
-    asa_d  = float(s.get("asa_dianteira")  or 20)
-    asa_t  = float(s.get("asa_traseira")   or 20)
-    diff_on  = float(s.get("diff_on_throttle")  or 50)
-    diff_off = float(s.get("diff_off_throttle") or 50)
-    freio_b  = float(s.get("freio_balanco")     or 56)  # 50-70; 56 = neutro
-    susp_d   = float(s.get("suspensao_diant")   or 15)
-    susp_t   = float(s.get("suspensao_tras")    or 10)
-    barra_d  = float(s.get("barra_antirrolagem_diant") or 8)
-    barra_t  = float(s.get("barra_antirrolagem_tras")  or 7)
-    press_fl = float(s.get("pressao_pneu_fl") or 23.5)
-    press_rr = float(s.get("pressao_pneu_rr") or 22.0)
-
-    asa_media = (asa_d + asa_t) / 2.0  # 0-50
-
-    # --- Velocidade máxima estimada (asa baixa = mais rápido) ---
-    # asa_media 5  → ~340 km/h | asa_media 40 → ~295 km/h
-    top_speed_est = 340 - (asa_media * 1.1)
-    top_speed_est = max(280, min(350, top_speed_est))
-
-    # --- Índice de curva (asa alta = melhor) 0-100 ---
-    curva_idx = min(100, (asa_media / 50) * 100)
-
-    # --- Índice de reta (asa baixa = melhor) 0-100 ---
-    reta_idx  = min(100, max(0, 100 - curva_idx))
-
-    # --- Tração S3 (diff on alto = melhor saída de curva) ---
-    tracao_idx = min(100, (diff_on / 100) * 100)
-
-    # --- Estabilidade frenagem (freio balanco perto de 56 = neutro; >60 = instável atrás) ---
-    estab_freio = max(0, 100 - abs(freio_b - 56) * 3)
-
-    # --- Consistência (suspensão mais rígida = linha mais previsível) ---
-    rigidez = ((susp_d + susp_t) / 2 + (barra_d + barra_t) / 2) / 2  # 0-50
-    consistencia_est = min(100, 50 + rigidez * 1.0)
-
-    # --- Degradação (pressão alta + muita asa = mais calor = mais desgaste) ---
-    press_media = (press_fl + press_rr) / 2
-    # pressão ideal ~22.5; cada 1 PSI acima adiciona desgaste
-    deg_factor = max(0, (press_media - 22.0) * 0.8 + (asa_media / 50) * 3)
-    degradacao_est = round(deg_factor * 0.05, 3)  # s/lap
-
-    # --- Setor 1 (retas) — beneficia asa baixa, freio estável ---
-    s1_idx = (reta_idx * 0.6 + estab_freio * 0.4)
-
-    # --- Setor 2 (curvas técnicas) — beneficia asa alta, suspensão equilibrada ---
-    s2_idx = (curva_idx * 0.7 + estab_freio * 0.3)
-
-    # --- Setor 3 (misto) — beneficia tração + asa moderada ---
-    s3_idx = (tracao_idx * 0.5 + curva_idx * 0.3 + reta_idx * 0.2)
-
-    return {
-        "top_speed_est":    round(top_speed_est, 1),
-        "consistencia_est": round(consistencia_est, 1),
-        "degradacao_est":   round(degradacao_est, 3),
-        "s1_idx":           round(s1_idx, 1),
-        "s2_idx":           round(s2_idx, 1),
-        "s3_idx":           round(s3_idx, 1),
-        "curva_idx":        round(curva_idx, 1),
-        "reta_idx":         round(reta_idx, 1),
-        "tracao_idx":       round(tracao_idx, 1),
-    }
-
 @app.route("/dados_setups/<int:sessao_id>")
 def dados_setups(sessao_id):
     """Retorna todos os setups de uma sessão para comparação"""
@@ -772,29 +689,19 @@ def dados_setups(sessao_id):
                     "pressao_rr": s.get("pressao_pneu_rr") or 22.0,
                     "combustivel": s.get("combustivel_inicial") or 50,
                 },
-                "performance": (lambda est: {
+                "performance": {
                     "melhor_volta": s.get("melhor_volta") or 0,
-                    "media_volta":  s.get("media_volta")  or 0,
-                    "avg_s1":       s.get("avg_setor1")   or 0,
-                    "avg_s2":       s.get("avg_setor2")   or 0,
-                    "avg_s3":       s.get("avg_setor3")   or 0,
-                    "top_speed":    s.get("top_speed")    or 0,
-                    "degradacao":   s.get("degradacao_media") or 0,
+                    "media_volta": s.get("media_volta") or 0,
+                    "avg_s1": s.get("avg_setor1") or 0,
+                    "avg_s2": s.get("avg_setor2") or 0,
+                    "avg_s3": s.get("avg_setor3") or 0,
+                    "top_speed": s.get("top_speed") or 0,
+                    "degradacao": s.get("degradacao_media") or 0,
                     "consistencia": s.get("consistencia") or 0,
                     "total_voltas": s.get("total_voltas") or 0,
-                    "tipo_setup":   s.get("tipo_setup")   or "RACE",
-                    "estilo":       s.get("estilo_pilotagem") or "MANUAL",
-                    # estimativas calculadas sempre a partir do setup
-                    "top_speed_est":    est["top_speed_est"],
-                    "consistencia_est": est["consistencia_est"],
-                    "degradacao_est":   est["degradacao_est"],
-                    "s1_idx":           est["s1_idx"],
-                    "s2_idx":           est["s2_idx"],
-                    "s3_idx":           est["s3_idx"],
-                    "curva_idx":        est["curva_idx"],
-                    "reta_idx":         est["reta_idx"],
-                    "tracao_idx":       est["tracao_idx"],
-                })(estimar_performance(s))
+                    "tipo_setup": s.get("tipo_setup") or "RACE",
+                    "estilo": s.get("estilo_pilotagem") or "MANUAL",
+                }
             }
             pilotos.append(piloto)
             print(f"   Piloto: {piloto['nome']} | Asas: {piloto['setup']['asa_dianteira']}/{piloto['setup']['asa_traseira']}")
@@ -1017,6 +924,248 @@ def setup_editor_page():
     """Página para criar/editar setups manualmente"""
     return render_template('setup_editor.html')
 
+
+@app.route("/api/telemetry_insights/<int:sessao_id>")
+def telemetry_insights(sessao_id):
+    """Retorna dados para a página Telemetry Insights - comparação entre dois pilotos"""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        # Info sessão
+        cur.execute("SELECT * FROM sessoes WHERE id = ?", (sessao_id,))
+        sessao_row = cur.fetchone()
+        sessao = dict(sessao_row) if sessao_row else {}
+
+        if not sessao:
+            conn.close()
+            return jsonify({"erro": "Sessão não encontrada", "sessao": {}, "pilotos": []})
+
+        # Pilotos únicos da sessão ordenados por posição
+        cur.execute("""
+            SELECT p.id, p.nome, p.numero, p.posicao
+            FROM pilotos p
+            INNER JOIN (
+                SELECT nome, MAX(id) as max_id FROM pilotos WHERE sessao_id = ? GROUP BY nome
+            ) latest ON p.id = latest.max_id
+            ORDER BY p.posicao
+        """, (sessao_id,))
+        pilotos_raw = [dict(r) for r in cur.fetchall()]
+
+        if not pilotos_raw:
+            conn.close()
+            return jsonify({"sessao": sessao, "pilotos": []})
+
+        # Verifica colunas disponíveis nas tabelas
+        cur.execute("PRAGMA table_info(voltas)")
+        voltas_cols = [col[1] for col in cur.fetchall()]
+
+        cur.execute("PRAGMA table_info(pneus)")
+        pneus_cols = [col[1] for col in cur.fetchall()]
+
+        # Verifica se tabela telemetria existe
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='telemetria'")
+        tem_telemetria = cur.fetchone() is not None
+
+        # Verifica se tabela danos existe (para velocidade)
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='danos'")
+        tem_danos = cur.fetchone() is not None
+
+        import math
+
+        resultado = []
+        for p in pilotos_raw:
+            pid = p["id"]
+            nome = p["nome"]
+
+            # ── VOLTAS ──
+            # Busca todas as voltas do piloto (por sessao_id E piloto_id, OU só sessao_id + nome)
+            cur.execute("""
+                SELECT numero_volta, tempo_volta, setor1, setor2, setor3
+                FROM voltas
+                WHERE sessao_id = ? AND piloto_id = ?
+                ORDER BY numero_volta
+            """, (sessao_id, pid))
+            voltas_raw = [dict(r) for r in cur.fetchall()]
+
+            # Se não achou por piloto_id, tenta por todos os piloto_ids com mesmo nome
+            if not voltas_raw:
+                cur.execute("""
+                    SELECT id FROM pilotos WHERE sessao_id = ? AND nome = ?
+                """, (sessao_id, nome))
+                all_pids = [r[0] for r in cur.fetchall()]
+                if all_pids:
+                    placeholders = ",".join("?" * len(all_pids))
+                    cur.execute(f"""
+                        SELECT numero_volta, tempo_volta, setor1, setor2, setor3
+                        FROM voltas
+                        WHERE sessao_id = ? AND piloto_id IN ({placeholders})
+                        ORDER BY numero_volta
+                    """, [sessao_id] + all_pids)
+                    voltas_raw = [dict(r) for r in cur.fetchall()]
+
+            # Filtra voltas válidas (tempo > 10s, ignora outlap/inlap)
+            voltas = []
+            for v in voltas_raw:
+                t = v.get("tempo_volta")
+                if t is not None and t > 10:
+                    voltas.append(v)
+
+            tempos = [v["tempo_volta"] for v in voltas if v["tempo_volta"]]
+            s1_list = [v["setor1"] for v in voltas if v["setor1"] and v["setor1"] > 0]
+            s2_list = [v["setor2"] for v in voltas if v["setor2"] and v["setor2"] > 0]
+            s3_list = [v["setor3"] for v in voltas if v["setor3"] and v["setor3"] > 0]
+
+            melhor = min(tempos) if tempos else 0
+            media = sum(tempos) / len(tempos) if tempos else 0
+
+            # Remove outliers (> media * 1.08)
+            limpo = [t for t in tempos if t < media * 1.08] if media else tempos
+            media_limpa = sum(limpo) / len(limpo) if limpo else media
+
+            # Consistência
+            if len(limpo) > 1:
+                dp = math.sqrt(sum((t - media_limpa) ** 2 for t in limpo) / len(limpo))
+                consistencia = max(0, round(100 - (dp / media_limpa * 100), 1))
+            else:
+                consistencia = 0.0
+
+            # Degradação (slope)
+            degradacao = 0.0
+            if len(limpo) >= 3:
+                n = len(limpo)
+                x_mean = (n - 1) / 2
+                y_mean = sum(limpo) / n
+                num = sum((i - x_mean) * (limpo[i] - y_mean) for i in range(n))
+                den = sum((i - x_mean) ** 2 for i in range(n))
+                degradacao = round(num / den, 4) if den else 0.0
+
+            # ── TOP SPEED ──
+            top_speed = 0
+            # Tenta telemetria
+            if tem_telemetria:
+                try:
+                    cur.execute("PRAGMA table_info(telemetria)")
+                    tel_cols = [c[1] for c in cur.fetchall()]
+                    speed_col = None
+                    for candidate in ['velocidade', 'speed', 'top_speed', 'velocidade_maxima']:
+                        if candidate in tel_cols:
+                            speed_col = candidate
+                            break
+                    if speed_col:
+                        cur.execute(f"""
+                            SELECT MAX({speed_col}) as max_speed
+                            FROM telemetria
+                            WHERE sessao_id = ? AND piloto_id = ?
+                        """, (sessao_id, pid))
+                        row = cur.fetchone()
+                        if row and row["max_speed"]:
+                            top_speed = float(row["max_speed"])
+                except Exception:
+                    pass
+
+            # Fallback: tenta danos (alguns projetos gravam velocidade lá)
+            if top_speed == 0 and tem_danos:
+                try:
+                    cur.execute("PRAGMA table_info(danos)")
+                    danos_cols = [c[1] for c in cur.fetchall()]
+                    for candidate in ['velocidade', 'speed', 'top_speed']:
+                        if candidate in danos_cols:
+                            cur.execute(f"""
+                                SELECT MAX({candidate}) as max_speed
+                                FROM danos
+                                WHERE sessao_id = ? AND piloto_id = ?
+                            """, (sessao_id, pid))
+                            row = cur.fetchone()
+                            if row and row["max_speed"]:
+                                top_speed = float(row["max_speed"])
+                                break
+                except Exception:
+                    pass
+
+            # Fallback: sessão velocidade_maxima_geral
+            if top_speed == 0:
+                top_speed = float(sessao.get("velocidade_maxima_geral") or 0)
+
+            # ── SETORES MÉDIOS ──
+            avg_s1 = round(sum(s1_list) / len(s1_list), 3) if s1_list else 0
+            avg_s2 = round(sum(s2_list) / len(s2_list), 3) if s2_list else 0
+            avg_s3 = round(sum(s3_list) / len(s3_list), 3) if s3_list else 0
+            best_s1 = round(min(s1_list), 3) if s1_list else 0
+            best_s2 = round(min(s2_list), 3) if s2_list else 0
+            best_s3 = round(min(s3_list), 3) if s3_list else 0
+
+            # ── PNEU ──
+            pneu = {}
+            try:
+                cur.execute("""
+                    SELECT * FROM pneus
+                    WHERE sessao_id = ? AND piloto_id = ?
+                    ORDER BY id DESC LIMIT 1
+                """, (sessao_id, pid))
+                pneu_row = cur.fetchone()
+                if pneu_row:
+                    pneu = dict(pneu_row)
+            except Exception:
+                pass
+
+            # ── MONTA VOLTAS PARA FRONTEND ──
+            voltas_frontend = []
+            for v in voltas:
+                voltas_frontend.append({
+                    "n": v["numero_volta"],
+                    "t": v["tempo_volta"],
+                    "s1": v["setor1"] if v["setor1"] and v["setor1"] > 0 else None,
+                    "s2": v["setor2"] if v["setor2"] and v["setor2"] > 0 else None,
+                    "s3": v["setor3"] if v["setor3"] and v["setor3"] > 0 else None,
+                })
+
+            resultado.append({
+                "id": pid,
+                "nome": nome,
+                "numero": p["numero"],
+                "posicao": p["posicao"],
+                "melhor_volta": round(melhor, 3),
+                "media_volta": round(media_limpa, 3),
+                "consistencia": consistencia,
+                "degradacao": degradacao,
+                "top_speed": round(top_speed, 1),
+                "avg_s1": avg_s1,
+                "avg_s2": avg_s2,
+                "avg_s3": avg_s3,
+                "best_s1": best_s1,
+                "best_s2": best_s2,
+                "best_s3": best_s3,
+                "total_voltas": len(tempos),
+                "voltas": voltas_frontend,
+                "pneu": pneu,
+            })
+
+        conn.close()
+
+        # Debug
+        for r in resultado:
+            print(f"📊 {r['nome']}: {r['total_voltas']} voltas, best={r['melhor_volta']}, avg={r['media_volta']}, s1={r['avg_s1']}, s2={r['avg_s2']}, s3={r['avg_s3']}")
+
+        return jsonify({"sessao": sessao, "pilotos": resultado})
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"erro": str(e), "sessao": {}, "pilotos": []}), 500
+
+
+@app.route("/Comparar")
+def telemetry_insights_page():
+    return render_template("Comparar.html")
+
 if __name__ == "__main__":
     print(f"[INFO] STATIC_PATH: {STATIC_PATH}")
+    print()
+    print("🚀 Servidor rodando!")
+    print("Acesse: http://localhost:5000/")
+    print("=" * 50)
+    print()
     app.run(host="0.0.0.0", port=5000, debug=True)

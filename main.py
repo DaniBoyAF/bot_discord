@@ -66,6 +66,7 @@ TEMPO_INICIO_TABELA = False
 TEMPO_INICIO_VOLTAS = False
 TEMPO_INICIO_TABELA_Q = False
 sessao_id_atual = None
+session_type_atual = None  # 🆕 rastreia o tipo de sessão atual
 public_url = None
 _cloudflared_proc = None
 inicio= time.time()
@@ -538,6 +539,7 @@ async def volta_salvar(bot):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (nome_pista, tipo_sessao, total_voltas, clima, temp_ar, temp_pista, chuva, safety, flag, 0))
             sessao_id_atual = cur.lastrowid
+            session_type_atual = getattr(SESSION, "m_session_type", 0)  # 🆕 salva o tipo inicial
             execute_with_retry(lambda: conn.commit())
             print(f"✅ Sessão criada: #{sessao_id_atual} | {nome_pista} | {tipo_sessao}")
             await send_or_edit(mensagem, f"✅ Sessão criada: **{nome_pista}** (#{sessao_id_atual})")
@@ -572,6 +574,62 @@ async def volta_salvar(bot):
 
     while TEMPO_INICIO_VOLTAS:
         try:
+            # ══════════════════════════════════════════════════
+            # 🆕 DETECTA TROCA DE SESSÃO (Qualy → Race, etc.)
+            # ══════════════════════════════════════════════════
+            global session_type_atual
+            novo_session_type = getattr(SESSION, "m_session_type", 0)
+            
+            if session_type_atual is not None and novo_session_type != session_type_atual and novo_session_type != 0:
+                # Tipo de sessão mudou! (ex: Qualy → Race)
+                tipo_antigo = session_dictionary.get(session_type_atual, "Desconhecido")
+                tipo_novo = session_dictionary.get(novo_session_type, "Desconhecido")
+                print(f"🔄 TROCA DE SESSÃO DETECTADA: {tipo_antigo} → {tipo_novo}")
+                
+                # Cria nova sessão no banco
+                nome_pista = get_track_name(getattr(SESSION, "m_track_id", -1)) or "Unknown Track"
+                tipo_sessao = tipo_novo
+                total_voltas = getattr(SESSION, "m_total_laps", 0) or 0
+                clima_val = weather_dictionary.get(getattr(SESSION, "m_weather", 0), "Desconhecido")
+                temp_ar = getattr(SESSION, "m_air_temperature", 0)
+                temp_pista = getattr(SESSION, "m_track_temperature", 0)
+                chuva_val = getattr(SESSION, "rainPercentage", 0)
+                safety_val = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
+                flag_val = getattr(SESSION, "m_zone_flag", "Verde")
+
+                conn_new = db_connect()
+                cur_new = conn_new.cursor()
+                try:
+                    cur_new.execute('''
+                        INSERT INTO sessoes (nome_pista, tipo_sessao, total_voltas, clima,
+                                            temperatura_ar, temperatura_pista, porcentagem_chuva,
+                                            safety_car_status, flag, velocidade_maxima_geral)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (nome_pista, tipo_sessao, total_voltas, clima_val, temp_ar, temp_pista, chuva_val, safety_val, flag_val, 0))
+                    sessao_id_atual = cur_new.lastrowid
+                    execute_with_retry(lambda: conn_new.commit())
+                    print(f"✅ Nova sessão criada: #{sessao_id_atual} | {nome_pista} | {tipo_sessao}")
+                    
+                    # Limpa caches da sessão anterior
+                    voltas_ja_salvas.clear()
+                    ultimo_pneu_por_piloto.clear()
+                    pit_quant.clear()
+                    
+                    # Notifica no Discord
+                    try:
+                        await send_or_edit(mensagem, f"🔄 Nova sessão detectada: **{tipo_sessao}** em {nome_pista} (#{sessao_id_atual})")
+                    except Exception:
+                        pass
+                except Exception as e:
+                    print(f"❌ Erro ao criar nova sessão na troca: {e}")
+                finally:
+                    conn_new.close()
+            
+            # Atualiza o tipo atual (só se não for 0/desconhecido)
+            if novo_session_type != 0:
+                session_type_atual = novo_session_type
+            # ══════════════════════════════════════════════════
+
             jogadores = get_jogadores()
             if not jogadores:
                 await asyncio.sleep(1)
@@ -796,7 +854,7 @@ async def volta_salvar(bot):
                                             temp_interna_RL, temp_interna_RR, temp_interna_FL, temp_interna_FR,
                                             temp_superficie_RL, temp_superficie_RR, temp_superficie_FL, temp_superficie_FR,
                                             vida_util, tyre_set_data, lap_delta_time, pit_stops, timestamp)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (sessao_id_atual, piloto_id,
                                   tyres_nomes.get(_composto_raw, 'Desconhecido'),
                                   getattr(j, 'tyresAgeLaps', 0),
@@ -1616,7 +1674,7 @@ async def _monitorar_e_atualizar_nome_sessao(sessao_id, timeout=300, intervalo=1
     last_written = None
     while waited < timeout:
         nome_pista_raw = getattr(SESSION, "track_name", None) or getattr(SESSION, "m_track_name", None)
-        track_id = getattr(SESSION, "m_track_id", None)
+        track_id = getattr(SESSION, "m_track_id", -1)
         nome = None
         if track_id not in (None, -1):
             nome = get_track_name(track_id)
@@ -1761,7 +1819,17 @@ try:
     import Server_20 as ws_server
 except Exception :
     ws_server = None
-
+@bot.command()
+async def drive_compare(ctx):
+    """Link para comparação de setups na web"""
+    if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+    await ctx.send(f"🔗 Painel disponível ver a corrida: {url}/Comparar")
+try:
+    import Server_20 as ws_server
+except Exception :
+    ws_server = None
 if __name__ == "__main__":
     import threading
     if ws_server: 

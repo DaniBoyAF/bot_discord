@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telemetry Insights</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #06070f;
+    --panel:     #0d0f1c;
+    --border:    #1a1d2e;
+    --border2:   #252840;
+    --red:       #e10600;
+    --blue:      #0090d0;
+    --cyan:      #00c8ff;
+    --green:     #00e87a;
+    --yellow:    #ffc000;
+    --orange:    #ff8c00;
+    --text:      #e8eaf6;
+    --muted:     #5a5d78;
+    --label:     #8a8db0;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px
+    );
+  }
+
+  #root { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+  .ti-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px;
+    background: linear-gradient(90deg, #0d0f1c 0%, #0a0c18 100%);
+    border: 1px solid var(--border2);
+    border-radius: 8px; margin-bottom: 16px;
+    box-shadow: 0 0 40px rgba(0,144,208,0.06);
+  }
+  .ti-logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px; font-weight: 700;
+    color: var(--cyan);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-left: 3px solid var(--red);
+    padding-left: 12px;
+  }
+  .ti-logo span { color: var(--muted); font-weight: 400; }
+  .ti-track { margin-left: auto; font-size: 13px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab-btn {
+    padding: 8px 22px; font-family: 'Rajdhani', sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; border: none; cursor: pointer;
+    background: var(--panel); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 4px;
+    transition: all .2s;
+  }
+  .tab-btn.active {
+    background: var(--cyan); color: #000;
+    border-color: var(--cyan);
+    box-shadow: 0 0 16px rgba(0,200,255,0.3);
+  }
+
+  .sess-select-row { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+  select {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--border2); border-radius: 4px;
+    padding: 8px 12px; font-family: 'Rajdhani', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer; outline: none;
+    min-width: 200px;
+  }
+  select:focus { border-color: var(--cyan); }
+  .sess-label { color: var(--label); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; font-size: 12px; }
+
+  .driver-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .driver-pill {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; border-radius: 4px;
+    border: 1px solid; cursor: pointer; transition: all .2s;
+    font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .driver-pill.ref  { border-color: var(--red);  background: rgba(225,6,0,0.12);   color: var(--text); }
+  .driver-pill.comp { border-color: var(--blue);  background: rgba(0,144,208,0.12); color: var(--text); }
+  .driver-pill.idle { border-color: var(--border); background: var(--panel); color: var(--muted); }
+  .driver-pill.ref:hover  { background: rgba(225,6,0,0.22); }
+  .driver-pill.comp:hover { background: rgba(0,144,208,0.22); }
+  .driver-pill.idle:hover { background: var(--border); }
+  .pill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .pill-dot.r { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .pill-dot.b { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+  .badge-ref  { display:inline-block; padding:2px 8px; border-radius:3px; font-size:10px; font-weight:700; background:rgba(225,6,0,0.25); color:var(--red); border:1px solid rgba(225,6,0,0.4); }
+  .badge-comp { display:inline-block; padding:2px 8px; border-radius:3px; font-size:10px; font-weight:700; background:rgba(0,144,208,0.25); color:var(--blue); border:1px solid rgba(0,144,208,0.4); }
+
+  .cmp-bar {
+    background: linear-gradient(90deg, rgba(225,6,0,0.08), transparent 40%, rgba(0,144,208,0.08));
+    border: 1px solid var(--border2); border-radius: 6px;
+    padding: 14px 20px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .cmp-title { font-size: 13px; color: var(--label); font-weight: 600; flex: 1; }
+  .cmp-delta { font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 700; padding: 4px 14px; border-radius: 4px; }
+  .cmp-delta.pos { color: var(--blue); background: rgba(0,144,208,0.15); border: 1px solid rgba(0,144,208,0.3); }
+  .cmp-delta.neg { color: var(--red);  background: rgba(225,6,0,0.15);   border: 1px solid rgba(225,6,0,0.3); }
+  .cmp-delta.zero{ color: var(--green);background: rgba(0,232,122,0.1);  border: 1px solid rgba(0,232,122,0.3); }
+
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  @media(max-width:900px){ .metrics-grid { grid-template-columns: 1fr; } }
+  .metric-card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 16px; }
+  .metric-card-title { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .metric-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .metric-row:last-child { margin-bottom: 0; }
+  .metric-name { font-size: 12px; color: var(--label); font-weight: 600; min-width: 110px; flex-shrink: 0; }
+  .metric-bar-wrap { flex: 1; position: relative; height: 6px; background: var(--border); border-radius: 3px; overflow: visible; }
+  .metric-bar-fill { position: absolute; top: 0; height: 6px; border-radius: 3px; transition: width .5s ease; }
+  .metric-bar-fill.r { background: var(--red); left: 0; }
+  .metric-bar-fill.b { background: var(--blue); left: 0; }
+
+  .sector-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 20px; margin-bottom: 14px; }
+  .sector-panel-title { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .sector-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .sector-col { text-align: center; }
+  .sector-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .sector-delta { font-family: 'Orbitron', monospace; font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .sector-delta.pos  { color: var(--blue); }
+  .sector-delta.neg  { color: var(--red); }
+  .sector-delta.zero { color: var(--green); }
+  .sector-sub { font-size: 11px; color: var(--muted); }
+
+  .lap-table { width: 100%; border-collapse: collapse; }
+  .lap-table th { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: right; }
+  .lap-table th:first-child { text-align: left; }
+  .lap-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 13px; font-family: 'Orbitron', monospace; font-weight: 400; text-align: right; color: var(--text); }
+  .lap-table td:first-child { text-align: left; color: var(--muted); font-family: 'Rajdhani', sans-serif; font-weight: 600; }
+  .lap-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .lap-table .best-lap td { color: var(--yellow); }
+  .driver-tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width:900px){ .driver-tables-grid { grid-template-columns: 1fr; } }
+  .driver-tbl-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 8px 14px; border-radius: 4px; margin-bottom: 8px; display: inline-block; }
+  .driver-tbl-label.r { background: rgba(225,6,0,0.2); color: var(--red); border: 1px solid rgba(225,6,0,0.3); }
+  .driver-tbl-label.b { background: rgba(0,144,208,0.2); color: var(--blue); border: 1px solid rgba(0,144,208,0.3); }
+
+  .lap-chart-container {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .lap-chart-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 16px; font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .lap-chart-legend {
+    display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+    padding: 4px 10px; border-radius: 4px;
+    border: 1px solid var(--border);
+    cursor: pointer; transition: all .2s;
+  }
+  .legend-item.active { background: rgba(255,255,255,0.05); }
+  .legend-item .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-item .legend-x {
+    font-size: 10px; color: var(--muted); margin-left: 4px; cursor: pointer;
+    font-weight: 700;
+  }
+  .legend-item .legend-x:hover { color: var(--red); }
+  .chart-controls {
+    display: flex; gap: 8px; margin-top: 12px; justify-content: center;
+  }
+  .chart-ctrl-btn {
+    padding: 8px 20px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    border: 1px dashed var(--border2);
+    background: transparent; color: var(--muted);
+    cursor: pointer; border-radius: 4px;
+    transition: all .2s;
+  }
+  .chart-ctrl-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .chart-ctrl-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,200,255,0.08); border-style: solid; }
+  .chart-axis-label {
+    font-size: 11px; color: var(--muted); font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+  .chart-toggle-row {
+    display: flex; gap: 12px; justify-content: center; margin-top: 8px;
+  }
+
+  .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 40vh; gap: 16px; }
+  .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--border2); border-top-color: var(--cyan); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state h2 { font-family: 'Orbitron', monospace; font-size: 18px; color: var(--border2); margin-bottom: 10px; }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .fade-in { animation: fadeUp .35s ease both; }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+{% raw %}
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+const fmt = (t) => {
+  if (!t || t === 0) return '--:--.---';
+  const m = Math.floor(t / 60);
+  const s = t - m * 60;
+  return `${m}:${s.toFixed(3).padStart(6,'0')}`;
+};
+const fmtS = (s) => (!s || s === 0) ? '---.---' : s.toFixed(3);
+const COLORS = ['#ff8c00','#00b4ff','#00e87a','#e10600','#ffc000','#c850c0','#00ffd5','#ff4081','#7c4dff','#64dd17','#ff6e40','#18ffff','#eeff41','#f50057','#00e5ff','#ffab40','#69f0ae','#ea80fc','#b2ff59','#ff80ab'];
+
+// ─── Transforma dados do /dados_voltas em formato interno ───
+function transformDadosVoltas(raw) {
+  const pilotos = (raw.pilotos || []).map((p, idx) => {
+    const voltas = (p.voltas || [])
+      .filter(v => v.tempo_total && v.tempo_total > 10)
+      .map(v => ({
+        n: v.numero_volta,
+        t: v.tempo_total,
+        s1: (v.setor1 && v.setor1 > 0) ? v.setor1 : null,
+        s2: (v.setor2 && v.setor2 > 0) ? v.setor2 : null,
+        s3: (v.setor3 && v.setor3 > 0) ? v.setor3 : null,
+      }));
+
+    const tempos = voltas.map(v => v.t).filter(Boolean);
+    const s1s = voltas.map(v => v.s1).filter(Boolean);
+    const s2s = voltas.map(v => v.s2).filter(Boolean);
+    const s3s = voltas.map(v => v.s3).filter(Boolean);
+
+    const melhor = tempos.length ? Math.min(...tempos) : 0;
+    const media = tempos.length ? tempos.reduce((a,b) => a+b, 0) / tempos.length : 0;
+
+    // Remove outliers
+    const limpo = media ? tempos.filter(t => t < media * 1.08) : tempos;
+    const mediaLimpa = limpo.length ? limpo.reduce((a,b) => a+b, 0) / limpo.length : media;
+
+    // Consistência
+    let consistencia = 0;
+    if (limpo.length > 1 && mediaLimpa > 0) {
+      const dp = Math.sqrt(limpo.reduce((s, t) => s + (t - mediaLimpa) ** 2, 0) / limpo.length);
+      consistencia = Math.max(0, Math.round((100 - (dp / mediaLimpa * 100)) * 10) / 10);
+    }
+
+    // Degradação (slope)
+    let degradacao = 0;
+    if (limpo.length >= 3) {
+      const n = limpo.length;
+      const xm = (n - 1) / 2;
+      const ym = limpo.reduce((a,b) => a+b, 0) / n;
+      let num = 0, den = 0;
+      for (let i = 0; i < n; i++) { num += (i - xm) * (limpo[i] - ym); den += (i - xm) ** 2; }
+      degradacao = den ? Math.round((num / den) * 10000) / 10000 : 0;
+    }
+
+    const avg = (arr) => arr.length ? Math.round(arr.reduce((a,b) => a+b, 0) / arr.length * 1000) / 1000 : 0;
+    const best = (arr) => arr.length ? Math.round(Math.min(...arr) * 1000) / 1000 : 0;
+
+    return {
+      id: idx,
+      nome: p.nome || `Piloto ${idx+1}`,
+      numero: p.numero,
+      posicao: p.posicao || idx + 1,
+      melhor_volta: Math.round(melhor * 1000) / 1000,
+      media_volta: Math.round(mediaLimpa * 1000) / 1000,
+      consistencia,
+      degradacao,
+      top_speed: 0,
+      avg_s1: avg(s1s),
+      avg_s2: avg(s2s),
+      avg_s3: avg(s3s),
+      best_s1: best(s1s),
+      best_s2: best(s2s),
+      best_s3: best(s3s),
+      total_voltas: tempos.length,
+      voltas,
+    };
+  }).filter(p => p.total_voltas > 0);
+
+  return pilotos;
+}
+
+// ─── MAIN APP ───────────────────────────────────────
+const App = () => {
+  const [sessions, setSessions]   = useState([]);
+  const [sessId,   setSessId]     = useState(null);
+  const [pilotos,  setPilotos]    = useState([]);
+  const [sessao,   setSessao]     = useState({});
+  const [loading,  setLoading]    = useState(false);
+  const [tab,      setTab]        = useState('lapchart');
+  const [refIdx,   setRefIdx]     = useState(0);
+  const [cmpIdx,   setCmpIdx]     = useState(1);
+
+  // Busca sessões de /historico_sessoes (mesmo que Media_lap)
+  useEffect(() => {
+    fetch('/historico_sessoes')
+      .then(r => r.json())
+      .then(arr => {
+        const list = Array.isArray(arr) ? arr : (arr.sessoes || []);
+        setSessions(list);
+        if (list.length > 0) setSessId(list[0].id);
+      }).catch(console.error);
+  }, []);
+
+  // Busca dados de /dados_voltas/<id> (mesmo endpoint do Media_lap)
+  useEffect(() => {
+    if (!sessId) return;
+    setLoading(true); setPilotos([]); setSessao({});
+    fetch(`/dados_voltas/${sessId}`)
+      .then(r => r.json())
+      .then(raw => {
+        console.log('📊 dados_voltas raw:', raw);
+        const transformed = transformDadosVoltas(raw);
+        console.log('📊 transformed:', transformed);
+        setPilotos(transformed);
+        setSessao(raw.sessao || {});
+        setRefIdx(0);
+        setCmpIdx(transformed.length > 1 ? 1 : 0);
+        setLoading(false);
+      })
+      .catch(e => { console.error(e); setLoading(false); });
+  }, [sessId]);
+
+  const ref  = pilotos[refIdx];
+  const comp = pilotos[cmpIdx];
+  const sessInfo = sessions.find(s => s.id === sessId) || {};
+
+  const handleDriverClick = (idx) => {
+    if (idx === refIdx) return;
+    if (idx === cmpIdx) { setCmpIdx(refIdx); setRefIdx(idx); }
+    else setCmpIdx(idx);
+  };
+
+  return (
+    <div>
+      <div className="ti-header">
+        <div className="ti-logo">Telemetry <span>Insights</span></div>
+        <div className="ti-track">{sessInfo.nome_pista || '—'} · {sessInfo.tipo_sessao || '—'}</div>
+      </div>
+
+      <div className="tab-bar">
+        <button className={`tab-btn ${tab==='lapchart'?'active':''}`} onClick={()=>setTab('lapchart')}>Lap Chart</button>
+        <button className={`tab-btn ${tab==='compare'?'active':''}`} onClick={()=>setTab('compare')}>Comparison</button>
+        <button className={`tab-btn ${tab==='individual'?'active':''}`} onClick={()=>setTab('individual')}>Individual</button>
+      </div>
+
+      <div className="sess-select-row">
+        <span className="sess-label">Sessão</span>
+        <select value={sessId||''} onChange={e=>setSessId(Number(e.target.value))}>
+          {sessions.map(s => (
+            <option key={s.id} value={s.id}>#{s.id} — {s.nome_pista || 'Sem pista'} ({s.tipo_sessao || '?'})</option>
+          ))}
+        </select>
+      </div>
+
+      {loading && <div className="loading"><div className="loading-spinner"></div><div className="loading-text">Carregando telemetria...</div></div>}
+      {!loading && pilotos.length === 0 && <div className="empty-state"><h2>Sem dados</h2><p>Selecione uma sessão com voltas registradas.</p></div>}
+
+      {!loading && pilotos.length > 0 && (
+        <>
+          {tab !== 'lapchart' && (
+            <div className="driver-row">
+              {pilotos.map((p, i) => {
+                const cls = i === refIdx ? 'ref' : i === cmpIdx ? 'comp' : 'idle';
+                return (
+                  <div key={i} className={`driver-pill ${cls}`} onClick={()=>handleDriverClick(i)}>
+                    {cls==='ref'  && <div className="pill-dot r"></div>}
+                    {cls==='comp' && <div className="pill-dot b"></div>}
+                    <span>{p.nome}</span>
+                    <span style={{fontFamily:'Orbitron,monospace',fontSize:'12px'}}>{fmt(p.melhor_volta)}</span>
+                    {cls==='ref'  && <span className="badge-ref">REF</span>}
+                    {cls==='comp' && <span className="badge-comp">{((p.melhor_volta - pilotos[refIdx]?.melhor_volta)||0) >= 0 ? '+' : ''}{((p.melhor_volta - pilotos[refIdx]?.melhor_volta)||0).toFixed(3)}s</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {tab === 'lapchart' && <LapChart pilotos={pilotos} />}
+          {tab === 'compare' && ref && comp && <CompareView ref_={ref} comp={comp} />}
+          {tab === 'individual' && <IndividualView pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} />}
+        </>
+      )}
+    </div>
+  );
+};
+
+// ─── LAP CHART (canvas) ─────────────────────────────
+const LapChart = ({ pilotos }) => {
+  const canvasRef = useRef(null);
+  const [selected, setSelected] = useState(() => pilotos.slice(0, 2).map(p => p.nome));
+  const [showOutliers, setShowOutliers] = useState(false);
+  const [showInvalid, setShowInvalid] = useState(false);
+  const [hoverInfo, setHoverInfo] = useState(null);
+
+  // Reset selection when pilotos change
+  useEffect(() => {
+    setSelected(pilotos.slice(0, 2).map(p => p.nome));
+  }, [pilotos]);
+
+  const toggleDriver = (nome) => {
+    setSelected(prev => prev.includes(nome) ? prev.filter(n => n !== nome) : [...prev, nome]);
+  };
+  const removeDriver = (nome) => {
+    setSelected(prev => prev.filter(n => n !== nome));
+  };
+
+  const selectedPilotos = useMemo(() =>
+    pilotos.filter(p => selected.includes(p.nome)),
+  [pilotos, selected]);
+
+  const chartData = useMemo(() => {
+    const result = [];
+    selectedPilotos.forEach((p) => {
+      const color = COLORS[pilotos.indexOf(p) % COLORS.length];
+      const voltas = (p.voltas || []).filter(v => v.t && v.t > 10);
+      const times = voltas.map(v => v.t).sort((a,b) => a - b);
+      const median = times.length > 0 ? times[Math.floor(times.length / 2)] : 0;
+      const threshold = median * 1.10;
+
+      const points = voltas.map(v => ({
+        lap: v.n,
+        time: v.t,
+        s1: v.s1, s2: v.s2, s3: v.s3,
+        isOutlier: v.t > threshold,
+        isInvalid: !v.s1 && !v.s2 && !v.s3,
+      }));
+      result.push({ nome: p.nome, color, points, best: p.melhor_volta });
+    });
+    return result;
+  }, [selectedPilotos, pilotos]);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width = canvas.offsetWidth * 2;
+    const H = canvas.height = canvas.offsetHeight * 2;
+    ctx.scale(2, 2);
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0a0c18';
+    ctx.fillRect(0, 0, w, h);
+
+    const ml = 70, mr = 20, mt = 20, mb = 50;
+    const cw = w - ml - mr;
+    const ch = h - mt - mb;
+
+    let allPts = [];
+    chartData.forEach(d => {
+      d.points.forEach(p => {
+        if (!showOutliers && p.isOutlier) return;
+        if (!showInvalid && p.isInvalid) return;
+        allPts.push(p);
+      });
+    });
+
+    if (allPts.length === 0) {
+      ctx.fillStyle = '#5a5d78';
+      ctx.font = '14px Rajdhani';
+      ctx.textAlign = 'center';
+      ctx.fillText('Selecione pilotos para visualizar', w/2, h/2);
+      return;
+    }
+
+    const minLap = Math.min(...allPts.map(p => p.lap));
+    const maxLap = Math.max(...allPts.map(p => p.lap));
+    const minTime = Math.min(...allPts.map(p => p.time));
+    const maxTime = Math.max(...allPts.map(p => p.time));
+    const timePad = (maxTime - minTime) * 0.08 || 1;
+    const tMin = minTime - timePad;
+    const tMax = maxTime + timePad;
+
+    const xOf = (lap) => ml + ((lap - minLap) / (maxLap - minLap || 1)) * cw;
+    const yOf = (t) => mt + (1 - (t - tMin) / (tMax - tMin)) * ch;
+
+    // grid H
+    const nGridH = 6;
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.font = '11px Orbitron';
+    ctx.fillStyle = '#5a5d78';
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= nGridH; i++) {
+      const t = tMin + (tMax - tMin) * (i / nGridH);
+      const y = yOf(t);
+      ctx.beginPath(); ctx.moveTo(ml, y); ctx.lineTo(w - mr, y); ctx.stroke();
+      ctx.fillText(fmt(t), ml - 8, y + 4);
+    }
+
+    // grid V
+    ctx.textAlign = 'center';
+    ctx.setLineDash([]);
+    const lapStep = Math.max(1, Math.ceil((maxLap - minLap) / 20));
+    for (let l = minLap; l <= maxLap; l += lapStep) {
+      const x = xOf(l);
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+      ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, mt + ch); ctx.stroke();
+      ctx.fillStyle = '#5a5d78';
+      ctx.fillText(`${l}`, x, mt + ch + 18);
+    }
+
+    // labels
+    ctx.save();
+    ctx.fillStyle = '#8a8db0';
+    ctx.font = '12px Rajdhani';
+    ctx.textAlign = 'center';
+    ctx.fillText('LAP NUMBER', ml + cw / 2, h - 6);
+    ctx.translate(14, mt + ch / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('LAP TIME', 0, 0);
+    ctx.restore();
+
+    // border
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.strokeRect(ml, mt, cw, ch);
+
+    // lines + dots
+    chartData.forEach(d => {
+      const pts = d.points.filter(p => {
+        if (!showOutliers && p.isOutlier) return false;
+        if (!showInvalid && p.isInvalid) return false;
+        return true;
+      });
+      if (pts.length === 0) return;
+
+      ctx.strokeStyle = d.color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      pts.forEach((p, i) => {
+        const x = xOf(p.lap); const y = yOf(p.time);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      pts.forEach(p => {
+        const x = xOf(p.lap); const y = yOf(p.time);
+        ctx.fillStyle = d.color;
+        ctx.beginPath();
+        ctx.arc(x, y, p.isOutlier ? 5 : 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#0a0c18'; ctx.lineWidth = 1; ctx.stroke();
+      });
+    });
+
+    // tooltip
+    if (hoverInfo) {
+      const { x, y, nome, lap, time, color } = hoverInfo;
+      ctx.fillStyle = 'rgba(13,15,28,0.95)';
+      ctx.strokeStyle = color; ctx.lineWidth = 1;
+      const tw = 160, th = 50;
+      const tx = Math.min(x + 12, w - tw - 10);
+      const ty = Math.max(y - th - 10, 5);
+      ctx.beginPath(); ctx.roundRect(tx, ty, tw, th, 4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = color; ctx.font = 'bold 11px Rajdhani'; ctx.textAlign = 'left';
+      ctx.fillText(nome, tx + 8, ty + 16);
+      ctx.fillStyle = '#e8eaf6'; ctx.font = '12px Orbitron';
+      ctx.fillText(`V${lap}  ${fmt(time)}`, tx + 8, ty + 36);
+    }
+  }, [chartData, showOutliers, showInvalid, hoverInfo]);
+
+  useEffect(() => { draw(); }, [draw]);
+
+  const handleMouseMove = useCallback((e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    let closest = null; let minDist = 20;
+    const w = canvas.offsetWidth, h = canvas.offsetHeight;
+    const ml = 70, mr = 20, mt = 20, mb = 50;
+    const cw = w - ml - mr, ch = h - mt - mb;
+
+    let allPts = [];
+    chartData.forEach(d => {
+      d.points.forEach(p => {
+        if (!showOutliers && p.isOutlier) return;
+        if (!showInvalid && p.isInvalid) return;
+        allPts.push({ ...p, nome: d.nome, color: d.color });
+      });
+    });
+    if (allPts.length === 0) { setHoverInfo(null); return; }
+
+    const minLap = Math.min(...allPts.map(p => p.lap));
+    const maxLap = Math.max(...allPts.map(p => p.lap));
+    const times = allPts.map(p => p.time);
+    const minTime = Math.min(...times); const maxTime = Math.max(...times);
+    const timePad = (maxTime - minTime) * 0.08 || 1;
+    const tMin = minTime - timePad; const tMax = maxTime + timePad;
+
+    allPts.forEach(p => {
+      const x = ml + ((p.lap - minLap) / (maxLap - minLap || 1)) * cw;
+      const y = mt + (1 - (p.time - tMin) / (tMax - tMin)) * ch;
+      const dist = Math.sqrt((mx - x) ** 2 + (my - y) ** 2);
+      if (dist < minDist) { minDist = dist; closest = { x, y, nome: p.nome, lap: p.lap, time: p.time, color: p.color }; }
+    });
+    setHoverInfo(closest);
+  }, [chartData, showOutliers, showInvalid]);
+
+  return (
+    <div className="lap-chart-container fade-in">
+      <div className="lap-chart-title">Lap Chart</div>
+      <div className="lap-chart-legend">
+        {pilotos.map((p, i) => {
+          const color = COLORS[i % COLORS.length];
+          const isActive = selected.includes(p.nome);
+          return (
+            <div key={p.nome} className={`legend-item ${isActive ? 'active' : ''}`}
+              onClick={() => toggleDriver(p.nome)}
+              style={isActive ? { borderColor: color } : {}}>
+              <div className="legend-dot" style={{ background: isActive ? color : 'var(--border)' }}></div>
+              <span style={{ color: isActive ? color : 'var(--muted)' }}>{p.nome}</span>
+              {isActive && <span className="legend-x" onClick={e => { e.stopPropagation(); removeDriver(p.nome); }}>✕</span>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ position: 'relative', width: '100%', height: '420px' }}>
+        <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', cursor: 'crosshair' }}
+          onMouseMove={handleMouseMove} onMouseLeave={() => setHoverInfo(null)} />
+      </div>
+      <div className="chart-controls">
+        <button className={`chart-ctrl-btn ${showOutliers ? 'active' : ''}`}
+          onClick={() => setShowOutliers(!showOutliers)}>Show Outliers (&gt;110%)</button>
+        <button className={`chart-ctrl-btn ${showInvalid ? 'active' : ''}`}
+          onClick={() => setShowInvalid(!showInvalid)}>Show Invalid Laps</button>
+      </div>
+    </div>
+  );
+};
+
+// ─── COMPARISON VIEW ─────────────────────────────────
+const CompareView = ({ ref_, comp }) => {
+  const delta = comp.melhor_volta - ref_.melhor_volta;
+  const dCls  = delta > 0.01 ? 'pos' : delta < -0.01 ? 'neg' : 'zero';
+
+  const ds1 = comp.avg_s1 && ref_.avg_s1 ? comp.avg_s1 - ref_.avg_s1 : null;
+  const ds2 = comp.avg_s2 && ref_.avg_s2 ? comp.avg_s2 - ref_.avg_s2 : null;
+  const ds3 = comp.avg_s3 && ref_.avg_s3 ? comp.avg_s3 - ref_.avg_s3 : null;
+
+  const barW = (val, best, worst) => {
+    if (worst === best) return 50;
+    return Math.round(((val - worst) / (best - worst)) * 100);
+  };
+
+  const paceMin = Math.min(ref_.media_volta||999, comp.media_volta||999);
+  const paceMax = Math.max(ref_.media_volta||0,   comp.media_volta||0);
+  const wRefPace = barW(ref_.media_volta, paceMin, paceMax);
+  const wCmpPace = barW(comp.media_volta, paceMin, paceMax);
+
+  return (
+    <div className="fade-in">
+      <div className="cmp-bar">
+        <span className="cmp-title">
+          <strong style={{color:'var(--blue)'}}>{comp.nome}</strong>
+          {' '}— <em style={{fontFamily:'Orbitron,monospace',fontSize:'13px'}}>{fmt(comp.melhor_volta)}</em>
+          {' '}vs{' '}
+          <strong style={{color:'var(--red)'}}>{ref_.nome}</strong>
+          {' '}— <em style={{fontFamily:'Orbitron,monospace',fontSize:'13px'}}>{fmt(ref_.melhor_volta)}</em>
+        </span>
+        <span className={`cmp-delta ${dCls}`}>{delta > 0 ? '+' : ''}{delta.toFixed(3)}s</span>
+      </div>
+
+      <div className="metrics-grid">
+        <div className="metric-card">
+          <div className="metric-card-title">Lap Metrics</div>
+          <MetricRow label="Avg Lap Time" valA={ref_.media_volta} valB={comp.media_volta} wA={wRefPace} wB={wCmpPace} fmt={v=>fmt(v)} />
+          <MetricRow label="Consistência" valA={ref_.consistencia} valB={comp.consistencia} wA={ref_.consistencia} wB={comp.consistencia} fmt={v=>`${v.toFixed(1)}%`} />
+        </div>
+        <div className="metric-card">
+          <div className="metric-card-title">Avg Sector Times</div>
+          <MetricRow label="Setor 1" valA={ref_.avg_s1} valB={comp.avg_s1} wA={ref_.avg_s1>comp.avg_s1?60:100} wB={ref_.avg_s1>comp.avg_s1?100:60} fmt={v=>fmtS(v)+'s'} />
+          <MetricRow label="Setor 2" valA={ref_.avg_s2} valB={comp.avg_s2} wA={ref_.avg_s2>comp.avg_s2?60:100} wB={ref_.avg_s2>comp.avg_s2?100:60} fmt={v=>fmtS(v)+'s'} />
+          <MetricRow label="Setor 3" valA={ref_.avg_s3} valB={comp.avg_s3} wA={ref_.avg_s3>comp.avg_s3?60:100} wB={ref_.avg_s3>comp.avg_s3?100:60} fmt={v=>fmtS(v)+'s'} />
+        </div>
+        <div className="metric-card">
+          <div className="metric-card-title">Race Metrics</div>
+          <MetricRow label="Melhor Volta" valA={ref_.melhor_volta} valB={comp.melhor_volta} wA={ref_.melhor_volta<comp.melhor_volta?100:60} wB={comp.melhor_volta<ref_.melhor_volta?100:60} fmt={v=>fmt(v)} />
+          <MetricRow label="Degradação" valA={Math.abs(ref_.degradacao||0)} valB={Math.abs(comp.degradacao||0)} wA={Math.abs(ref_.degradacao||0)<Math.abs(comp.degradacao||0)?100:60} wB={Math.abs(comp.degradacao||0)<Math.abs(ref_.degradacao||0)?100:60} fmt={v=>`${v.toFixed(3)}s/v`} />
+          <MetricRow label="Total Voltas" valA={ref_.total_voltas} valB={comp.total_voltas} wA={ref_.total_voltas>=comp.total_voltas?100:60} wB={comp.total_voltas>=ref_.total_voltas?100:60} fmt={v=>`${v} laps`} />
+        </div>
+      </div>
+
+      <div className="sector-panel">
+        <div className="sector-panel-title">Sector Time Deltas (vs {ref_.nome})</div>
+        <div className="sector-grid">
+          {[{label:'Sector 1',d:ds1},{label:'Sector 2',d:ds2},{label:'Sector 3',d:ds3}].map(({label,d})=>{
+            const cls=d===null?'zero':d>0.005?'neg':d<-0.005?'pos':'zero';
+            const txt=d===null?'N/A':(d>=0?'+':'')+d.toFixed(3)+'s';
+            return (
+              <div key={label} className="sector-col">
+                <div className="sector-label">{label}</div>
+                <div className={`sector-delta ${cls}`}>{txt}</div>
+                <div className="sector-sub">{d!==null&&(d>0.005?`${comp.nome} mais lento`:d<-0.005?`${comp.nome} mais rápido`:'Idêntico')}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── METRIC ROW ──────────────────────────────────────
+const MetricRow = ({label,valA,valB,wA,wB,fmt:fmtVal})=>{
+  if((!valA||valA===0)&&(!valB||valB===0))return null;
+  return(
+    <div className="metric-row">
+      <div className="metric-name">{label}</div>
+      <div style={{flex:1,display:'flex',flexDirection:'column',gap:'4px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          <div className="pill-dot r" style={{width:'6px',height:'6px'}}></div>
+          <div className="metric-bar-wrap"><div className="metric-bar-fill r" style={{width:`${wA}%`}}></div></div>
+          <span style={{fontFamily:'Orbitron,monospace',fontSize:'11px',color:'var(--red)',minWidth:'80px',textAlign:'right'}}>{valA?fmtVal(valA):'—'}</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          <div className="pill-dot b" style={{width:'6px',height:'6px'}}></div>
+          <div className="metric-bar-wrap"><div className="metric-bar-fill b" style={{width:`${wB}%`}}></div></div>
+          <span style={{fontFamily:'Orbitron,monospace',fontSize:'11px',color:'var(--blue)',minWidth:'80px',textAlign:'right'}}>{valB?fmtVal(valB):'—'}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── INDIVIDUAL VIEW ─────────────────────────────────
+const IndividualView = ({pilotos,refIdx,cmpIdx})=>{
+  const showPilotos=[pilotos[refIdx],pilotos[cmpIdx]].filter(Boolean);
+  return(
+    <div className="driver-tables-grid fade-in">
+      {showPilotos.map((p,i)=>{
+        const isRef=pilotos.indexOf(p)===refIdx;
+        const best=p.melhor_volta;
+        return(
+          <div key={i}>
+            <div className={`driver-tbl-label ${isRef?'r':'b'}`}>{p.nome} — {fmt(p.melhor_volta)}</div>
+            <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:'6px',overflow:'auto',maxHeight:'480px'}}>
+              <table className="lap-table">
+                <thead><tr><th>Volta</th><th>Tempo</th><th>S1</th><th>S2</th><th>S3</th></tr></thead>
+                <tbody>
+                  {p.voltas.map(v=>(
+                    <tr key={v.n} className={v.t===best?'best-lap':''}>
+                      <td>V{v.n}</td><td>{fmt(v.t)}</td><td>{v.s1?fmtS(v.s1):'—'}</td><td>{v.s2?fmtS(v.s2):'—'}</td><td>{v.s3?fmtS(v.s3):'—'}</td>
+                    </tr>
+                  ))}
+                  {p.voltas.length===0&&<tr><td colSpan={5} style={{color:'var(--muted)',textAlign:'center',padding:'20px'}}>Sem voltas</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+{% endraw %}
+</body>
+</html>
