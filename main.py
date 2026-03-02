@@ -469,6 +469,7 @@ async def salvar_dados(ctx):
     bot.loop.create_task(volta_salvar(bot))
 async def volta_salvar(bot):
     global TEMPO_INICIO_VOLTAS, sessao_id_atual, voltas_ja_salvas, ultimo_pneu_por_piloto
+    global TEMPO_INICIO_VOLTAS, sessao_id_atual, voltas_ja_salvas, ultimo_pneu_por_piloto, session_type_atual
     from Bot.jogadores import get_jogadores
     from utils.dictionnaries import tyres_dictionnary, weather_dictionary, safetyCarStatusDict, session_dictionary
     from Bot.Session import SESSION
