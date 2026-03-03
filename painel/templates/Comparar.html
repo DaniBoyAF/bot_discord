@@ -769,32 +769,80 @@ const MetricRow = ({label,valA,valB,wA,wB,fmt:fmtVal})=>{
 };
 
 // ─── INDIVIDUAL VIEW ─────────────────────────────────
-const IndividualView = ({pilotos,refIdx,cmpIdx})=>{
-  const showPilotos=[pilotos[refIdx],pilotos[cmpIdx]].filter(Boolean);
-  return(
-    <div className="driver-tables-grid fade-in">
-      {showPilotos.map((p,i)=>{
-        const isRef=pilotos.indexOf(p)===refIdx;
-        const best=p.melhor_volta;
-        return(
-          <div key={i}>
-            <div className={`driver-tbl-label ${isRef?'r':'b'}`}>{p.nome} — {fmt(p.melhor_volta)}</div>
-            <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:'6px',overflow:'auto',maxHeight:'480px'}}>
-              <table className="lap-table">
-                <thead><tr><th>Volta</th><th>Tempo</th><th>S1</th><th>S2</th><th>S3</th></tr></thead>
-                <tbody>
-                  {p.voltas.map(v=>(
-                    <tr key={v.n} className={v.t===best?'best-lap':''}>
-                      <td>V{v.n}</td><td>{fmt(v.t)}</td><td>{v.s1?fmtS(v.s1):'—'}</td><td>{v.s2?fmtS(v.s2):'—'}</td><td>{v.s3?fmtS(v.s3):'—'}</td>
-                    </tr>
-                  ))}
-                  {p.voltas.length===0&&<tr><td colSpan={5} style={{color:'var(--muted)',textAlign:'center',padding:'20px'}}>Sem voltas</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      })}
+const IndividualView = ({pilotos, refIdx, cmpIdx}) => {
+  const ref = pilotos[refIdx];
+  const comp = pilotos[cmpIdx];
+  if (!ref || !comp) return null;
+
+  const refMap = {};
+  const compMap = {};
+  (ref.voltas || []).forEach(v => { refMap[v.n] = v; });
+  (comp.voltas || []).forEach(v => { compMap[v.n] = v; });
+
+  const allLaps = [...new Set([
+    ...(ref.voltas || []).map(v => v.n),
+    ...(comp.voltas || []).map(v => v.n)
+  ])].sort((a, b) => a - b);
+
+  const dColor = (v) => v === null ? 'var(--muted)' : v > 0.005 ? 'var(--red)' : v < -0.005 ? 'var(--green)' : 'var(--cyan)';
+
+  return (
+    <div className="fade-in">
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px', gap:'12px', flexWrap:'wrap' }}>
+        <div className="driver-tbl-label r">{ref.nome} — {fmt(ref.melhor_volta)}</div>
+        <div className="driver-tbl-label b">{comp.nome} — {fmt(comp.melhor_volta)}</div>
+      </div>
+
+      <div style={{ background:'var(--panel)', border:'1px solid var(--border)', borderRadius:'8px', overflow:'auto', maxHeight:'650px' }}>
+        <table className="lap-table">
+          <thead>
+            <tr>
+              <th style={{ textAlign:'center' }}>Volta</th>
+              <th><span style={{color:'var(--red)'}}>■</span> {ref.nome}</th>
+              <th style={{ textAlign:'center' }}>Delta</th>
+              <th><span style={{color:'var(--blue)'}}>■</span> {comp.nome}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allLaps.map(lap => {
+              const r = refMap[lap];
+              const c = compMap[lap];
+              const rT = r ? r.t : null;
+              const cT = c ? c.t : null;
+              const delta = (rT && cT) ? cT - rT : null;
+              const isRefBest = rT && rT === ref.melhor_volta;
+              const isCompBest = cT && cT === comp.melhor_volta;
+
+              return (
+                <tr key={lap} style={{ background: (isRefBest||isCompBest) ? 'rgba(255,192,0,0.06)' : 'transparent' }}>
+                  <td style={{ textAlign:'center', fontFamily:'Rajdhani,sans-serif', fontWeight:'700', color:'var(--label)' }}>V{lap}</td>
+                  <td style={{ color: isRefBest ? 'var(--yellow)' : 'var(--text)', fontWeight: isRefBest ? '700' : '400' }}>
+                    {rT ? fmt(rT) : '—'}
+                  </td>
+                  <td style={{
+                    textAlign:'center',
+                    fontFamily:'Orbitron,monospace',
+                    fontSize:'12px',
+                    fontWeight:'700',
+                    color: dColor(delta),
+                  }}>
+                    {delta === null ? '—' : `${delta >= 0 ? '+' : ''}${delta.toFixed(3)}`}
+                  </td>
+                  <td style={{ color: isCompBest ? 'var(--yellow)' : 'var(--text)', fontWeight: isCompBest ? '700' : '400' }}>
+                    {cT ? fmt(cT) : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display:'flex', gap:'20px', justifyContent:'center', marginTop:'12px' }}>
+        <span style={{ fontSize:'11px', color:'var(--muted)' }}><span style={{color:'var(--green)'}}>■</span> {comp.nome} mais rápido</span>
+        <span style={{ fontSize:'11px', color:'var(--muted)' }}><span style={{color:'var(--red)'}}>■</span> {comp.nome} mais lento</span>
+        <span style={{ fontSize:'11px', color:'var(--muted)' }}><span style={{color:'var(--yellow)'}}>■</span> Melhor volta</span>
+      </div>
     </div>
   );
 };

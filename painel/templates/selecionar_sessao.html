@@ -328,6 +328,7 @@
                     <button id="btn-g" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">📈 Race Pace</button>
                     <button id="btn-graf" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">📊 Média de Volta</button>
                     <button id="btn-pit" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">🛞 Tyre / Pit Hub</button>
+                    <button id="btn-comparar" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">📈 Comparar</button>
                     <button id="btn-fechar" class="mt-3 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded w-full">✖️ Fechar</button>
                 </div>
             `;
@@ -368,6 +369,7 @@
             document.getElementById('btn-g').addEventListener('click', () => { closeChooser(); window.open(`/g?sessao=${sessaoId}`, '_blank'); });
             document.getElementById('btn-graf').addEventListener('click', () => { closeChooser(); window.open(`/graf?sessao=${sessaoId}`, '_blank'); });
             document.getElementById('btn-pit').addEventListener('click', () => { closeChooser(); window.open(`/pit?sessao=${sessaoId}`, '_blank'); });
+            document.getElementById('btn-comparar').addEventListener('click', () => { closeChooser(); window.open(`/Comparar?sessao=${sessaoId}`, '_blank'); });
             document.getElementById('btn-fechar').addEventListener('click', closeChooser);
             overlay.addEventListener('click', (e) => { if (e.target === overlay) closeChooser(); });
         }

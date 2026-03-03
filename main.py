@@ -468,7 +468,6 @@ async def salvar_dados(ctx):
     await ctx.send("🔄 Salvando dados dos pilotos...")
     bot.loop.create_task(volta_salvar(bot))
 async def volta_salvar(bot):
-    global TEMPO_INICIO_VOLTAS, sessao_id_atual, voltas_ja_salvas, ultimo_pneu_por_piloto
     global TEMPO_INICIO_VOLTAS, sessao_id_atual, voltas_ja_salvas, ultimo_pneu_por_piloto, session_type_atual
     from Bot.jogadores import get_jogadores
     from utils.dictionnaries import tyres_dictionnary, weather_dictionary, safetyCarStatusDict, session_dictionary
@@ -578,7 +577,6 @@ async def volta_salvar(bot):
             # ══════════════════════════════════════════════════
             # 🆕 DETECTA TROCA DE SESSÃO (Qualy → Race, etc.)
             # ══════════════════════════════════════════════════
-            global session_type_atual
             novo_session_type = getattr(SESSION, "m_session_type", 0)
             
             if session_type_atual is not None and novo_session_type != session_type_atual and novo_session_type != 0:
