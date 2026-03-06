@@ -158,12 +158,21 @@ ERS_dictionary = {
 }
 
 session_dictionary = {
-    5: "Q1",
-    6: "Q2",
-    7: "Q3",
-    8: "Short qualy",
-    15: "Race"
-
+    0:  "Desconhecido",
+    1:  "P1",
+    2:  "P2",
+    3:  "P3",
+    4:  "Short P",
+    5:  "Q1",
+    6:  "Q2",
+    7:  "Q3",
+    8:  "Short Q",
+    9:  "OSQ",
+    10: "Corrida",
+    11: "Corrida 2",
+    12: "Corrida 3",
+    13: "Time Trial",
+    15: "Corrida"   # mantive o seu 15
 }
 
 color_flag_dict = {

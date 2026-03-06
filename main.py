@@ -853,7 +853,7 @@ async def volta_salvar(bot):
                                             temp_interna_RL, temp_interna_RR, temp_interna_FL, temp_interna_FR,
                                             temp_superficie_RL, temp_superficie_RR, temp_superficie_FL, temp_superficie_FR,
                                             vida_util, tyre_set_data, lap_delta_time, pit_stops, timestamp)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (sessao_id_atual, piloto_id,
                                   tyres_nomes.get(_composto_raw, 'Desconhecido'),
                                   getattr(j, 'tyresAgeLaps', 0),

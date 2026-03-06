@@ -1007,14 +1007,10 @@ def start_udp_listener():
                 atualizar_punicao(body)
 
 def atualizar_SessionData(pacote_session):
-    from Bot.Session import SESSION 
-    from utils.dictionnaries import (
-        color_flag_dict, 
-        safetyCarStatusDict, 
-        session_dictionary,
-        weather_dictionary
-    )
-    
+    session_type = getattr(pacote_session, "m_session_type", 0)
+    SESSION.Seance = session_dictionary.get(session_type, "Desconhecida")
+    SESSION.m_session_type = session_type  # 🆕 salva o número
+
     # Atualiza sessão
     SESSION.atualizar(pacote_session)
     
@@ -1165,21 +1161,27 @@ def atualizar_lapdata(pacote_lap):
         
 def atualizar_participantes(pacote_participantes):
     from Bot.jogadores import JOGADORES
+    from utils.dictionnaries import team_dictionary  # 🆕
+
     for idx, participante in enumerate(pacote_participantes.m_participants):
         piloto = JOGADORES[idx]
         try:
             raw = participante.m_name
-            # decodifica e limpa: remove nulos, espaços extras e caracteres de controle
             nome = raw.decode('utf-8', errors='replace').split('\x00')[0].strip()
             piloto.name = nome if nome else piloto.name
         except Exception:
             pass  # mantém o nome anterior se falhar
-        piloto.numero = participante.m_race_number
-        # m_my_team=1 indica modo "My Team" — team_id genérico (41) não identifica o time
-        piloto.m_team_id = participante.m_team_id
-        piloto.m_my_team = participante.m_my_team
-        # guarda o ai_controlled para saber se é humano ou IA
+        piloto.numero     = participante.m_race_number
+        piloto.m_team_id  = participante.m_team_id
+        piloto.m_my_team  = participante.m_my_team
         piloto.m_ai_controlled = participante.m_ai_controlled
+
+        # 🆕 Nome do time
+        team_id = participante.m_team_id
+        if participante.m_my_team == 1:
+            piloto.team_name = "My Team"
+        else:
+            piloto.team_name = team_dictionary.get(team_id, f"Team {team_id}")
 def atualizar_car_status(pacote_status):
     from Bot.jogadores import JOGADORES
     for idx, status in enumerate(pacote_status.m_car_status_data):
