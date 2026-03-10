@@ -87,8 +87,9 @@ bot =commands.Bot(command_prefix=".", intents=intents)
 @bot.event
 async def on_ready():
     global TEMPO_INICIO_VOLTAS
-    TEMPO_INICIO_VOLTAS = True
+    TEMPO_INICIO_VOLTAS = False  # ← era True, agora False
     print("Bot on")
+    print("💡 Use .salvar_dados para iniciar a coleta")
     bot.loop.create_task(volta_salvar(bot))
 
 @bot.event
@@ -117,18 +118,12 @@ async def on_member_join(membro: discord.Member):
 
 @bot.event
 async def on_member_remove(membro: discord.Member):
-    canal = bot.get_channel(1375265281630539846)
-    if canal is None:
-        try:
-            canal = await bot.fetch_channel(1375265281630539846)
-        except Exception:
-            canal = None
-    if isinstance(canal, (discord.TextChannel, discord.Thread, discord.DMChannel, discord.GroupChannel)):
+    canal = await get_text_channel(1375265281630539846)
+    if canal:
         await canal.send(f"{membro.mention} Saiu do servidor !!")
-    else:
-        # Fallback: tenta o canal do sistema do servidor
-        if membro.guild and membro.guild.system_channel:
-            await membro.guild.system_channel.send(f"{membro.mention} Saiu do servidor !!")
+    elif membro.guild and membro.guild.system_channel:
+        await membro.guild.system_channel.send(f"{membro.mention} Saiu do servidor !!")
+
 @bot.command()
 async def ola(ctx: commands.Context):
     nome= ctx.author.name
@@ -147,7 +142,6 @@ async def comando(ctx: commands.Context):
 .sobre          - Informações sobre o bot
 
 **Telemetria Avançada:**
-.setup <piloto> - Ver setup completo (Asas, diferencial, freios, pneus)
 .ver_fuel       - Combustível em tempo real de todos os pilotos
 .desgastes      - Desgaste físico dos pneus (0-100%) de todos
 .ver_ers        - Status da bateria e DRS de todos
@@ -178,13 +172,8 @@ async def comando(ctx: commands.Context):
 .painel         - Link do Painel Web principal
 .pit_stop       - Análise de estratégia e desgaste web
 .live_painel    - Link da telemetria em tempo real
-
-**Regras | Clips | IA:**
-.regras         - Upload de PDF de regras
-.clip           - Salva vídeo de lance no banco
-.ver_clips      - Lista vídeos salvos
-.Jarves_on      - Análise com IA (experimental)
-
+.drive_compare      - Comparação detalhada entre dois pilotos
+.setup_compare - Comparação de setups entre pilotos
 💡 Use `.comando` para ver esta lista novamente.""")
 @bot.command()
 async def sobre(ctx:commands.Context):
@@ -465,7 +454,16 @@ def get_track_name(track_id):
 
 @bot.command()
 async def salvar_dados(ctx):
-    await ctx.send("🔄 Salvando dados dos pilotos...")
+    global TEMPO_INICIO_VOLTAS, sessao_id_atual
+
+    if TEMPO_INICIO_VOLTAS:
+        await ctx.send("⚠️ Coleta já está ativa! Use `.parar_salvar` para parar.")
+        return
+
+    # Reseta sessão para criar uma nova
+    sessao_id_atual = None
+    TEMPO_INICIO_VOLTAS = True
+    await ctx.send("✅ Coleta iniciada! Aguardando dados do jogo...")
     bot.loop.create_task(volta_salvar(bot))
 async def volta_salvar(bot):
     global TEMPO_INICIO_VOLTAS, sessao_id_atual, voltas_ja_salvas, ultimo_pneu_por_piloto, session_type_atual
@@ -853,7 +851,7 @@ async def volta_salvar(bot):
                                             temp_interna_RL, temp_interna_RR, temp_interna_FL, temp_interna_FR,
                                             temp_superficie_RL, temp_superficie_RR, temp_superficie_FL, temp_superficie_FR,
                                             vida_util, tyre_set_data, lap_delta_time, pit_stops, timestamp)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (sessao_id_atual, piloto_id,
                                   tyres_nomes.get(_composto_raw, 'Desconhecido'),
                                   getattr(j, 'tyresAgeLaps', 0),

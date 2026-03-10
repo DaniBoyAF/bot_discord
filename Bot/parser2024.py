@@ -1161,7 +1161,7 @@ def atualizar_lapdata(pacote_lap):
         
 def atualizar_participantes(pacote_participantes):
     from Bot.jogadores import JOGADORES
-    from utils.dictionnaries import team_dictionary  # 🆕
+    from utils.dictionnaries import teams_name_dictionary  # ← nome correto
 
     for idx, participante in enumerate(pacote_participantes.m_participants):
         piloto = JOGADORES[idx]
@@ -1176,12 +1176,12 @@ def atualizar_participantes(pacote_participantes):
         piloto.m_my_team  = participante.m_my_team
         piloto.m_ai_controlled = participante.m_ai_controlled
 
-        # 🆕 Nome do time
+        # Nome do time
         team_id = participante.m_team_id
         if participante.m_my_team == 1:
             piloto.team_name = "My Team"
         else:
-            piloto.team_name = team_dictionary.get(team_id, f"Team {team_id}")
+            piloto.team_name = teams_name_dictionary.get(team_id, f"Team {team_id}")  # ← nome correto
 def atualizar_car_status(pacote_status):
     from Bot.jogadores import JOGADORES
     for idx, status in enumerate(pacote_status.m_car_status_data):

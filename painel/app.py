@@ -428,16 +428,40 @@ def apagar_sessao(sessao_id):
 
 @app.route("/apagar_db", methods=["POST"])
 def apagar_db():
-    """Apaga todo o banco de dados"""
+    """Limpa todo o banco sem apagar o arquivo físico"""
     try:
-        if os.path.exists(DB_PATH):
-            os.remove(DB_PATH)
-        
-        # Remove todos os JSONs de sessão
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        cur = conn.cursor()
+
+        tabelas = [
+            "voltas",
+            "pneus",
+            "danos",
+            "telemetria",
+            "pneu_stints",
+            "setups",
+            "pilotos",
+            "sessoes"
+        ]
+
+        for tabela in tabelas:
+            try:
+                cur.execute(f"DELETE FROM {tabela}")
+            except Exception:
+                pass
+
+        conn.commit()
+        conn.close()
+
         for f in os.listdir(STATIC_PATH):
             if f.startswith("sessao_") and f.endswith(".json"):
-                os.remove(os.path.join(STATIC_PATH, f))
-        
+                try:
+                    os.remove(os.path.join(STATIC_PATH, f))
+                except Exception:
+                    pass
+
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "erro": str(e)}), 500
