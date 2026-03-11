@@ -112,13 +112,13 @@ async def get_text_channel(channel_id: int) -> discord.abc.Messageable | None:
 
 @bot.event
 async def on_member_join(membro: discord.Member):
-    canal = await get_text_channel(1375265281630539846)
+    canal = await get_text_channel(1375265281630539846) and await get_text_channel(1474877964142379053)
     if canal:
         await canal.send(f"{membro.mention} entrou no servidor !!")
 
 @bot.event
 async def on_member_remove(membro: discord.Member):
-    canal = await get_text_channel(1375265281630539846)
+    canal = await get_text_channel(1375265281630539846) and await get_text_channel(1474877964142379053)
     if canal:
         await canal.send(f"{membro.mention} Saiu do servidor !!")
     elif membro.guild and membro.guild.system_channel:

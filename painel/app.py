@@ -62,7 +62,7 @@ def listar_sessoes_json():
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+
         # Lista TODAS as sessões que têm pelo menos 1 setup salvo
         cursor.execute("""
             SELECT sess.id, 
@@ -76,14 +76,14 @@ def listar_sessoes_json():
             HAVING total_setups >= 1
             ORDER BY sess.id DESC
         """)
-        
+
         sessoes = [dict(row) for row in cursor.fetchall()]
         conn.close()
-        
+
         print(f"📋 listar_sessoes_json: {len(sessoes)} sessões com setups")
         for s in sessoes:
             print(f"   #{s['id']} - {s['nome_pista']} ({s['tipo_sessao']}) - {s['total_setups']} setups")
-        
+
         return jsonify(sessoes)
     except Exception as e:
         import traceback
@@ -103,17 +103,17 @@ def setups_para_comparar():
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        
+
         sessao_id = request.args.get('sessao')
-        
+
         if sessao_id:
             cur.execute("SELECT * FROM setups WHERE sessao_id = ? ORDER BY id DESC", (sessao_id,))
         else:
             cur.execute("SELECT * FROM setups ORDER BY id DESC LIMIT 100")
-        
+
         setups = [dict(row) for row in cur.fetchall()]
         conn.close()
-        
+
         return jsonify(setups)
     except Exception as e:
         print(f"Erro setups_para_comparar: {e}")
@@ -130,27 +130,27 @@ def historico_sessoes():
         conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        
+
         # Verifica colunas existentes
         cur.execute("PRAGMA table_info(sessoes)")
         colunas = [col[1] for col in cur.fetchall()]
-        
+
         # Monta campos dinamicamente
         campos = ["id", "nome_pista", "tipo_sessao", "data_hora", "total_voltas", "velocidade_maxima_geral"]
-        
+
         if "nome_customizado" in colunas:
             campos.append("nome_customizado")
-        
+
         if "clima" in colunas:
             campos.append("clima")
-        
+
         campos_sql = ", ".join(campos)
-        
+
         cur.execute(f"SELECT {campos_sql} FROM sessoes ORDER BY id DESC")
-        
+
         sessoes = [dict(r) for r in cur.fetchall()]
         conn.close()
-        
+
         return jsonify(sessoes)
     except Exception as e:
         print(f"Erro historico_sessoes: {e}")
@@ -229,7 +229,7 @@ def dados_voltas(sessao_id):
             })
 
         conn.close()
-        
+
         return jsonify({
             "total_voltas_sessao": total_voltas_sessao,
             "pilotos": dados
@@ -260,7 +260,7 @@ def dados_completos(sessao_id):
     voltas = carregar_json(f"sessao_{sessao_id}_voltas.json")
     pneus = carregar_json(f"sessao_{sessao_id}_pneus.json")
     danos = carregar_json(f"sessao_{sessao_id}_danos.json")
-    
+
     return jsonify({
         "voltas": voltas.get("pilotos", []) if voltas else [],
         "pneus": pneus.get("pilotos", []) if pneus else [],
@@ -303,16 +303,16 @@ def dados_pra_o_painel():
     try:
         from Bot.jogadores import JOGADORES
         from utils.dictionnaries import tyres_dictionnary
-        
+
         dados = []
         for idx, piloto in enumerate(JOGADORES):
             nome = getattr(piloto, 'name', '')
             if not nome or nome.strip() == '':
                 continue
-            
+
             # Pega stints do piloto
             pneu_stints = getattr(piloto, 'pneu_stints', [])
-            
+
             # Converte stints para formato esperado pelo frontend
             stints = []
             for stint in pneu_stints:
@@ -322,14 +322,14 @@ def dados_pra_o_painel():
                     "volta_fim": stint.get("volta_fim", 0),
                     "total_voltas": stint.get("total_voltas", 0)
                 })
-            
+
             # Composto atual
             tyres_code = getattr(piloto, 'tyres', 17)
             tyres_name = tyres_dictionnary.get(tyres_code, "MEDIUM")
-            
+
             # Voltas completadas
             num_laps = getattr(piloto, 'num_laps', 0) or getattr(piloto, 'currentLapNum', 0)
-            
+
             dados.append({
                 "nome": nome,
                 "numero": getattr(piloto, 'numero', idx),
@@ -338,10 +338,10 @@ def dados_pra_o_painel():
                 "num_laps": num_laps,
                 "stints": stints
             })
-        
+
         # Ordena por posição
         dados.sort(key=lambda x: x.get('position', 99))
-        
+
         return jsonify(dados)
     except Exception as e:
         print(f"Erro dados_pra_o_painel: {e}")
@@ -352,15 +352,15 @@ def dados_pra_o_painel():
             conn.execute("PRAGMA busy_timeout=30000")
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
-            
+
             cur.execute("SELECT id FROM sessoes ORDER BY id DESC LIMIT 1")
             row = cur.fetchone()
             if not row:
                 conn.close()
                 return jsonify([])
-            
+
             sessao_id = row["id"]
-            
+
             cur.execute("""
                 SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao, pneu_atual
                 FROM pilotos 
@@ -369,7 +369,7 @@ def dados_pra_o_painel():
                 ORDER BY posicao
             """, (sessao_id,))
             pilotos = [dict(r) for r in cur.fetchall()]
-            
+
             dados = []
             for p in pilotos:
                 dados.append({
@@ -380,7 +380,7 @@ def dados_pra_o_painel():
                     "num_laps": 0,
                     "stints": []
                 })
-            
+
             conn.close()
             return jsonify(dados)
         except:
@@ -394,34 +394,31 @@ def apagar_sessao(sessao_id):
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=30000")
         cur = conn.cursor()
-        
-        # Busca pilotos da sessão para excluir dados relacionados
-        cur.execute("SELECT id FROM pilotos WHERE sessao_id = ?", (sessao_id,))
-        piloto_ids = [r[0] for r in cur.fetchall()]
-        
-        if piloto_ids:
-            placeholders = ",".join("?" * len(piloto_ids))
-            # Exclui dados relacionados aos pilotos
-            cur.execute(f"DELETE FROM voltas WHERE piloto_id IN ({placeholders})", piloto_ids)
-            cur.execute(f"DELETE FROM pneus WHERE piloto_id IN ({placeholders})", piloto_ids)
-            cur.execute(f"DELETE FROM danos WHERE piloto_id IN ({placeholders})", piloto_ids)
-            cur.execute(f"DELETE FROM telemetria WHERE piloto_id IN ({placeholders})", piloto_ids)
-            cur.execute(f"DELETE FROM pneu_stints WHERE piloto_id IN ({placeholders})", piloto_ids)
-        
-        # Exclui voltas e pilotos da sessão
-        cur.execute("DELETE FROM voltas WHERE sessao_id = ?", (sessao_id,))
-        cur.execute("DELETE FROM pilotos WHERE sessao_id = ?", (sessao_id,))
+
+        # Deleta por sessao_id direto (sem IN com muitos ids)
+        tabelas_com_sessao = ["voltas", "pneus", "danos", "telemetria", "pneu_stints", "setups", "pilotos"]
+
+        for tabela in tabelas_com_sessao:
+            try:
+                cur.execute(f"DELETE FROM {tabela} WHERE sessao_id = ?", (sessao_id,))
+            except Exception as e:
+                print(f"⚠️ Erro ao limpar {tabela}: {e}")
+
+        # Deleta a sessão
         cur.execute("DELETE FROM sessoes WHERE id = ?", (sessao_id,))
-        
+
         conn.commit()
         conn.close()
-        
-        # Remove JSONs da sessão se existirem
+
+        # Remove JSONs da sessão
         for suffix in ["_voltas.json", "_pneus.json", "_danos.json"]:
             json_path = os.path.join(STATIC_PATH, f"sessao_{sessao_id}{suffix}")
             if os.path.exists(json_path):
-                os.remove(json_path)
-        
+                try:
+                    os.remove(json_path)
+                except Exception:
+                    pass
+
         return jsonify({"ok": True, "mensagem": f"Sessão {sessao_id} excluída"})
     except Exception as e:
         return jsonify({"ok": False, "erro": str(e)}), 500
@@ -564,19 +561,19 @@ def dados_stints_ultimo():
         conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        
+
         # Busca última sessão
         cur.execute("SELECT id, nome_pista, tipo_sessao, total_voltas FROM sessoes ORDER BY id DESC LIMIT 1")
         sessao = cur.fetchone()
-        
+
         if not sessao:
             conn.close()
             return jsonify({"sessao": {}, "pilotos": []})
-        
+
         sessao_id = sessao["id"]
-        
+
         return _dados_stints_por_sessao(cur, sessao_id, dict(sessao))
-        
+
     except Exception as e:
         print(f"Erro dados_stints_ultimo: {e}")
         return jsonify({"sessao": {}, "pilotos": []})
@@ -591,17 +588,17 @@ def dados_stints(sessao_id):
         conn.execute("PRAGMA busy_timeout=30000")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
-        
+
         # Busca info da sessão
         cur.execute("SELECT id, nome_pista, tipo_sessao, total_voltas FROM sessoes WHERE id = ?", (sessao_id,))
         sessao = cur.fetchone()
-        
+
         if not sessao:
             conn.close()
             return jsonify({"sessao": {}, "pilotos": []})
-        
+
         return _dados_stints_por_sessao(cur, sessao_id, dict(sessao))
-        
+
     except Exception as e:
         print(f"Erro dados_stints/{sessao_id}: {e}")
         return jsonify({"sessao": {}, "pilotos": []})
@@ -619,12 +616,12 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
             ORDER BY posicao
         """, (sessao_id,))
         pilotos = [dict(r) for r in cur.fetchall()]
-        
+
         dados = []
         for p in pilotos:
             piloto_id = p.get("id")
             nome = p.get("nome", "Desconhecido")
-            
+
             # Busca stints do piloto
             cur.execute("""
                 SELECT stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas
@@ -632,7 +629,7 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
                 WHERE sessao_id = ? AND piloto_id = ?
                 ORDER BY stint_numero
             """, (sessao_id, piloto_id))
-            
+
             stints = []
             for s in cur.fetchall():
                 stints.append({
@@ -642,21 +639,21 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
                     "volta_fim": s["volta_fim"],
                     "total_voltas": s["total_voltas"]
                 })
-            
+
             dados.append({
                 "nome": nome,
                 "numero": p.get("numero"),
                 "posicao": p.get("posicao"),
                 "stints": stints
             })
-        
+
         cur.connection.close()
-        
+
         return jsonify({
             "sessao": sessao_info,
             "pilotos": dados
         })
-        
+
     except Exception as e:
         print(f"Erro _dados_stints_por_sessao: {e}")
         return jsonify({"sessao": {}, "pilotos": []})
@@ -669,20 +666,20 @@ def dados_setups(sessao_id):
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        
+
         # Info da sessão
         cursor.execute("SELECT * FROM sessoes WHERE id = ?", (sessao_id,))
         sessao_row = cursor.fetchone()
         sessao_info = dict(sessao_row) if sessao_row else {
             "id": sessao_id, "nome_pista": "Desconhecida", "tipo_sessao": "Manual"
         }
-        
+
         # Busca todos os setups desta sessão
         cursor.execute("SELECT * FROM setups WHERE sessao_id = ? ORDER BY id", (sessao_id,))
         setups_rows = [dict(row) for row in cursor.fetchall()]
-        
+
         print(f"📊 dados_setups/{sessao_id}: encontrou {len(setups_rows)} setups")
-        
+
         # Transforma cada setup em um "piloto" para o frontend
         pilotos = []
         for i, s in enumerate(setups_rows):
@@ -731,12 +728,12 @@ def dados_setups(sessao_id):
             print(f"   Piloto: {piloto['nome']} | Asas: {piloto['setup']['asa_dianteira']}/{piloto['setup']['asa_traseira']}")
         
         conn.close()
-        
+
         return jsonify({
             "sessao": sessao_info,
             "pilotos": pilotos
         })
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1180,6 +1177,36 @@ def telemetry_insights(sessao_id):
         import traceback; traceback.print_exc()
         return jsonify({"erro": str(e), "sessao": {}, "pilotos": []}), 500
 
+
+@app.route("/renomear_sessao/<int:sessao_id>", methods=["POST"])
+def renomear_sessao(sessao_id):
+    """Renomeia uma sessão"""
+    try:
+        data = request.get_json()
+        novo_nome = data.get("nome", "").strip()
+        
+        if not novo_nome:
+            return jsonify({"ok": False, "erro": "Nome vazio"}), 400
+
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        cur = conn.cursor()
+
+        # Verifica se coluna nome_customizado existe
+        cur.execute("PRAGMA table_info(sessoes)")
+        colunas = [col[1] for col in cur.fetchall()]
+
+        if "nome_customizado" not in colunas:
+            cur.execute("ALTER TABLE sessoes ADD COLUMN nome_customizado TEXT DEFAULT NULL")
+
+        cur.execute("UPDATE sessoes SET nome_customizado = ? WHERE id = ?", (novo_nome, sessao_id))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"ok": True, "mensagem": f"Sessão #{sessao_id} renomeada para: {novo_nome}"})
+    except Exception as e:
+        return jsonify({"ok": False, "erro": str(e)}), 500
 
 @app.route("/Comparar")
 def telemetry_insights_page():
