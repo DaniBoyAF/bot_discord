@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Race Positions</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:     #0b0d1a;
+    --panel:  #10121f;
+    --border: #1e2135;
+    --red:    #e10600;
+    --text:   #d8daf0;
+    --muted:  #4a4d6a;
+    --label:  #7a7d9a;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .page { max-width: 1600px; margin: 0 auto; }
+
+  /* ── HEADER ── */
+  .header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--red);
+    border-radius: 0 0 8px 8px;
+    margin-bottom: 18px;
+  }
+  .header-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px; font-weight: 900;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text);
+  }
+  .header-sub { font-size: 13px; color: var(--label); letter-spacing: 1px; margin-left: 4px; }
+  .header-right { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+
+  select {
+    background: #1a1c2e; color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 7px 12px; font-family: 'Rajdhani', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer; outline: none;
+    min-width: 240px;
+  }
+  select:focus { border-color: var(--red); }
+
+  /* ── CHART WRAPPER ── */
+  .chart-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 16px 16px 0;
+    position: relative;
+    overflow-x: auto;
+  }
+
+  canvas#chart { display: block; }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px 20px;
+    margin-top: 18px; padding: 0 16px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: opacity .2s;
+  }
+  .legend-item.hidden { opacity: .3; }
+  .legend-dot {
+    width: 28px; height: 3px; border-radius: 2px; flex-shrink: 0;
+  }
+  .legend-num {
+    background: rgba(255,255,255,0.08); border-radius: 3px;
+    padding: 1px 5px; font-size: 10px; color: var(--label);
+  }
+
+  /* ── TOOLTIP ── */
+  #tooltip {
+    position: fixed;
+    background: rgba(10,12,24,0.95);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    pointer-events: none;
+    z-index: 100;
+    display: none;
+    min-width: 160px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  #tooltip .tt-lap { font-family: 'Orbitron', monospace; font-size: 11px; color: var(--label); margin-bottom: 6px; }
+  #tooltip .tt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  #tooltip .tt-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  #tooltip .tt-name { flex: 1; font-weight: 700; }
+  #tooltip .tt-pos { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; }
+
+  /* ── LOADING ── */
+  .loading {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 50vh; gap: 14px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border); border-top-color: var(--red);
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-txt { font-size: 12px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+
+  .empty { text-align: center; padding: 80px 20px; color: var(--muted); }
+  .empty h2 { font-family: 'Orbitron', monospace; font-size: 16px; color: var(--border); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div>
+      <div class="header-title">Race Positions</div>
+      <div class="header-sub" id="sess-info">—</div>
+    </div>
+    <div class="header-right">
+      <select id="sess-select"><option value="">Carregando sessões...</option></select>
+    </div>
+  </div>
+
+  <div id="main-area">
+    <div class="loading"><div class="spinner"></div><div class="loading-txt">Aguardando dados...</div></div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ── PALETA (cor por índice de piloto, seguindo times F1) ──────────────────────
+const PALETTE = [
+  "#00d2be","#e10600","#ff8700","#0090ff","#ffffff",
+  "#dc0000","#006f62","#2b4562","#b6babd","#f596c8",
+  "#37bedd","#a5c0dd","#3671c6","#0082fa","#ff87bc",
+  "#c92d4b","#6cd3bf","#e8002d","#52e252","#b3c7c7",
+  "#fe86bc","#ff3300"
+];
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let sessions  = [];
+let currentData = null;
+let hidden    = new Set();
+let canvasW   = 1200;
+let MARGIN    = { top: 16, right: 80, bottom: 36, left: 64 };
+let ROW_H     = 30;
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const r = await fetch('/historico_sessoes');
+    const arr = await r.json();
+    sessions = Array.isArray(arr) ? arr : (arr.sessoes || []);
+    // filtra sessões que parecem corridas (tipo_sessao contém 'Race' ou session 10/11)
+    const sel = document.getElementById('sess-select');
+    sel.innerHTML = sessions.map(s =>
+      `<option value="${s.id}">#${s.id} — ${s.nome_pista || '?'} (${s.tipo_sessao || '?'})</option>`
+    ).join('');
+    sel.addEventListener('change', () => loadSession(parseInt(sel.value)));
+    if (sessions.length > 0) loadSession(sessions[0].id);
+  } catch(e) {
+    console.error(e);
+    document.getElementById('main-area').innerHTML = '<div class="empty"><h2>Erro ao carregar sessões</h2></div>';
+  }
+}
+
+async function loadSession(id) {
+  document.getElementById('main-area').innerHTML =
+    '<div class="loading"><div class="spinner"></div><div class="loading-txt">Carregando posições...</div></div>';
+  document.getElementById('legend').innerHTML = '';
+  hidden.clear();
+
+  try {
+    const [r, ru] = await Promise.all([
+      fetch(`/api/race_positions/${id}`),
+      fetch(`/api/race_positions/${id}/ultrapassagens`),
+    ]);
+    const d  = await r.json();
+    const ul = await ru.json();
+    currentData = d;
+    currentData.ultrapassagens = Array.isArray(ul) ? ul : [];
+
+    const s = d.sessao || {};
+    document.getElementById('sess-info').textContent =
+      `${s.nome_pista || '?'} · ${s.tipo_sessao || '?'} · ${d.max_volta || '?'} voltas`;
+
+    if (!d.pilotos || d.pilotos.length === 0) {
+      document.getElementById('main-area').innerHTML =
+        '<div class="empty"><h2>Sem dados de posição</h2><p>As voltas desta sessão não possuem dados de posição por volta.<br>Jogue uma corrida com o bot ativo para registrar.</p></div>';
+      return;
+    }
+
+    renderChart(d);
+    renderLegend(d.pilotos);
+  } catch(e) {
+    console.error(e);
+    document.getElementById('main-area').innerHTML = '<div class="empty"><h2>Erro ao carregar dados</h2></div>';
+  }
+}
+
+// ── RENDER CHART ─────────────────────────────────────────────────────────────
+function renderChart(d) {
+  const pilotos  = d.pilotos;
+  const maxVolta = d.max_volta || 1;
+  const nDrivers = pilotos.length;
+
+  const H = MARGIN.top + nDrivers * ROW_H + MARGIN.bottom;
+  canvasW = Math.max(900, 64 + maxVolta * 22 + MARGIN.right);
+
+  const wrap = document.getElementById('main-area');
+  wrap.innerHTML = `<div class="chart-wrap"><canvas id="chart" width="${canvasW}" height="${H}"></canvas></div>`;
+
+  const canvas = document.getElementById('chart');
+  const ctx    = canvas.getContext('2d');
+
+  function draw() {
+    ctx.clearRect(0, 0, canvasW, H);
+
+    const W = canvasW;
+    const plotW = W - MARGIN.left - MARGIN.right;
+    const plotH = H - MARGIN.top  - MARGIN.bottom;
+
+    // fundo do plot
+    ctx.fillStyle = '#0b0d1a';
+    ctx.fillRect(MARGIN.left, MARGIN.top, plotW, plotH);
+
+    const xScale = v => MARGIN.left + ((v - 1) / Math.max(maxVolta - 1, 1)) * plotW;
+    const yScale = p => MARGIN.top  + ((p - 1) / (nDrivers - 1 || 1)) * plotH;
+
+    // grid horizontal (por posição)
+    for (let p = 1; p <= nDrivers; p++) {
+      const y = yScale(p);
+      ctx.strokeStyle = p % 2 === 0 ? '#141628' : '#111323';
+      ctx.lineWidth = ROW_H;
+      ctx.beginPath(); ctx.moveTo(MARGIN.left, y); ctx.lineTo(MARGIN.left + plotW, y); ctx.stroke();
+
+      // linha fina separadora
+      ctx.strokeStyle = '#1a1d30';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(MARGIN.left, y + ROW_H/2); ctx.lineTo(MARGIN.left + plotW, y + ROW_H/2); ctx.stroke();
+    }
+
+    // grid vertical (por volta a cada 5)
+    ctx.strokeStyle = '#1a1d30';
+    ctx.lineWidth = 1;
+    for (let v = 1; v <= maxVolta; v++) {
+      if (v % 5 === 0 || v === 1) {
+        const x = xScale(v);
+        ctx.beginPath(); ctx.moveTo(x, MARGIN.top); ctx.lineTo(x, MARGIN.top + plotH); ctx.stroke();
+      }
+    }
+
+    // eixo Y (posições)
+    ctx.fillStyle = '#5a5d7a';
+    ctx.font = '700 11px Rajdhani, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let p = 1; p <= nDrivers; p++) {
+      ctx.fillText(`P${p}`, MARGIN.left - 8, yScale(p));
+    }
+
+    // eixo X (voltas)
+    ctx.fillStyle = '#5a5d7a';
+    ctx.font = '11px Rajdhani, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let v = 1; v <= maxVolta; v++) {
+      if (v === 1 || v % 5 === 0 || v === maxVolta) {
+        ctx.fillText(v, xScale(v), MARGIN.top + plotH + 6);
+      }
+    }
+
+    // linhas dos pilotos
+    pilotos.forEach((p, idx) => {
+      if (hidden.has(idx)) return;
+      const color = PALETTE[idx % PALETTE.length];
+      const voltas = Object.keys(p.posicoes).map(Number).sort((a,b)=>a-b);
+      if (voltas.length === 0) return;
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 2;
+      ctx.shadowColor = color;
+      ctx.shadowBlur  = 3;
+
+      // linha sólida
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      let started = false;
+      for (const v of voltas) {
+        const pos = p.posicoes[v];
+        if (!pos || pos < 1) continue;
+        const x = xScale(v);
+        const y = yScale(pos);
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else            ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // pontos
+      for (const v of voltas) {
+        const pos = p.posicoes[v];
+        if (!pos || pos < 1) continue;
+        const x = xScale(v);
+        const y = yScale(pos);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, v % 5 === 0 || v === 1 ? 4 : 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // nome no fim + posição final
+      const lastV = voltas[voltas.length - 1];
+      const lastP = p.posicoes[lastV];
+      if (lastP && lastP >= 1) {
+        const x = xScale(lastV) + 8;
+        const y = yScale(lastP);
+        ctx.fillStyle = color;
+        ctx.font = '700 11px Rajdhani, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        const abbr = p.nome.split(' ').pop().substring(0,3).toUpperCase();
+        const posLabel = p.pos_final ? ` P${p.pos_final}` : '';
+        ctx.fillText(abbr + posLabel, x, y);
+      }
+
+      // Marcador de posição de grid (volta 1) — círculo maior com borda
+      const firstV = voltas[0];
+      const firstP = p.posicoes[firstV];
+      if (firstP && firstP >= 1) {
+        const x = xScale(firstV);
+        const y = yScale(firstP);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = '#0b0d1a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    });
+    ctx.setLineDash([]);
+
+    // ── Marcadores de ultrapassagem ──────────────────────────────────────
+    const ultras = (d.ultrapassagens || []);
+    ultras.forEach(ev => {
+      if (!ev.volta || !ev.ultrapassou_nome || !ev.pos_ultrapassou) return;
+      const idxA = pilotos.findIndex(p => p.nome === ev.ultrapassou_nome);
+      if (idxA < 0 || hidden.has(idxA)) return;
+
+      const x  = xScale(ev.volta);
+      const y  = yScale(ev.pos_ultrapassou);
+      const colorA = PALETTE[idxA % PALETTE.length];
+
+      // Seta para cima (ultrapassagem = subiu posição)
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = colorA;
+      ctx.strokeStyle = '#0b0d1a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, -9);
+      ctx.lineTo(5, -2);
+      ctx.lineTo(2, -2);
+      ctx.lineTo(2, 4);
+      ctx.lineTo(-2, 4);
+      ctx.lineTo(-2, -2);
+      ctx.lineTo(-5, -2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  draw();
+
+  // Redraw ao toggle
+  window._redrawChart = draw;
+
+  // Tooltip
+  canvas.addEventListener('mousemove', (e) => {
+    const rect  = canvas.getBoundingClientRect();
+    const mx    = e.clientX - rect.left;
+    const my    = e.clientY - rect.top;
+    const plotW = canvasW - MARGIN.left - MARGIN.right;
+    const plotH = H - MARGIN.top - MARGIN.bottom;
+
+    const xNorm = (mx - MARGIN.left) / plotW;
+    const lap   = Math.round(1 + xNorm * (maxVolta - 1));
+    if (lap < 1 || lap > maxVolta) { hideTip(); return; }
+
+    const rows = pilotos
+      .map((p, i) => ({ p, i, pos: p.posicoes[lap] }))
+      .filter(r => r.pos && !hidden.has(r.i))
+      .sort((a,b) => a.pos - b.pos);
+
+    if (!rows.length) { hideTip(); return; }
+
+    const tip = document.getElementById('tooltip');
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX + 16) + 'px';
+    tip.style.top  = (e.clientY - 20) + 'px';
+    tip.innerHTML  = `<div class="tt-lap">VOLTA ${lap}</div>` +
+      rows.map(r => `
+        <div class="tt-row">
+          <div class="tt-dot" style="background:${PALETTE[r.i % PALETTE.length]}"></div>
+          <div class="tt-name">${r.p.nome}</div>
+          <div class="tt-pos" style="color:${PALETTE[r.i % PALETTE.length]}">P${r.pos}</div>
+        </div>`).join('');
+  });
+  canvas.addEventListener('mouseleave', hideTip);
+}
+
+function hideTip() {
+  document.getElementById('tooltip').style.display = 'none';
+}
+
+// ── LEGEND ───────────────────────────────────────────────────────────────────
+function renderLegend(pilotos) {
+  const leg = document.getElementById('legend');
+  leg.innerHTML = pilotos.map((p, i) => `
+    <div class="legend-item" data-idx="${i}" onclick="toggleDriver(${i})">
+      <div class="legend-dot" style="background:${PALETTE[i % PALETTE.length]}"></div>
+      <span>${p.nome}</span>
+      <span class="legend-num">#${p.numero || '?'}</span>
+    </div>
+  `).join('');
+}
+
+function toggleDriver(idx) {
+  const el = document.querySelector(`.legend-item[data-idx="${idx}"]`);
+  if (hidden.has(idx)) { hidden.delete(idx); el.classList.remove('hidden'); }
+  else                  { hidden.add(idx);   el.classList.add('hidden');    }
+  if (window._redrawChart) window._redrawChart();
+}
+
+init();
+</script>
+</body>
+</html>

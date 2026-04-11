@@ -1139,18 +1139,33 @@ def atualizar_final_classification(pacote_final):
     from Bot.jogadores import JOGADORES
     for idx, data in enumerate(pacote_final.m_classification_data):
         piloto = JOGADORES[idx]
-        piloto.bestLapTime = data.m_best_lap_time_in_ms / 1000
+        piloto.bestLapTime   = data.m_best_lap_time_in_ms / 1000
+        # Posição final e de grid vindas do pacote de classificação final
+        pos_final = int(data.m_position)
+        if pos_final and pos_final > 0:
+            piloto.posicao_final = pos_final
+            piloto.position      = pos_final   # atualiza posição atual também
+        grid = int(data.m_grid_position)
+        if grid and grid > 0:
+            piloto.grid_position = grid        # sobrescreve com valor canônico do jogo
         
 def atualizar_lapdata(pacote_lap):
     print("Atualizando lapdata")
     from Bot.jogadores import JOGADORES
     for idx, lap in enumerate(pacote_lap.m_lap_data):
         piloto = JOGADORES[idx]
-        piloto.lastLapTime = lap.m_last_lap_time_in_ms / 1000
+        piloto.lastLapTime   = lap.m_last_lap_time_in_ms / 1000
         piloto.currentLapTime = lap.m_current_lap_time_in_ms / 1000
-        piloto.position = lap.m_car_position
+        piloto.position      = lap.m_car_position
+        piloto.current_lap_num = getattr(lap, 'm_current_lap_num', 0)
+
+        # Grid position: salva apenas uma vez (não muda depois da largada)
+        grid = getattr(lap, 'm_grid_position', 0)
+        if grid and grid > 0 and not getattr(piloto, 'grid_position', 0):
+            piloto.grid_position = int(grid)
+
         # GAP para o líder
-        delta_ms = getattr(lap, "m_deltaToRaceLeaderMSPart", 65535)
+        delta_ms  = getattr(lap, "m_deltaToRaceLeaderMSPart", 65535)
         delta_min = getattr(lap, "m_deltaToRaceLeaderMinutesPart", 0)
         if delta_ms == 65535:
             piloto.delta_to_leader = "—"
@@ -1297,45 +1312,66 @@ def atualizar_colisao(pacote_colisao):
 
 def atualizar_ultrapassagem(pacote_ultrapassagem):
     from Bot.jogadores import JOGADORES
-    
-    # Pega os índices dos pilotos envolvidos
+
     idx1 = pacote_ultrapassagem.m_event_details.m_overtake.m_overtakingVehicleIdx
     idx2 = pacote_ultrapassagem.m_event_details.m_overtake.m_beingOvertakenVehicleIdx
-    
-    if idx1 < len(JOGADORES) and idx2 < len(JOGADORES):
-        piloto1 = JOGADORES[idx1]
-        piloto2 = JOGADORES[idx2]
-        
-        # Piloto que ultrapassou
-        piloto1.ultrapassou = True
-        piloto1.ultrapassou_idx = idx2
-        piloto1.ultrapassou_nome = getattr(piloto2, 'name', f'Piloto {idx2}')
-        
-        # Contador de ultrapassagens
-        if not hasattr(piloto1, 'total_ultrapassagens'):
-            piloto1.total_ultrapassagens = 0
-        piloto1.total_ultrapassagens += 1
-        
-        # Piloto que foi ultrapassado
-        piloto2.ultrapassado = True
-        piloto2.ultrapassado_idx = idx1
-        piloto2.ultrapassado_nome = getattr(piloto1, 'name', f'Piloto {idx1}')
-        
-        # Contador de vezes ultrapassado
-        if not hasattr(piloto2, 'total_ultrapassado'):
-            piloto2.total_ultrapassado = 0
-        piloto2.total_ultrapassado += 1
+
+    if idx1 >= len(JOGADORES) or idx2 >= len(JOGADORES):
+        return
+
+    piloto1 = JOGADORES[idx1]  # quem ultrapassou
+    piloto2 = JOGADORES[idx2]  # quem foi ultrapassado
+
+    volta_atual = getattr(piloto1, 'current_lap_num', 0)
+    pos1 = getattr(piloto1, 'position', 0)
+    pos2 = getattr(piloto2, 'position', 0)
+
+    # ── Flags por ciclo (para o main.py processar no mesmo tick) ──
+    piloto1.ultrapassou       = True
+    piloto1.ultrapassou_idx   = idx2
+    piloto1.ultrapassou_nome  = getattr(piloto2, 'name', f'Piloto {idx2}')
+
+    piloto2.ultrapassado      = True
+    piloto2.ultrapassado_idx  = idx1
+    piloto2.ultrapassado_nome = getattr(piloto1, 'name', f'Piloto {idx1}')
+
+    # ── Contadores acumulados ──────────────────────────────────────
+    piloto1.total_ultrapassagens = getattr(piloto1, 'total_ultrapassagens', 0) + 1
+    piloto2.total_ultrapassado   = getattr(piloto2, 'total_ultrapassado',   0) + 1
+
+    # ── Histórico persistente: lista de eventos com volta e posições ──
+    # Usado pelo main.py para salvar no banco e pelo HTML para mostrar no gráfico
+    evento = {
+        'volta':          volta_atual,
+        'ultrapassou_idx':    idx1,
+        'ultrapassou_nome':   getattr(piloto1, 'name', f'Piloto {idx1}'),
+        'ultrapassado_idx':   idx2,
+        'ultrapassado_nome':  getattr(piloto2, 'name', f'Piloto {idx2}'),
+        'pos_ultrapassou':    pos1,   # posição de quem ultrapassou no momento
+        'pos_ultrapassado':   pos2,   # posição de quem foi ultrapassado
+        'timestamp':          time.time(),
+    }
+
+    # Acrescenta ao histórico global da sessão (lista em JOGADORES[0] como ponto central)
+    lider = JOGADORES[0]
+    if not hasattr(lider, 'historico_ultrapassagens'):
+        lider.historico_ultrapassagens = []
+    lider.historico_ultrapassagens.append(evento)
+_CAMPOS_ULTRAPASSAGEM = {
+    'ultrapassou':       False,
+    'ultrapassado':      False,
+    'ultrapassou_idx':   None,
+    'ultrapassado_idx':  None,
+    'ultrapassou_nome':  "",
+    'ultrapassado_nome': "",
+}
+
 def resetar_flags_ultrapassagem():
-    """Reseta os flags de ultrapassagem após processar"""
+    """Reseta os flags por-ciclo de ultrapassagem (histórico permanece intacto)"""
     from Bot.jogadores import JOGADORES
-    
     for piloto in JOGADORES:
-        piloto.ultrapassou = False
-        piloto.ultrapassado = False
-        piloto.ultrapassou_idx = None
-        piloto.ultrapassado_idx = None
-        piloto.ultrapassou_nome = ""
-        piloto.ultrapassado_nome = ""
+        for campo, valor in _CAMPOS_ULTRAPASSAGEM.items():
+            setattr(piloto, campo, valor)
 def atualizar_pit_stop_served(pacote_pit_stop_served):
     from Bot.jogadores import JOGADORES
     

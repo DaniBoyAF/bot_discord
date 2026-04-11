@@ -1212,6 +1212,100 @@ def renomear_sessao(sessao_id):
 def telemetry_insights_page():
     return render_template("Comparar.html")
 
+
+@app.route("/api/race_positions/<int:sessao_id>")
+def race_positions(sessao_id):
+    """Posicao por volta de cada piloto para o grafico Race Positions"""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        cur.execute("SELECT nome_pista, tipo_sessao, total_voltas FROM sessoes WHERE id = ?", (sessao_id,))
+        row = cur.fetchone()
+        sessao = dict(row) if row else {}
+
+        cur.execute("""
+            SELECT MIN(p.id) as pid, p.nome, p.numero, p.posicao,
+                   p.nome_equipe, p.team_id
+            FROM pilotos p
+            WHERE p.sessao_id = ?
+            GROUP BY p.nome
+            ORDER BY p.posicao
+        """, (sessao_id,))
+        pilotos = [dict(r) for r in cur.fetchall()]
+
+        resultado = []
+        max_volta = 0
+
+        for p in pilotos:
+            cur.execute("SELECT id FROM pilotos WHERE sessao_id = ? AND nome = ?", (sessao_id, p["nome"]))
+            ids = [r[0] for r in cur.fetchall()]
+            ph  = ",".join("?" * len(ids))
+
+            cur.execute(f"""
+                SELECT numero_volta, posicao
+                FROM voltas
+                WHERE sessao_id = ? AND piloto_id IN ({ph})
+                  AND numero_volta IS NOT NULL AND numero_volta > 0
+                ORDER BY numero_volta
+            """, (sessao_id, *ids))
+            voltas = [dict(r) for r in cur.fetchall()]
+
+            if not voltas:
+                continue
+
+            pos_por_volta = {}
+            for v in voltas:
+                pos = v["posicao"]
+                nv  = int(v["numero_volta"])
+                if pos and pos > 0:
+                    pos_por_volta[nv] = int(pos)
+                if nv > max_volta:
+                    max_volta = nv
+
+            resultado.append({
+                "nome":      p["nome"],
+                "numero":    p["numero"],
+                "equipe":    p.get("nome_equipe") or "?",
+                "team_id":   p.get("team_id"),
+                "pos_final": p["posicao"],
+                "posicoes":  pos_por_volta,
+            })
+
+        conn.close()
+        return jsonify({"sessao": sessao, "pilotos": resultado, "max_volta": max_volta})
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"erro": str(e), "pilotos": [], "max_volta": 0}), 500
+
+
+@app.route("/race_positions")
+def race_positions_page():
+    return render_template("race_positions.html")
+
+
+@app.route("/api/race_positions/<int:sessao_id>/ultrapassagens")
+def race_ultrapassagens(sessao_id):
+    """Ultrapassagens da sessão com volta, quem ultrapassou quem e posições"""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT volta, ultrapassou_nome, ultrapassado_nome,
+                   pos_ultrapassou, pos_ultrapassado, timestamp
+            FROM ultrapassagens WHERE sessao_id = ?
+            ORDER BY volta, timestamp
+        """, (sessao_id,))
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return jsonify(rows)
+    except Exception as e:
+        return jsonify([])
+
 if __name__ == "__main__":
     print(f"[INFO] STATIC_PATH: {STATIC_PATH}")
     print()

@@ -87,10 +87,10 @@ bot =commands.Bot(command_prefix=".", intents=intents)
 @bot.event
 async def on_ready():
     global TEMPO_INICIO_VOLTAS
-    TEMPO_INICIO_VOLTAS = False  # ← era True, agora False
+    TEMPO_INICIO_VOLTAS = True
     print("Bot on")
-    print("💡 Use .salvar_dados para iniciar a coleta")
     bot.loop.create_task(volta_salvar(bot))
+
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -663,13 +663,17 @@ async def volta_salvar(bot):
                     # upsert piloto: INSERT OR IGNORE preserva o id existente,
                     # UPDATE mantém posição/numero atualizados sem apagar o registro.
                     try:
+                        _team_name = getattr(j, 'team_name', None) or 'Desconhecido'
+                        _team_id   = getattr(j, 'm_team_id', None)
                         cursor.execute(
-                            'INSERT OR IGNORE INTO pilotos (sessao_id, nome, numero, posicao) VALUES (?, ?, ?, ?)',
-                            (sessao_id_atual, nome, getattr(j, 'numero', 0), getattr(j, 'position', 0))
+                            'INSERT OR IGNORE INTO pilotos (sessao_id, nome, numero, posicao, nome_equipe, team_id) VALUES (?, ?, ?, ?, ?, ?)',
+                            (sessao_id_atual, nome, getattr(j, 'numero', 0), getattr(j, 'position', 0), _team_name, _team_id)
                         )
+                        _grid_pos    = getattr(j, 'grid_position', None)
+                        _pos_final   = getattr(j, 'posicao_final', None)
                         cursor.execute(
-                            'UPDATE pilotos SET numero = ?, posicao = ? WHERE sessao_id = ? AND nome = ?',
-                            (getattr(j, 'numero', 0), getattr(j, 'position', 0), sessao_id_atual, nome)
+                            'UPDATE pilotos SET numero = ?, posicao = ?, nome_equipe = ?, team_id = ?, grid_position = ?, posicao_final = ? WHERE sessao_id = ? AND nome = ?',
+                            (getattr(j, 'numero', 0), getattr(j, 'position', 0), _team_name, _team_id, _grid_pos, _pos_final, sessao_id_atual, nome)
                         )
                     except Exception as e:
                         print("Erro upsert pilotos:", e)
@@ -803,9 +807,9 @@ async def volta_salvar(bot):
                             else:
                                 try:
                                     cursor.execute('''
-                                        INSERT INTO voltas (sessao_id, piloto_id, numero_volta, tempo_volta, setor1, setor2, setor3)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                                    ''', (sessao_id_atual, piloto_id, nv, tempo_total_val, s1_val, s2_val, s3_val))
+                                        INSERT INTO voltas (sessao_id, piloto_id, numero_volta, tempo_volta, setor1, setor2, setor3, posicao)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                    ''', (sessao_id_atual, piloto_id, nv, tempo_total_val, s1_val, s2_val, s3_val, getattr(j, 'position', None)))
                                 except Exception as e:
                                     print("Erro insert volta:", e)
 
@@ -883,6 +887,33 @@ async def volta_salvar(bot):
                               time.time()))
                     except Exception as e:
                         print("Erro insert danos:", e)
+
+                    # ── salvar ultrapassagens acumuladas ─────────────────
+                    try:
+                        from Bot.jogadores import JOGADORES as _JOG_U
+                        hist = getattr(_JOG_U[0], "historico_ultrapassagens", [])
+                        for ev in hist:
+                            cursor.execute('''
+                                INSERT OR IGNORE INTO ultrapassagens
+                                (sessao_id, volta, ultrapassou_nome, ultrapassou_idx,
+                                 ultrapassado_nome, ultrapassado_idx,
+                                 pos_ultrapassou, pos_ultrapassado, timestamp)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (
+                                sessao_id_atual,
+                                ev.get("volta", 0),
+                                ev.get("ultrapassou_nome", ""),
+                                ev.get("ultrapassou_idx", -1),
+                                ev.get("ultrapassado_nome", ""),
+                                ev.get("ultrapassado_idx", -1),
+                                ev.get("pos_ultrapassou", 0),
+                                ev.get("pos_ultrapassado", 0),
+                                ev.get("timestamp", 0),
+                            ))
+                        if hist:
+                            _JOG_U[0].historico_ultrapassagens = []
+                    except Exception as e:
+                        print("Erro salvar ultrapassagens:", e)
 
                     # telemetria
                     try:
@@ -1209,6 +1240,10 @@ def criar_tabelas():
         pneu_atual TEXT,
         idade_pneu INTEGER,
         delta_to_leader TEXT,
+        nome_equipe TEXT,
+        team_id INTEGER,
+        grid_position INTEGER,
+        posicao_final INTEGER,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
         UNIQUE(sessao_id, nome)
     )
@@ -1320,12 +1355,102 @@ def criar_tabelas():
         UNIQUE(sessao_id, piloto_id, stint_numero)
     )
     ''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ultrapassagens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sessao_id INTEGER,
+        volta INTEGER,
+        ultrapassou_nome TEXT,
+        ultrapassou_idx INTEGER,
+        ultrapassado_nome TEXT,
+        ultrapassado_idx INTEGER,
+        pos_ultrapassou INTEGER,
+        pos_ultrapassado INTEGER,
+        timestamp REAL,
+        FOREIGN KEY (sessao_id) REFERENCES sessoes(id)
+    )
+    ''')
     
     conn.commit()
     conn.close()
 
 # Executa ao iniciar
+
+def migrar_voltas_posicao():
+    """Adiciona coluna posicao em voltas se nao existir."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute('PRAGMA table_info(voltas)')
+        if 'posicao' not in [r[1] for r in cur.fetchall()]:
+            cur.execute('ALTER TABLE voltas ADD COLUMN posicao INTEGER')
+            print('Migration: posicao adicionada em voltas')
+        conn.commit(); conn.close()
+    except Exception as e:
+        print(f'Erro migrar_voltas_posicao: {e}')
+
+def migrar_pilotos_campos():
+    """Adiciona grid_position, posicao_final e colunas de equipe em pilotos se nao existirem."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute('PRAGMA table_info(pilotos)')
+        cols = [r[1] for r in cur.fetchall()]
+        novos = {
+            'nome_equipe':   'TEXT',
+            'team_id':       'INTEGER',
+            'grid_position': 'INTEGER',
+            'posicao_final': 'INTEGER',
+        }
+        for col, tipo in novos.items():
+            if col not in cols:
+                cur.execute(f'ALTER TABLE pilotos ADD COLUMN {col} {tipo}')
+                print(f'Migration: {col} adicionada em pilotos')
+        conn.commit(); conn.close()
+    except Exception as e:
+        print(f'Erro migrar_pilotos_campos: {e}')
+
+def migrar_pilotos_equipe():
+    """Adiciona nome_equipe e team_id em pilotos se nao existirem."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute('PRAGMA table_info(pilotos)')
+        cols = [r[1] for r in cur.fetchall()]
+        if 'nome_equipe' not in cols:
+            cur.execute('ALTER TABLE pilotos ADD COLUMN nome_equipe TEXT')
+            print('Migration: nome_equipe adicionada')
+        if 'team_id' not in cols:
+            cur.execute('ALTER TABLE pilotos ADD COLUMN team_id INTEGER')
+            print('Migration: team_id adicionada')
+        conn.commit(); conn.close()
+    except Exception as e:
+        print(f'Erro migrar_pilotos_equipe: {e}')
+
 criar_tabelas()
+migrar_voltas_posicao()
+migrar_pilotos_campos()
+
+def migrar_ultrapassagens():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='ultrapassagens'")
+        if not cur.fetchone():
+            cur.execute('''CREATE TABLE ultrapassagens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sessao_id INTEGER, volta INTEGER,
+                ultrapassou_nome TEXT, ultrapassou_idx INTEGER,
+                ultrapassado_nome TEXT, ultrapassado_idx INTEGER,
+                pos_ultrapassou INTEGER, pos_ultrapassado INTEGER,
+                timestamp REAL)''')
+            print("Migration: tabela ultrapassagens criada")
+        conn.commit(); conn.close()
+    except Exception as e:
+        print(f'Erro migrar_ultrapassagens: {e}')
+
+migrar_ultrapassagens()
 criar_tabela_regras()
 criar_tabela_clips()
 @bot.command()
@@ -1823,6 +1948,16 @@ async def drive_compare(ctx):
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
     await ctx.send(f"🔗 Painel disponível ver a corrida: {url}/Comparar")
+try:
+    import Server_20 as ws_server
+except Exception :
+    ws_server = None
+@bot.command()
+async def painel2(ctx):
+    if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+    await ctx.send(f"🔗 Painel disponível dos graficos estão em: {url}/race_positions")
 try:
     import Server_20 as ws_server
 except Exception :
