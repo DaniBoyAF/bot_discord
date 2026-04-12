@@ -1226,13 +1226,22 @@ def race_positions(sessao_id):
         row = cur.fetchone()
         sessao = dict(row) if row else {}
 
+        # Busca pilotos com grid_position e posicao_final corretos
+        # MIN(id) = id original onde as voltas foram salvas
+        # COALESCE(posicao_final, ...) = posição final canônica do jogo
         cur.execute("""
-            SELECT MIN(p.id) as pid, p.nome, p.numero, p.posicao,
-                   p.nome_equipe, p.team_id
+            SELECT
+                MIN(p.id)                                        AS pid,
+                p.nome,
+                p.numero,
+                p.nome_equipe,
+                p.team_id,
+                MAX(p.grid_position)                             AS grid_position,
+                COALESCE(MAX(p.posicao_final), MIN(p.posicao))   AS pos_final
             FROM pilotos p
             WHERE p.sessao_id = ?
             GROUP BY p.nome
-            ORDER BY p.posicao
+            ORDER BY COALESCE(MAX(p.posicao_final), MIN(p.posicao))
         """, (sessao_id,))
         pilotos = [dict(r) for r in cur.fetchall()]
 
@@ -1265,13 +1274,20 @@ def race_positions(sessao_id):
                 if nv > max_volta:
                     max_volta = nv
 
+            # BUG 2: injeta posição de grid na volta 0 (ponto de largada)
+            # Assim o HTML sempre tem um ponto de partida mesmo se volta 1 não tem posicao
+            grid = p.get("grid_position")
+            if grid and grid > 0:
+                pos_por_volta[0] = int(grid)   # volta 0 = largada
+
             resultado.append({
-                "nome":      p["nome"],
-                "numero":    p["numero"],
-                "equipe":    p.get("nome_equipe") or "?",
-                "team_id":   p.get("team_id"),
-                "pos_final": p["posicao"],
-                "posicoes":  pos_por_volta,
+                "nome":         p["nome"],
+                "numero":       p["numero"],
+                "equipe":       p.get("nome_equipe") or "?",
+                "team_id":      p.get("team_id"),
+                "grid_position":grid,
+                "pos_final":    p["pos_final"],
+                "posicoes":     pos_por_volta,
             })
 
         conn.close()
