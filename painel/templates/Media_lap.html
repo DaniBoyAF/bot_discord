@@ -393,5 +393,196 @@
         }
     </script>
     {% endraw %}
+<!-- ═══════════════════════════════════════════════════════
+     SCREENSHOT INSTAGRAM — injeta antes de </body>
+════════════════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+#insta-btn {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+}
+#insta-main-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(220,39,67,0.5);
+  transition: transform .15s, box-shadow .15s;
+}
+#insta-main-btn:hover { transform: scale(1.05); box-shadow: 0 6px 28px rgba(220,39,67,0.7); }
+#insta-main-btn svg { flex-shrink: 0; }
+#insta-formats {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(10,12,20,0.95);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 10px;
+  backdrop-filter: blur(10px);
+}
+#insta-formats.open { display: flex; }
+.insta-fmt-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  padding: 8px 14px;
+  color: #eee;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.insta-fmt-btn:hover { background: rgba(255,255,255,0.14); }
+.insta-fmt-icon {
+  width: 28px; height: 28px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0;
+  flex-shrink: 0;
+  color: rgba(255,255,255,0.7);
+}
+#insta-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 999998;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+}
+#insta-overlay.show { display: flex; }
+#insta-overlay-msg {
+  color: #fff;
+  font-family: 'Rajdhani','Segoe UI',sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+#insta-spinner {
+  width: 40px; height: 40px;
+  border: 4px solid rgba(255,255,255,0.2);
+  border-top-color: #e10600;
+  border-radius: 50%;
+  animation: insta-spin .7s linear infinite;
+}
+@keyframes insta-spin { to { transform: rotate(360deg); } }
+</style>
+
+<div id="insta-btn">
+  <div id="insta-formats">
+    <button class="insta-fmt-btn" onclick="instaCap(1080,1080,'quadrado')">
+      <div class="insta-fmt-icon">1:1</div>
+      Quadrado · 1080×1080
+    </button>
+    <button class="insta-fmt-btn" onclick="instaCap(1080,1350,'retrato')">
+      <div class="insta-fmt-icon" style="width:24px;height:28px;">4:5</div>
+      Retrato · 1080×1350
+    </button>
+    <button class="insta-fmt-btn" onclick="instaCap(1080,566,'paisagem')">
+      <div class="insta-fmt-icon" style="width:32px;height:20px;">1.9:1</div>
+      Paisagem · 1080×566
+    </button>
+  </div>
+  <button id="insta-main-btn" onclick="document.getElementById('insta-formats').classList.toggle('open')">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+      <circle cx="12" cy="12" r="4"/>
+      <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/>
+    </svg>
+    INSTA
+  </button>
+</div>
+
+<div id="insta-overlay">
+  <div id="insta-spinner"></div>
+  <div id="insta-overlay-msg">Gerando imagem...</div>
+</div>
+
+<script>
+(function() {
+  // fecha o menu ao clicar fora
+  document.addEventListener('click', function(e) {
+    const btn = document.getElementById('insta-btn');
+    if (btn && !btn.contains(e.target)) {
+      document.getElementById('insta-formats').classList.remove('open');
+    }
+  });
+})();
+
+async function instaCap(outW, outH, label) {
+  const fab = document.getElementById('insta-btn');
+  fab.style.display = 'none';
+
+  try {
+    const canvas = await html2canvas(document.body, {
+      useCORS: true,
+      allowTaint: true,
+      scale: outW >= 3840 ? 3 : 2,
+      backgroundColor: '#ffffff',
+      logging: false,
+      removeContainer: true,
+    });
+
+    const out = document.createElement('canvas');
+    out.width = outW;
+    out.height = outH;
+    const ctx = out.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, outW, outH);
+
+    const srcW = canvas.width;
+    const srcH = canvas.height;
+    const scale = Math.min(outW / srcW, outH / srcH);
+    const dw = srcW * scale;
+    const dh = srcH * scale;
+    const dx = (outW - dw) / 2;
+    const dy = (outH - dh) / 2;
+
+    ctx.drawImage(canvas, dx, dy, dw, dh);
+
+    const link = document.createElement('a');
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    link.download = `f1-${label}-${ts}.png`;
+    link.href = out.toDataURL('image/png', 1.0);
+    link.click();
+  } finally {
+    fab.style.display = 'flex';
+  }
+}
+</script>
+<!-- ═══════════════════════════════════════════════════════ -->
+
 </body>
 </html>
