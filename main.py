@@ -1818,7 +1818,7 @@ async def _monitorar_e_atualizar_nome_sessao(sessao_id, timeout=300, intervalo=1
         await asyncio.sleep(intervalo)
         waited += intervalo
 
-#coisa HTTP e html pra baixo
+
 _cloudflared_proc = None
 url = None
 

@@ -119,7 +119,7 @@ const StatsPanel = ({ pilotos, ultrapassagens, hidden, onToggle }) => {
             key={p.nome}
             onClick={() => onToggle(p.i)}
             style={{ display:'grid', gridTemplateColumns:grid, gap:8, padding:'9px 16px', cursor:'pointer', opacity:isHidden?.3:1, transition:'opacity .2s,background .2s', borderBottom:'1px solid var(--border)', alignItems:'center' }}
-            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'} 
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'}
             onMouseLeave={e=>e.currentTarget.style.background='transparent'}
           >
             <div style={{ width:4, height:28, borderRadius:2, background:col(p.i), boxShadow:`0 0 8px ${col(p.i)}66` }}/>
@@ -431,7 +431,7 @@ const App = () => {
             {pilotos.map((p,i)=>(
               <div key={p.nome} onClick={()=>toggleDriver(i)}
                 style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, fontWeight:600, cursor:'pointer', opacity:hidden.has(i)?.3:1, transition:'opacity .2s', padding:'4px 8px', borderRadius:4 }}
-                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'} 
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
                 onMouseLeave={e=>e.currentTarget.style.background='transparent'}
               >
                 <div style={{ width:24, height:3, borderRadius:2, background:col(i), boxShadow:`0 0 6px ${col(i)}88` }}/>
@@ -570,21 +570,17 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 
 <div id="insta-btn">
   <div id="insta-formats">
-    <button class="insta-fmt-btn" onclick="instaCap(2160,2160,'hd-quadrado')">
+    <button class="insta-fmt-btn" onclick="instaCap(1080,1080,'quadrado')">
       <div class="insta-fmt-icon">1:1</div>
-      HD Quadrado · 2160×2160
+      Quadrado · 1080×1080
     </button>
-    <button class="insta-fmt-btn" onclick="instaCap(2160,2700,'hd-4x5')">
+    <button class="insta-fmt-btn" onclick="instaCap(1080,1350,'retrato')">
       <div class="insta-fmt-icon" style="width:24px;height:28px;">4:5</div>
-      HD 4:5 · 2160×2700
+      Retrato · 1080×1350
     </button>
-    <button class="insta-fmt-btn" onclick="instaCap(3840,3840,'4k-quadrado')">
-      <div class="insta-fmt-icon">1:1</div>
-      4K Quadrado · 3840×3840
-    </button>
-    <button class="insta-fmt-btn" onclick="instaCap(3840,2160,'4k-16x9')">
-      <div class="insta-fmt-icon" style="width:32px;height:20px;">16:9</div>
-      4K 16:9 · 3840×2160
+    <button class="insta-fmt-btn" onclick="instaCap(1080,566,'paisagem')">
+      <div class="insta-fmt-icon" style="width:32px;height:20px;">1.9:1</div>
+      Paisagem · 1080×566
     </button>
   </div>
   <button id="insta-main-btn" onclick="document.getElementById('insta-formats').classList.toggle('open')">
@@ -601,9 +597,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   <div id="insta-spinner"></div>
   <div id="insta-overlay-msg">Gerando imagem...</div>
 </div>
+
 <script>
-(function () {
-  document.addEventListener('click', function (e) {
+(function() {
+  // fecha o menu ao clicar fora
+  document.addEventListener('click', function(e) {
     const btn = document.getElementById('insta-btn');
     if (btn && !btn.contains(e.target)) {
       document.getElementById('insta-formats').classList.remove('open');
@@ -612,44 +610,88 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 })();
 
 async function instaCap(outW, outH, label) {
+  document.getElementById('insta-formats').classList.remove('open');
+  const overlay = document.getElementById('insta-overlay');
+  const msg     = document.getElementById('insta-overlay-msg');
+  overlay.classList.add('show');
+  msg.textContent = 'Capturando tela...';
+
+  // esconde o botão durante a captura
   const fab = document.getElementById('insta-btn');
   fab.style.display = 'none';
 
   try {
+    msg.textContent = 'Renderizando...';
+    // ── Escala de captura: usa devicePixelRatio * 3 (mínimo 4)
+    // Captura em altíssima resolução antes de comprimir para o formato Instagram
+    const captureScale = Math.max(4, window.devicePixelRatio * 3);
+
     const canvas = await html2canvas(document.body, {
       useCORS: true,
       allowTaint: true,
-      scale: outW >= 3840 ? 3 : 2,
-      backgroundColor: '#ffffff',
+      scale: captureScale,
+      backgroundColor: getComputedStyle(document.body).backgroundColor || '#07080f',
       logging: false,
       removeContainer: true,
+      imageTimeout: 0,
+      // renderiza fontes com antialiasing máximo
+      letterRendering: true,
     });
 
+    msg.textContent = 'Formatando para Instagram...';
+
+    // Canvas de saída em resolução 2x para Instagram (2160×2160 etc.)
+    // O Instagram aceita e exibe em qualidade máxima
+    const pixelRatio = 2;
     const out = document.createElement('canvas');
-    out.width = outW;
-    out.height = outH;
+    out.width  = outW * pixelRatio;
+    out.height = outH * pixelRatio;
     const ctx = out.getContext('2d');
+    ctx.imageSmoothingEnabled  = true;
+    ctx.imageSmoothingQuality  = 'high';
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, outW, outH);
+    // fundo
+    ctx.fillStyle = getComputedStyle(document.body).backgroundColor || '#07080f';
+    ctx.fillRect(0, 0, out.width, out.height);
 
+    // calcula posição centralizada mantendo proporção
     const srcW = canvas.width;
     const srcH = canvas.height;
-    const scale = Math.min(outW / srcW, outH / srcH);
-    const dw = srcW * scale;
-    const dh = srcH * scale;
-    const dx = (outW - dw) / 2;
-    const dy = (outH - dh) / 2;
+    const fit  = Math.min((out.width * 0.96) / srcW, (out.height * 0.96) / srcH);
+    const dw   = srcW * fit;
+    const dh   = srcH * fit;
+    const dx   = (out.width  - dw) / 2;
+    const dy   = (out.height - dh) / 2;
 
     ctx.drawImage(canvas, dx, dy, dw, dh);
 
+    // watermark sutil
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('F1 Telemetry', outW - 14, outH - 10);
+
+    msg.textContent = 'Salvando...';
     const link = document.createElement('a');
-    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const ts   = new Date().toISOString().slice(0,19).replace(/[:T]/g, '-');
     link.download = `f1-${label}-${ts}.png`;
-    link.href = out.toDataURL('image/png', 1.0);
+    link.href = out.toDataURL('image/png');  // PNG é lossless, qualidade máxima
     link.click();
-  } finally {
-    fab.style.display = 'flex';
+
+    msg.textContent = '✓ Salvo!';
+    await new Promise(r => setTimeout(r, 800));
+  } catch(err) {
+    console.error(err);
+    msg.textContent = 'Erro: ' + err.message;
+    await new Promise(r => setTimeout(r, 2000));
   }
+
+  fab.style.display = 'flex';
+  overlay.classList.remove('show');
 }
 </script>
+<!-- ═══════════════════════════════════════════════════════ -->
+
+</body>
+</html>
