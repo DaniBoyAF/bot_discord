@@ -10,7 +10,7 @@ import PyPDF2
 import threading
 from comandos.pneusv import comando_pneusv
 from comandos.delta import comando_delta  # se o nome correto for esse
-from Bot.parser2024 import start_udp_listener
+from Bot.parser2025 import start_udp_listener
 from comandos.clima import comando_clima
 from comandos.pilotos import commando_piloto
 from comandos.danos import danos as comandos_danos
@@ -971,9 +971,14 @@ async def volta_salvar(bot):
 
                             # BUG4 CORRIGIDO: só detecta troca de pneu fora do pit
                             piloto_no_pit = getattr(j, 'pit', False)
+                            pit_count_atual = getattr(j, 'pit_stops', 0)
+                            
                             pneu_mudou = (
                                 chave_stint in ultimo_pneu_por_piloto
-                                and pneu_atual != ultimo_pneu_por_piloto[chave_stint]['pneu']
+                                and (
+                                    pneu_atual != ultimo_pneu_por_piloto[chave_stint]['pneu']
+                                    or pit_count_atual > ultimo_pneu_por_piloto[chave_stint].get('pit_count', 0)
+                                )
                                 and pneu_atual != "DESCONHECIDO"
                                 and not piloto_no_pit  # ignora troca enquanto ainda na garagem
                             )
@@ -1018,6 +1023,7 @@ async def volta_salvar(bot):
                                         'idade_inicio': idade_volta_atual,
                                         'desgaste_inicio': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
                                         'desgaste_atual': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
+                                        'pit_count': pit_count_atual   # <--- REGISTRANDO CONTAGEM
                                     }
                                 except Exception as e:
                                     print("Erro insert novo stint:", e)

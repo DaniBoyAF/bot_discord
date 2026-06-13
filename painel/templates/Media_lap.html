@@ -148,6 +148,14 @@
                 const pitStops = driver.pit_stop || 0;
                 const totalVoltasPiloto = driver.voltas.length;  // ← Total de voltas do piloto
 
+                // --- NOVO: Lógica de Quartis para o Box Plot ---
+                const sortedLaps = [...lapTimes].sort((a, b) => a - b);
+                const q1 = sortedLaps[Math.floor(sortedLaps.length * 0.25)];
+                const median = sortedLaps[Math.floor(sortedLaps.length * 0.50)];
+                const q3 = sortedLaps[Math.floor(sortedLaps.length * 0.75)];
+                const iqr = q3 - q1; // Intervalo interquartil (tamanho real da caixa)
+                // -----------------------------------------------
+
                 return {
                     nome: driver.nome || "Desconhecido",
                     numero: driver.numero,
@@ -159,7 +167,11 @@
                     pitStops: pitStops,
                     safetyCarLaps: 0,
                     validLapsCount: validLaps.length,
-                    totalVoltasPiloto: totalVoltasPiloto  // ← NOVO
+                    totalVoltasPiloto: totalVoltasPiloto,
+                    q1: q1,            // <-- ADICIONADO
+                    median: median,    // <-- ADICIONADO
+                    q3: q3,            // <-- ADICIONADO
+                    iqr: iqr           // <-- ADICIONADO
                 };
             };
 
@@ -315,13 +327,13 @@
                                                         className="absolute top-0 bottom-0 left-[10%] right-[10%] opacity-20"
                                                         style={{ 
                                                             backgroundColor: color,
-                                                            top: `${getYPosition(driver.meanTime + 3)}px`,
-                                                            bottom: `${chartHeight - getYPosition(driver.meanTime - 3)}px`
+                                                            top: `${getYPosition(driver.q3)}px`,  
+                                                            bottom: `${chartHeight - getYPosition(driver.q1)}px` 
                                                         }}
                                                     />
-                                                    <div className="absolute left-0 right-0 h-0.5" style={{ backgroundColor: color, top: `${getYPosition(driver.meanTime)}px` }} />
+                                                    <div className="absolute left-[5%] right-[5%] h-[3px]" style={{ backgroundColor: color, top: `${getYPosition(driver.median)}px` }} />
                                                     {driver.lapTimes.map((lapTime, lapIdx) => {
-                                                        const isOutlier = Math.abs(lapTime - driver.meanTime) > 10;
+                                                        const isOutlier = lapTime > (driver.q3 + 1.5 * driver.iqr) || lapTime < (driver.q1 - 1.5 * driver.iqr);
                                                         return (
                                                             <div
                                                                 key={lapIdx}

@@ -221,7 +221,7 @@ def dados_voltas(sessao_id):
             total_voltas_piloto = max_row["max_volta"] if max_row and max_row["max_volta"] else len(voltas)
 
             dados.append({
-                "nome": nome,      
+                "nome": nome,       
                 "numero": numero,
                 "posicao": posicao,
                 "voltas": voltas,

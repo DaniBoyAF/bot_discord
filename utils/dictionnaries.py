@@ -168,9 +168,7 @@ session_dictionary = {
     7:  "Q3",
     8:  "Short Q",
     9:  "OSQ",
-    10: "Corrida",
-    11: "Corrida 2",
-    12: "Corrida 3",
+    10: "Sprint",
     13: "Time Trial",
     15: "Corrida"   # mantive o seu 15
 }
