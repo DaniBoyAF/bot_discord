@@ -13,14 +13,17 @@ async def fuel(ctx):
     mix_names = {0: '🟢Lean', 1: '⚪Std', 2: '🟡Rich', 3: '🔴Max'}
     
     linhas = ["```"]
-    linhas.append("P  PILOTO           FUEL(kg)  LAPS   MIX")
-    linhas.append("─" * 50)
+    linhas.append("P  PILOTO          FUEL(kg)  LAPS   MIX")
+    linhas.append("─" * 45)
     
     for j in jogadores[:20]:
         pos = getattr(j, 'position', 0)
         nome = getattr(j, 'name', 'Unknown')[:15].ljust(15)
-        fuel = getattr(j, 'fuel_in_tank', 0)
-        laps = getattr(j, 'fuel_remaining_laps', 0)
+        
+        # O 'or 0' previne erro se a telemetria retornar None em vez de sumir com o atributo
+        fuel = getattr(j, 'fuel_in_tank', 0) or 0
+        laps = getattr(j, 'fuel_remaining_laps', 0) or 0
+        
         mix = mix_names.get(getattr(j, 'fuel_mix', 1), '⚪Std')
         
         # Emoji baseado nas voltas restantes
@@ -34,3 +37,6 @@ async def fuel(ctx):
         linhas.append(f"{pos:<2} {nome} {fuel:>6.1f}   {laps:>5.1f}  {mix} {emoji}")
     
     linhas.append("```")
+    
+    # ISSO AQUI ESTAVA FALTANDO! Junta todas as linhas com quebra de linha e envia:
+    await ctx.send("\n".join(linhas))
