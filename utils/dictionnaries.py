@@ -128,12 +128,12 @@ teams_name_dictionary = {
 }
 
 weather_dictionary = {
-    0: "Céu limpo",             # Dégagé
-    1: "Parcialmente nublado",  # Légèrement nuageux
-    2: "Nublado",               # Couvert
-    3: "Chuva leve",            # Pluie fine
-    4: "Chuva forte",           # Pluie forte
-    5: "Tempestade"             # Tempête
+    0: "☀️ Clear",
+    1: "🌥️ Light Cloud",
+    2: "☁️ Overcast",
+    3: "🌦️ Light Rain",
+    4: "🌧️ Heavy Rain",
+    5: "⛈️ Storm"           # Tempête
 }
 
 fuel_dict = {
@@ -158,19 +158,19 @@ ERS_dictionary = {
 }
 
 session_dictionary = {
-    0:  "Desconhecido",
-    1:  "P1",
-    2:  "P2",
-    3:  "P3",
     4:  "Short P",
-    5:  "Q1",
-    6:  "Q2",
-    7:  "Q3",
-    8:  "Short Q",
-    9:  "OSQ",
-    10: "Sprint",
-    13: "Time Trial",
-    15: "Corrida"   # mantive o seu 15
+    5: "Q1",
+    6: "Q2",
+    7: "Q3",
+    8: "Short Qualifying",
+    9: "One-Shot Qualifying",
+    10: "Sprint Shootout 1",
+    11: "Sprint Shootout 2",
+    12: "Sprint Shootout 3",
+    13: "Short Sprint Shootout",
+    14: "One-Shot Sprint Shootout",
+    15: "Race",
+    18: "Time Trial"  # mantive o seu 15
 }
 
 color_flag_dict = {
