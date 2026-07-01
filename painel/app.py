@@ -1322,6 +1322,201 @@ def race_ultrapassagens(sessao_id):
     except Exception as e:
         return jsonify([])
 
+# ══════════════════════════════════════════════════════════════════════
+# 🆕 ENDPOINTS PARA OS 3 ÍCONES (pit stops, bandeiras, danos)
+# ══════════════════════════════════════════════════════════════════════
+
+@app.route("/api/pit_stops/<int:sessao_id>")
+def api_pit_stops(sessao_id):
+    """
+    Retorna pit stops por piloto: quantidade e voltas em que aconteceram.
+    Fonte: tabela pneu_stints (stint_numero > 1 = pit stop ocorreu).
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        # Info básica da sessão
+        cur.execute("SELECT nome_pista, tipo_sessao, total_voltas FROM sessoes WHERE id = ?", (sessao_id,))
+        sessao_row = cur.fetchone()
+        sessao = dict(sessao_row) if sessao_row else {}
+
+        # Pilotos únicos
+        cur.execute("""
+            SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao
+            FROM pilotos WHERE sessao_id = ?
+            GROUP BY nome ORDER BY posicao
+        """, (sessao_id,))
+        pilotos = [dict(r) for r in cur.fetchall()]
+
+        resultado = []
+        for p in pilotos:
+            pid = p["id"]
+
+            # Todos os stints deste piloto
+            cur.execute("""
+                SELECT stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas
+                FROM pneu_stints
+                WHERE sessao_id = ? AND piloto_id = ?
+                ORDER BY stint_numero
+            """, (sessao_id, pid))
+            stints = [dict(r) for r in cur.fetchall()]
+
+            # Cada troca de pneu (stint 2 em diante) = 1 pit stop
+            # A volta do pit = volta_inicio do stint atual
+            pit_stops = []
+            for s in stints:
+                if s["stint_numero"] > 1:
+                    pit_stops.append({
+                        "volta": s["volta_inicio"],
+                        "pneu_novo": s["tipo_pneu"],
+                        "stint": s["stint_numero"]
+                    })
+
+            resultado.append({
+                "nome": p["nome"],
+                "numero": p["numero"],
+                "posicao": p["posicao"],
+                "total_pits": len(pit_stops),
+                "pit_stops": pit_stops
+            })
+
+        conn.close()
+        return jsonify({"sessao": sessao, "pilotos": resultado})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"sessao": {}, "pilotos": [], "erro": str(e)}), 500
+
+
+@app.route("/api/bandeiras/<int:sessao_id>")
+def api_bandeiras(sessao_id):
+    """
+    Retorna eventos de bandeira (amarela, vermelha, SC, VSC) da sessão.
+    Fonte: tabela bandeiras (criada via migrar_bandeiras em main.py).
+    Fallback: devolve lista vazia mas não quebra.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        # Verifica se tabela existe
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bandeiras'")
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({"bandeiras": [], "aviso": "Tabela bandeiras ainda não existe. Reinicie o main.py."})
+
+        cur.execute("""
+            SELECT tipo, volta_inicio, volta_fim, carro_idx, carro_nome, timestamp
+            FROM bandeiras
+            WHERE sessao_id = ?
+            ORDER BY volta_inicio, timestamp
+        """, (sessao_id,))
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+
+        # Agrupa por tipo para facilitar frontend
+        resumo = {}
+        for r in rows:
+            t = r["tipo"]
+            if t not in resumo:
+                resumo[t] = 0
+            resumo[t] += 1
+
+        return jsonify({"bandeiras": rows, "resumo": resumo})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"bandeiras": [], "erro": str(e)}), 500
+
+
+@app.route("/api/danos_carro/<int:sessao_id>")
+def api_danos_carro(sessao_id):
+    """
+    Retorna nível de dano de cada carro (asa dianteira, traseira, assoalho, difusor, sidepods).
+    Fonte: tabela danos (última leitura por piloto).
+    Nível: 0-33 = verde | 34-66 = amarelo | 67-100 = vermelho.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        # Pilotos únicos da sessão
+        cur.execute("""
+            SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao
+            FROM pilotos WHERE sessao_id = ?
+            GROUP BY nome ORDER BY posicao
+        """, (sessao_id,))
+        pilotos = [dict(r) for r in cur.fetchall()]
+
+        # Verifica colunas disponíveis na tabela danos
+        cur.execute("PRAGMA table_info(danos)")
+        danos_cols = [c[1] for c in cur.fetchall()]
+
+        resultado = []
+        for p in pilotos:
+            pid = p["id"]
+
+            # Pega último registro de danos do piloto
+            cur.execute("""
+                SELECT * FROM danos
+                WHERE sessao_id = ? AND piloto_id = ?
+                ORDER BY timestamp DESC LIMIT 1
+            """, (sessao_id, pid))
+            d = cur.fetchone()
+            dano_dict = dict(d) if d else {}
+
+            def _get(key, fallback=0):
+                return float(dano_dict.get(key) or fallback)
+
+            # Campos esperados (com fallbacks para nomes alternativos)
+            asa_e  = _get("dano_asa_esquerda")
+            asa_d  = _get("dano_asa_direita")
+            asa_t  = _get("dano_asa_traseira")
+            assoal = _get("dano_assoalho")
+            difus  = _get("dano_difusor")
+            sidep  = _get("dano_sidepods")
+
+            # Dano geral = média ponderada (asa dianteira tem peso maior)
+            total = (asa_e + asa_d) * 0.35 + asa_t * 0.15 + assoal * 0.2 + difus * 0.15 + sidep * 0.15
+
+            def nivel(v):
+                if v >= 67: return "vermelho"
+                if v >= 34: return "amarelo"
+                return "verde"
+
+            resultado.append({
+                "nome": p["nome"],
+                "numero": p["numero"],
+                "posicao": p["posicao"],
+                "danos": {
+                    "asa_esquerda":  asa_e,
+                    "asa_direita":   asa_d,
+                    "asa_traseira":  asa_t,
+                    "assoalho":      assoal,
+                    "difusor":       difus,
+                    "sidepods":      sidep,
+                    "total":         round(total, 1),
+                    "nivel":         nivel(total),
+                    "nivel_asa_e":   nivel(asa_e),
+                    "nivel_asa_d":   nivel(asa_d),
+                    "nivel_asa_t":   nivel(asa_t),
+                    "nivel_assoalho":nivel(assoal),
+                    "nivel_difusor": nivel(difus),
+                    "nivel_sidepods":nivel(sidep),
+                }
+            })
+
+        conn.close()
+        return jsonify({"pilotos": resultado})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"pilotos": [], "erro": str(e)}), 500
+
 if __name__ == "__main__":
     print(f"[INFO] STATIC_PATH: {STATIC_PATH}")
     print()

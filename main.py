@@ -179,26 +179,84 @@ async def comando(ctx: commands.Context):
 async def sobre(ctx:commands.Context):
  await ctx.reply("Sou um bot que pode falar com radio e criar pdf.")
 @bot.command()
-async def voltas(ctx,*,piloto: str):
+async def voltas(ctx, *, piloto: str):
+    """Mostra os tempos de todas as voltas de um piloto em colunas organizadas"""
     from Bot.jogadores import get_jogadores
-    jogadores= get_jogadores()
-    piloto = piloto.lower()
+    
+    jogadores = get_jogadores()
+    piloto_busca = piloto.lower()
+    
+    # Função auxiliar interna para converter segundos (ex: 110.345) em formato MM:SS.mmm
+    def formatar_tempo(segundos):
+        if not segundos or segundos <= 0:
+            return "—"
+        minutos = int(segundos // 60)
+        segs = int(segundos % 60)
+        milissegundos = int(round((segundos - int(segundos)) * 1000))
+        return f"{minutos}:{segs:02d}.{milissegundos:03d}"
+
     for j in jogadores:
-        if piloto in j.name.lower():
-            todas_voltas = getattr(j,"todas_voltas_setores",[])
-            voltas = [f"Volta {v['volta']}: {v['tempo_total']:.3f}s" for v in todas_voltas]
-            texto ="\n".join(voltas) or "não a dados sobre os registradas."
-            await ctx.send(f"📊 Tempos de volta de {j.name}:\n```{texto}```")
+        nome_piloto = getattr(j, 'name', 'Unknown')
+        
+        if piloto_busca in nome_piloto.lower():
+            todas_voltas = getattr(j, "todas_voltas_setores", [])
+            
+            if not todas_voltas:
+                await ctx.send(f"❌ Não há dados de voltas registradas para **{nome_piloto}**.")
+                return
+
+            # 1. Cria a lista com os tempos já formatados no padrão de corrida
+            voltas_formatadas = []
+            for v in todas_voltas:
+                num_volta = v.get('volta', 0)
+                tempo_raw = v.get('tempo_total', 0)
+                tempo_limpo = formatar_tempo(tempo_raw)
+                
+                # Guarda o texto base de cada volta (ex: "V01: 1:30.452")
+                voltas_formatadas.append(f"V{num_volta:02d}: {tempo_limpo}")
+
+            # 2. Organiza as voltas em 3 colunas paralelas para economizar espaço
+            linhas_tabela = []
+            num_colunas = 3
+            
+            for i in range(0, len(voltas_formatadas), num_colunas):
+                # Pega um grupo de até 3 voltas
+                grupo = voltas_formatadas[i:i + num_colunas]
+                
+                # Formata a linha garantindo espaçamento fixo entre as colunas
+                # O '<18' diz para cada coluna ocupar exatamente 18 caracteres de largura
+                linha = "".join(f"{volta:<18}" for volta in grupo)
+                linhas_tabela.append(linha)
+
+            texto = "\n".join(linhas_tabela)
+            
+            await ctx.send(f"📊 **Tempos de volta de {nome_piloto}:**\n```text\n{texto}\n```")
             return
+            
     await ctx.send("❌ Piloto não encontrado.")
-@bot.command()#pronto
-async def velocidade(ctx):#pronto
+@bot.command()
+async def velocidade(ctx):
     """Comando para mostrar o piloto mais rápido no speed trap."""
     from Bot.jogadores import get_jogadores
+    
     jogadores = get_jogadores()
 
-    m_rapido = max(jogadores, key=lambda j: j.speed_trap)
-    await ctx.send(f"🚀 {m_rapido.name} foi o mais rápido no speed trap: {m_rapido.speed_trap:.2f} km/h")
+    # 1. Filtra apenas os jogadores que já registraram alguma velocidade
+    jogadores_validos = [j for j in jogadores if (getattr(j, 'speed_trap', 0) or 0) > 0]
+
+    # 2. Proteção caso ninguém tenha passado no speed trap ainda
+    if not jogadores_validos:
+        await ctx.send("❌ Nenhum dado de speed trap disponível no momento.")
+        return
+
+    # 3. Acha o mais rápido de forma segura
+    m_rapido = max(jogadores_validos, key=lambda j: getattr(j, 'speed_trap', 0))
+    
+    nome = getattr(m_rapido, 'name', 'Unknown')
+    velocidade = getattr(m_rapido, 'speed_trap', 0)
+
+    # Usei .0f porque a velocidade no F1 normalmente é um número float (ex: 342.56 km/h)
+    await ctx.send(f"🚀 **{nome}** foi o mais rápido no speed trap: {velocidade:.2f} km/h")
 @bot.command()
 async def setor(ctx):
     conn = sqlite3.connect('f1_telemetry.db')
@@ -260,12 +318,35 @@ async def setor(ctx):
     melhor_setor_gap(pilotos_obj, nome_arquivo="grafico_melhor_setor.png")
     await ctx.send(file=discord.File("grafico_melhor_setor.png"))
 @bot.command()
-async def ranking(ctx):# pronto
+async def ranking(ctx):
+    """Mostra o Top 10 atual e as velocidades no Speed Trap"""
     from Bot.jogadores import get_jogadores
+    
     jogadores = get_jogadores()
-    top10 = sorted(jogadores,key=lambda j: j.position )[:10]
-    texto="\n".join([f"{j.position}º - {j.name} - {j.speed_trap} km/h" for j in top10])
-    await ctx.send(f"🏆 Top 10 da corrida:\n```{texto}```")
+    
+    # 1. Filtra apenas pilotos com posição válida (maior que 0)
+    jogadores_validos = [j for j in jogadores if getattr(j, 'position', 0) > 0]
+    
+    # 2. Proteção caso a sessão esteja vazia ou carregando
+    if not jogadores_validos:
+        await ctx.send("❌ Nenhum piloto registrado na sessão ainda.")
+        return
+
+    # 3. Ordena de forma segura usando getattr (se não tiver posição, vai pro final com 99)
+    top10 = sorted(jogadores_validos, key=lambda j: getattr(j, 'position', 99))[:10]
+    
+    # 4. Formatação alinhada
+    linhas = []
+    for j in top10:
+        pos = getattr(j, 'position', 0)
+        nome = getattr(j, 'name', 'Unknown')[:15].ljust(15) # Limita a 15 letras e preenche com espaços
+        velocidade = getattr(j, 'speed_trap', 0) or 0       # 'or 0' previne erro se vier None
+        
+        # O ':>2' e ':>3' garantem que os números fiquem alinhados à direita
+        linhas.append(f"{pos:>2}º | {nome} | {velocidade:>3.0f} km/h")
+        
+    texto = "\n".join(linhas)
+    await ctx.send(f"🏆 **Top 10 da sessão:**\n```\n{texto}\n```")
 @bot.command()
 async def grafico(ctx):
     conn = sqlite3.connect('f1_telemetry.db')
@@ -523,9 +604,14 @@ async def volta_salvar(bot):
         clima = weather_dictionary.get(getattr(SESSION, "m_weather", 0), "Desconhecido")
         temp_ar = getattr(SESSION, "m_air_temperature", 0)
         temp_pista = getattr(SESSION, "m_track_temperature", 0)
-        chuva = getattr(SESSION, "rainPercentage", 0)
         safety = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
         flag = getattr(SESSION, "m_zone_flag", "Verde")
+        # --- CORREÇÃO DA PORCENTAGEM DE CHUVA ---
+        chuva = 0
+        amostras_clima = getattr(SESSION, "m_weatherForecastSamples", getattr(SESSION, "m_weather_forecast_samples", []))
+        if len(amostras_clima) > 0:
+            amostra_atual = amostras_clima[0] # Pega a previsão atualizada do momento
+            chuva = getattr(amostra_atual, "m_rainPercentage", getattr(amostra_atual, "m_rain_percentage", 0))
 
         conn = db_connect()
         cur = conn.cursor()
@@ -590,10 +676,14 @@ async def volta_salvar(bot):
                 clima_val = weather_dictionary.get(getattr(SESSION, "m_weather", 0), "Desconhecido")
                 temp_ar = getattr(SESSION, "m_air_temperature", 0)
                 temp_pista = getattr(SESSION, "m_track_temperature", 0)
-                chuva_val = getattr(SESSION, "rainPercentage", 0)
                 safety_val = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
                 flag_val = getattr(SESSION, "m_zone_flag", "Verde")
-
+                # --- CORREÇÃO DA PORCENTAGEM DE CHUVA ---
+                chuva_val = 0
+                amostras_clima = getattr(SESSION, "m_weatherForecastSamples", getattr(SESSION, "m_weather_forecast_samples", []))
+                if len(amostras_clima) > 0:
+                    amostra_atual = amostras_clima[0] # Pega a previsão atualizada do momento
+                    chuva_val = getattr(amostra_atual, "m_rainPercentage", getattr(amostra_atual, "m_rain_percentage", 0))
                 conn_new = db_connect()
                 cur_new = conn_new.cursor()
                 try:
@@ -1459,341 +1549,6 @@ def migrar_ultrapassagens():
 migrar_ultrapassagens()
 criar_tabela_regras()
 criar_tabela_clips()
-@bot.command()
-async def historico(ctx):
-    conn = sqlite3.connect('f1_telemetry.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    SELECT id, nome_pista, tipo_sessao, total_voltas, data_hora
-    FROM sessoes
-    ORDER BY data_hora DESC
-    LIMIT 10
-    ''')
-    
-    sessoes = cursor.fetchall()
-    conn.close()
-    
-    if not sessoes:
-        await ctx.send("❌ Nenhuma sessão registrada.")
-        return
-    
-    texto = "🏁 **Últimas 10 Sessões:**\n"
-    for id, pista, tipo, voltas, data in sessoes:
-        texto += f"#{id} - {pista} | {tipo} | {voltas} voltas | {data}\n"
-    
-    await ctx.send(texto)
-
-@bot.command()
-async def ver_clips(ctx):
-    """Lista todos os clips salvos no banco"""
-    conn = sqlite3.connect('f1_telemetry.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    SELECT id, nome_arquivo, tamanho_bytes, duracao_segundos, resolucao, data_upload
-    FROM clips
-    ORDER BY data_upload DESC
-    LIMIT 10
-    ''')
-    
-    clips = cursor.fetchall()
-    conn.close()
-    
-    if not clips:
-        await ctx.send("❌ Nenhum clip encontrado no banco.")
-        return
-    
-    texto = "🎬 **Clips Salvos:**\n"
-    for id, nome, tamanho, duracao, resolucao, data in clips:
-        tamanho_mb = tamanho / (1024 * 1024)
-        duracao_str = f"{int(duracao // 60)}:{int(duracao % 60):02d}" if duracao > 0 else "N/A"
-        texto += (f"#{id} - `{nome}` | {tamanho_mb:.1f}MB | "
-                 f"{duracao_str} | {resolucao} | {data}\n")
-    
-    texto += "\n💡 Use `.info_clip <ID>` para ver detalhes"
-    await ctx.send(texto)
-@bot.command()
-async def clip(ctx):
-    if not ctx.message.attachments:
-        await ctx.send("🎞️ Envie o vídeo junto com o comando `.clip`!")
-        return
-
-    arquivo = ctx.message.attachments[0]
-    
-    # Verifica se é vídeo
-    extensoes_video = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.flv']
-    if not any(arquivo.filename.lower().endswith(ext) for ext in extensoes_video):
-        await ctx.send("❌ Por favor, envie apenas arquivos de vídeo (MP4, MOV, AVI, etc).")
-        return
-    
-    # Cria pasta se não existir
-    os.makedirs("clips", exist_ok=True)
-    caminho = f"clips/{arquivo.filename}"
-    
-    await ctx.send(f"📥 Baixando vídeo `{arquivo.filename}`...")
-    await arquivo.save(caminho)
-    
-    # Extrai metadados do vídeo (usando ffprobe se disponível)
-    try:
-        import subprocess
-        resultado = subprocess.run(
-            ['ffprobe', '-v', 'error', '-show_entries', 
-             'format=duration,size:stream=width,height', 
-             '-of', 'json', caminho],
-            capture_output=True,
-            text=True
-        )
-        
-        if resultado.returncode == 0:
-            import json
-            info = json.loads(resultado.stdout)
-            duracao = float(info.get('format', {}).get('duration', 0))
-            tamanho = int(info.get('format', {}).get('size', 0))
-            
-            streams = info.get('streams', [])
-            resolucao = "Desconhecida"
-            if streams:
-                width = streams[0].get('width', 0)
-                height = streams[0].get('height', 0)
-                resolucao = f"{width}x{height}" if width and height else "Desconhecida"
-        else:
-            # Fallback: usa tamanho do arquivo
-            duracao = 0
-            tamanho = os.path.getsize(caminho)
-            resolucao = "Desconhecida"
-    except Exception:
-        # Se ffprobe não estiver disponível
-        duracao = 0
-        tamanho = os.path.getsize(caminho)
-        resolucao = "Desconhecida"
-    
-    formato = os.path.splitext(arquivo.filename)[1].lstrip('.')
-    
-    # Salva no banco de dados
-    conn = sqlite3.connect('f1_telemetry.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    INSERT INTO clips (nome_arquivo, tamanho_bytes, duracao_segundos, 
-                      resolucao, formato, caminho_arquivo, analise_ia)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (arquivo.filename, tamanho, duracao, resolucao, formato, caminho, 
-          "⚙️ Análise pendente"))
-    
-    clip_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    
-    # Formata informações
-    tamanho_mb = tamanho / (1024 * 1024)
-    duracao_str = f"{int(duracao // 60)}:{int(duracao % 60):02d}" if duracao > 0 else "N/A"
-    
-    await ctx.send(
-        f"✅ Vídeo salvo no banco de dados! (ID: {clip_id})\n"
-        f"📄 Arquivo: `{arquivo.filename}`\n"
-        f"📊 Tamanho: {tamanho_mb:.2f} MB\n"
-        f"⏱️ Duração: {duracao_str}\n"
-        f"📐 Resolução: {resolucao}\n"
-        f"🔍 Formato: {formato.upper()}\n"
-        f"💡 Use `.ver_clips` para listar todos os vídeos salvos"
-    )
-@bot.command()
-async def regras(ctx):
-    
-    if not ctx.message.attachments:
-        await ctx.send("📄 Envie o PDF das regras junto com o comando `.regras`")
-        return
-
-    arquivo = ctx.message.attachments[0]
-    
-    # Verifica se é PDF
-    if not arquivo.filename.lower().endswith('.pdf'):
-        await ctx.send("❌ Por favor, envie apenas arquivos PDF.")
-        return
-    
-    # Salva temporariamente
-    caminho_temp = f"temp_{arquivo.filename}"
-    await arquivo.save(caminho_temp)
-
-    try:
-        # Extrai texto do PDF
-        with open(caminho_temp, "rb") as f:
-            reader = PyPDF2.PdfReader(f)
-            texto = " ".join([page.extract_text() for page in reader.pages])
-
-        # Salva no banco de dados
-        conn = sqlite3.connect('f1_telemetry.db')
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-        INSERT INTO regras (nome_arquivo, conteudo)
-        VALUES (?, ?)
-        ''', (arquivo.filename, texto))
-        
-        regra_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-
-        # Remove arquivo temporário
-        os.remove(caminho_temp)
-
-        await ctx.send(f"✅ Regras salvas no banco de dados! (ID: {regra_id})\n"
-                      f"📄 Arquivo: `{arquivo.filename}`\n"
-                      f"📊 Total de caracteres: {len(texto)}")
-
-    except Exception as e:
-        await ctx.send(f"❌ Erro ao processar PDF: {e}")
-        if os.path.exists(caminho_temp):
-            os.remove(caminho_temp)
-@bot.command()
-async def deletar_regra(ctx, regra_id: int):
-    """Deleta uma regra do banco"""
-    conn = sqlite3.connect('f1_telemetry.db')
-    cursor = conn.cursor()
-    
-    # Verifica se existe
-    cursor.execute('SELECT nome_arquivo FROM regras WHERE id = ?', (regra_id,))
-    resultado = cursor.fetchone()
-    
-    if not resultado:
-        conn.close()
-        await ctx.send(f"❌ Regra #{regra_id} não encontrada.")
-        return
-    
-    nome = resultado[0]
-    
-    # Deleta
-    cursor.execute('DELETE FROM regras WHERE id = ?', (regra_id,))
-    conn.commit()
-    conn.close()
-    
-    await ctx.send(f"🗑️ Regra #{regra_id} (`{nome}`) deletada com sucesso!")
-@bot.command()
-async def deletar_clip(ctx, clip_id: int):
-    """Deleta um clip do banco e do disco"""
-    conn = sqlite3.connect('f1_telemetry.db')
-    cursor = conn.cursor()
-    
-    # Verifica se existe
-    cursor.execute('SELECT nome_arquivo, caminho_arquivo FROM clips WHERE id = ?', (clip_id,))
-    resultado = cursor.fetchone()
-    
-    if not resultado:
-        conn.close()
-        await ctx.send(f"❌ Clip #{clip_id} não encontrado.")
-        return
-    
-    nome, caminho = resultado
-    
-    # Deleta do banco
-    cursor.execute('DELETE FROM clips WHERE id = ?', (clip_id,))
-    conn.commit()
-    conn.close()
-    
-    # Deleta arquivo do disco
-    try:
-        if os.path.exists(caminho):
-            os.remove(caminho)
-            await ctx.send(f"🗑️ Clip #{clip_id} (`{nome}`) deletado do banco e do disco!")
-        else:
-            await ctx.send(f"🗑️ Clip #{clip_id} (`{nome}`) deletado do banco (arquivo não encontrado no disco).")
-    except Exception as e:
-        await ctx.send(f"⚠️ Clip deletado do banco, mas erro ao deletar arquivo: {e}")
-
-@bot.command()
-async def info_clip(ctx, clip_id: int):
-    """Mostra informações detalhadas de um clip"""
-    conn = sqlite3.connect('f1_telemetry.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    SELECT nome_arquivo, tamanho_bytes, duracao_segundos, resolucao, 
-           formato, caminho_arquivo, analise_ia, data_upload
-    FROM clips
-    WHERE id = ?
-    ''', (clip_id,))
-    
-    resultado = cursor.fetchone()
-    conn.close()
-    
-    if not resultado:
-        await ctx.send(f"❌ Clip #{clip_id} não encontrado.")
-        return
-    
-    nome, tamanho, duracao, resolucao, formato, caminho, analise, data = resultado
-    
-    tamanho_mb = tamanho / (1024 * 1024)
-    duracao_str = f"{int(duracao // 60)}:{int(duracao % 60):02d}" if duracao > 0 else "N/A"
-    
-    embed = discord.Embed(
-        title=f"🎬 Clip #{clip_id}",
-        description=f"**{nome}**",
-        color=discord.Color.red()
-    )
-    embed.add_field(name="📊 Tamanho", value=f"{tamanho_mb:.2f} MB", inline=True)
-    embed.add_field(name="⏱️ Duração", value=duracao_str, inline=True)
-    embed.add_field(name="📐 Resolução", value=resolucao, inline=True)
-    embed.add_field(name="🔍 Formato", value=formato.upper(), inline=True)
-    embed.add_field(name="📅 Upload", value=data, inline=True)
-    embed.add_field(name="📂 Caminho", value=f"`{caminho}`", inline=False)
-    embed.add_field(name="🤖 Análise IA", value=analise, inline=False)
-    
-    await ctx.send(embed=embed)
-
-@bot.command()
-async def ver_regras(ctx):
-    """Mostra a lista de regras salvas no banco"""
-    conn = sqlite3.connect('f1_telemetry.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    SELECT id, nome_arquivo, data_upload
-    FROM regras
-    ORDER BY data_upload DESC
-    LIMIT 10
-    ''')
-    
-    regras = cursor.fetchall()
-    conn.close()
-    
-    if not regras:
-        await ctx.send("❌ Nenhuma regra encontrada no banco.")
-        return
-    
-    texto = "📚 **Regras Salvas:**\n"
-    for id, nome, data in regras:
-        texto += f"#{id} - `{nome}` | Upload: {data}\n"
-    
-    texto += "\n💡 Use `.ler_regra <ID>` para ver o conteúdo"
-    await ctx.send(texto)
-
-@bot.command()
-async def ler_regra(ctx, regra_id: int):
-    """Mostra o conteúdo de uma regra por ID"""
-    conn = sqlite3.connect('f1_telemetry.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-    SELECT nome_arquivo, conteudo, data_upload
-    FROM regras
-    WHERE id = ?
-    ''', (regra_id,))
-    
-    resultado = cursor.fetchone()
-    conn.close()
-    
-    if not resultado:
-        await ctx.send(f"❌ Regra #{regra_id} não encontrada.")
-        return
-    
-    nome, conteudo, data = resultado
-    
-    # Discord tem limite de 2000 caracteres
-    if len(conteudo) > 1900:
-        await ctx.send(f"📄 **{nome}** (Upload: {data})\n\n```{conteudo[:1900]}...```\n⚠️ Conteúdo muito longo (mostrados primeiros 1900 caracteres)")
-    else:
-        await ctx.send(f"📄 **{nome}** (Upload: {data})\n\n```{conteudo}```")
 
 async def _monitorar_e_atualizar_nome_sessao(sessao_id, timeout=300, intervalo=1.0):
     """Aguarda SESSION.track_name / m_track_id e atualiza sessoes.nome_pista quando disponível."""
@@ -1973,7 +1728,7 @@ if __name__ == "__main__":
     if ws_server: 
           threading.Thread(target=ws_server.run, kwargs={"host":"0.0.0.0","port":6789}, daemon=True).start()  
     
-    from Bot.parser2024 import start_udp_listener
+    from Bot.parser2025 import start_udp_listener
     threading.Thread(target=start_udp_listener, daemon=True).start()
     threading.Thread(target=iniciar_painel_e_cloudflared, daemon=True).start()  
     

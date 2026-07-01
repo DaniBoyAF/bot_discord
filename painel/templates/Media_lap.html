@@ -61,30 +61,41 @@
                         const urlParams = new URLSearchParams(window.location.search);
                         const sessaoId = urlParams.get('sessao');
                         const url = sessaoId ? `/dados_voltas/${sessaoId}` : '/dados_voltas';
+                        const danosUrl = sessaoId ? `/api/danos_carro/${sessaoId}` : null;
                         console.log("Fetching:", url);
 
-                        const resp = await fetch(url, { cache: 'no-store' });
+                        const fetches = [fetch(url, { cache: 'no-store' })];
+                        if (danosUrl) fetches.push(fetch(danosUrl));
+
+                        const [resp, danosResp] = await Promise.all(fetches);
+
                         if (!resp.ok) {
                             console.error("HTTP error:", resp.status);
                             if (mounted) setRaceData([]);
                             return;
                         }
                         const dados = await resp.json();
+                        const danosData = danosResp ? await danosResp.json() : { pilotos: [] };
                         console.log("Dados recebidos:", dados);
+
+                        // Mapa nome → danos
+                        const danosPorNome = {};
+                        (danosData.pilotos || []).forEach(p => { danosPorNome[p.nome] = p.danos || {}; });
                         
-                        // NOVO: Verifica se é formato novo ou antigo
+                        // Verifica se é formato novo ou antigo
                         if (dados.pilotos) {
                             // Formato novo: { total_voltas_sessao, pilotos }
                             if (mounted) {
                                 setTotalVoltasSessao(dados.total_voltas_sessao || 0);
-                                setRaceData(dados.pilotos);
+                                // Injeta danos em cada piloto
+                                setRaceData(dados.pilotos.map(p => ({ ...p, danos: danosPorNome[p.nome] || {} })));
                             }
                         } else if (Array.isArray(dados)) {
                             // Formato antigo: array direto
                             const maxVoltas = Math.max(...dados.map(d => d.voltas?.length || 0));
                             if (mounted) {
                                 setTotalVoltasSessao(maxVoltas);
-                                setRaceData(dados);
+                                setRaceData(dados.map(p => ({ ...p, danos: danosPorNome[p.nome] || {} })));
                             }
                         } else {
                             if (mounted) setRaceData([]);
@@ -143,35 +154,42 @@
                 if (validLaps.length === 0) return null;
 
                 const lapTimes = validLaps.map(lap => lap.tempo_total);
-                const meanTime = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
+                const n = lapTimes.length;
+                const meanTime = lapTimes.reduce((a, b) => a + b, 0) / n;
                 const bestLap = Math.min(...lapTimes);
                 const pitStops = driver.pit_stop || 0;
-                const totalVoltasPiloto = driver.voltas.length;  // ← Total de voltas do piloto
+                const totalVoltasPiloto = driver.voltas.length;
 
-                // --- NOVO: Lógica de Quartis para o Box Plot ---
+                // Quartis para box plot
                 const sortedLaps = [...lapTimes].sort((a, b) => a - b);
-                const q1 = sortedLaps[Math.floor(sortedLaps.length * 0.25)];
-                const median = sortedLaps[Math.floor(sortedLaps.length * 0.50)];
-                const q3 = sortedLaps[Math.floor(sortedLaps.length * 0.75)];
-                const iqr = q3 - q1; // Intervalo interquartil (tamanho real da caixa)
-                // -----------------------------------------------
+                const q1     = sortedLaps[Math.floor(n * 0.25)];
+                const median = sortedLaps[Math.floor(n * 0.50)];
+                const q3     = sortedLaps[Math.floor(n * 0.75)];
+                const iqr    = q3 - q1;
+
+                // CV% (consistência real — desvio padrão amostral / média)
+                const variance = n > 1
+                    ? lapTimes.reduce((sum, t) => sum + (t - meanTime) ** 2, 0) / (n - 1)
+                    : 0;
+                const stdDev = Math.sqrt(variance);
+                const cvPct  = meanTime > 0 ? (stdDev / meanTime) * 100 : 0;
+                const consistency = Math.max(0, Math.min(100, 100 - cvPct));
 
                 return {
                     nome: driver.nome || "Desconhecido",
                     numero: driver.numero,
                     tyres: driver.tyres,
                     position: driver.posicao || driver.position || 0,
-                    lapTimes: lapTimes,
-                    meanTime: meanTime,
-                    bestLap: bestLap,
-                    pitStops: pitStops,
+                    lapTimes,
+                    meanTime,
+                    bestLap,
+                    pitStops,
                     safetyCarLaps: 0,
                     validLapsCount: validLaps.length,
-                    totalVoltasPiloto: totalVoltasPiloto,
-                    q1: q1,            // <-- ADICIONADO
-                    median: median,    // <-- ADICIONADO
-                    q3: q3,            // <-- ADICIONADO
-                    iqr: iqr           // <-- ADICIONADO
+                    totalVoltasPiloto,
+                    q1, median, q3, iqr,
+                    stdDev, cvPct, consistency,
+                    danos: driver.danos || {}
                 };
             };
 
@@ -303,7 +321,7 @@
                         </div>
 
                         <div className="bg-white rounded-lg shadow-lg p-4 md:p-6 overflow-x-auto">
-                            <div className="relative" style={{ minWidth: '800px', height: chartHeight + 100 }}>
+                            <div className="relative" style={{ minWidth: '800px', height: chartHeight + 110 }}>
                                 <div className="absolute left-0 top-0 bottom-20 w-20 flex flex-col justify-between text-xs text-gray-600">
                                     {Array.from({ length: 6 }, (_, i) => {
                                         const time = yMax - (i * (yMax - yMin) / 5);
@@ -356,20 +374,64 @@
                                     </div>
                                 </div>
 
-                                <div className="absolute left-20 right-0 bottom-0 h-20 flex border-t-2 border-gray-300">
-                                    {processedDrivers.map((driver, idx) => {
-                                        const color = colors[idx % colors.length];
-                                        return (
-                                            <div key={driver.nome} className="flex flex-col items-center justify-center text-center px-1" style={{ width: `${100 / processedDrivers.length}%` }}>
-                                                <div className="w-3 h-3 rounded-full mb-1" style={{ backgroundColor: color }} />
-                                                <div className="text-xs font-bold" style={{ color }}>{getDriverInitials(driver.nome)}</div>
-                                                <div className="text-xs text-gray-600 font-bold mt-1">{formatTime(driver.meanTime)}</div>
-                                                <div className="text-[10px] text-gray-500">
-                                                    {driver.validLapsCount} voltas
+                                <div className="absolute left-20 right-0 bottom-0 flex border-t-2 border-gray-300" style={{height:'90px'}}>
+                                    {(() => {
+                                        // Melhor tempo médio da sessão (para calcular segundos perdidos)
+                                        const melhorMedia = Math.min(...processedDrivers.map(d => d.meanTime || 9999));
+                                        return processedDrivers.map((driver, idx) => {
+                                            const color = colors[idx % colors.length];
+                                            const perdeu = driver.meanTime - melhorMedia; // s a mais que o mais rápido
+                                            const perdeuStr = perdeu < 0.001
+                                                ? '—'
+                                                : `+${perdeu.toFixed(3)}s`;
+
+                                            const d = driver.danos || {};
+                                            const tot = d.total || 0;
+                                            const temDano = tot >= 1;
+                                            const corDano = d.nivel === 'vermelho' ? '#e10600'
+                                                          : d.nivel === 'amarelo'  ? '#f59e0b'
+                                                          : '#22c55e';
+                                            const partesDanadas = [];
+                                            if ((d.asa_esquerda||0)>5) partesDanadas.push(`Asa E ${d.asa_esquerda.toFixed(0)}%`);
+                                            if ((d.asa_direita||0)>5)  partesDanadas.push(`Asa D ${d.asa_direita.toFixed(0)}%`);
+                                            if ((d.asa_traseira||0)>5) partesDanadas.push(`Asa T ${d.asa_traseira.toFixed(0)}%`);
+                                            if ((d.assoalho||0)>5)    partesDanadas.push(`Assoalho ${d.assoalho.toFixed(0)}%`);
+                                            if ((d.difusor||0)>5)     partesDanadas.push(`Difusor ${d.difusor.toFixed(0)}%`);
+                                            if ((d.sidepods||0)>5)    partesDanadas.push(`Sidepod ${d.sidepods.toFixed(0)}%`);
+
+                                            return (
+                                                <div key={driver.nome} className="flex flex-col items-center justify-center text-center px-1" style={{ width: `${100 / processedDrivers.length}%` }}>
+                                                    {/* bolinha de cor */}
+                                                    <div className="w-2 h-2 rounded-full mb-1" style={{ backgroundColor: color }} />
+                                                    {/* iniciais */}
+                                                    <div className="text-xs font-bold" style={{ color }}>{getDriverInitials(driver.nome)}</div>
+                                                    {/* média */}
+                                                    <div className="text-xs text-gray-700 font-bold">{formatTime(driver.meanTime)}</div>
+                                                    {/* segundos perdidos vs líder */}
+                                                    <div className="text-[9px] font-semibold" style={{ color: perdeu < 0.001 ? '#22c55e' : '#e10600' }}
+                                                         title="Segundos perdidos por volta vs mais rápido">
+                                                        {perdeuStr}
+                                                    </div>
+                                                    {/* voltas */}
+                                                    <div className="text-[9px] text-gray-400">{driver.validLapsCount}v</div>
+                                                    {/* ícone de dano */}
+                                                    {temDano && (
+                                                        <div
+                                                            title={partesDanadas.length ? partesDanadas.join(' | ') : `Dano: ${tot.toFixed(0)}%`}
+                                                            style={{
+                                                                display:'inline-flex', alignItems:'center', gap:'2px',
+                                                                padding:'1px 4px', borderRadius:'3px', marginTop:'2px',
+                                                                background: corDano + '22', border:`1px solid ${corDano}`,
+                                                                fontSize:'8px', fontWeight:800, color: corDano,
+                                                                cursor:'help', userSelect:'none', lineHeight:1.2
+                                                            }}>
+                                                            🔧{tot.toFixed(0)}%
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        });
+                                    })()}
                                 </div>
                             </div>
                         </div>

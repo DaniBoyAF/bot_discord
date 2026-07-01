@@ -562,19 +562,26 @@
                     
                     const stintsUrl = sessaoId ? `/dados_stints/${sessaoId}` : '/dados_stints_ultimo';
                     const voltasUrl = sessaoId ? `/dados_voltas/${sessaoId}` : '/dados_voltas';
+                    const danosUrl  = sessaoId ? `/api/danos_carro/${sessaoId}` : null;
                     
-                    const [stintsResp, voltasResp] = await Promise.all([
-                        fetch(stintsUrl),
-                        fetch(voltasUrl)
-                    ]);
+                    const fetches = [fetch(stintsUrl), fetch(voltasUrl)];
+                    if (danosUrl) fetches.push(fetch(danosUrl));
+                    
+                    const [stintsResp, voltasResp, danosResp] = await Promise.all(fetches);
                     
                     const stintsData = await stintsResp.json();
                     const voltasData = await voltasResp.json();
+                    const danosData  = danosResp ? await danosResp.json() : { pilotos: [] };
                     
                     console.log("Stints:", stintsData);
                     console.log("Voltas:", voltasData);
+                    console.log("Danos:", danosData);
                     
-                    const pilotos = processData(stintsData, voltasData);
+                    // Mapa nome → danos
+                    const danosPorNome = {};
+                    (danosData.pilotos || []).forEach(p => { danosPorNome[p.nome] = p.danos || {}; });
+                    
+                    const pilotos = processData(stintsData, voltasData, danosPorNome);
                     
                     setData({
                         pilotos: pilotos,
@@ -596,7 +603,7 @@
                 }
             };
 
-            const processData = (stintsData, voltasData) => {
+            const processData = (stintsData, voltasData, danosPorNome = {}) => {
                 const pilotosStints = stintsData.pilotos || [];
                 const pilotosVoltas = voltasData.pilotos || voltasData || [];
                 
@@ -626,62 +633,76 @@
                             .map(v => v.tempo_total)
                             .filter(t => t > 30 && t < 300);
                         
-                        // 🆕 CÁLCULO MAIS PRECISO: Remove outliers (IQR)
+                        // Remove outliers (IQR)
                         tempos = removeOutliers(tempos);
                         
-                        const avgTime = tempos.length > 0 
-                            ? tempos.reduce((a, b) => a + b, 0) / tempos.length 
-                            : 0;
+                        const n = tempos.length;
+                        const avgTime = n > 0 ? tempos.reduce((a, b) => a + b, 0) / n : 0;
+                        const bestTime = n > 0 ? Math.min(...tempos) : 0;
+                        const worstTime = n > 0 ? Math.max(...tempos) : 0;
                         
-                        const bestTime = tempos.length > 0 ? Math.min(...tempos) : 0;
-                        const worstTime = tempos.length > 0 ? Math.max(...tempos) : 0;
-                        
-                        // 🆕 REGRESSÃO LINEAR MELHORADA
+                        // Regressão linear melhorada
                         let deltaPerLap = 0;
-                        let rSquared = 0; // Qualidade do ajuste
+                        let rSquared = 0;
                         
-                        if (tempos.length >= 3) {
+                        if (n >= 3) {
                             const regression = linearRegression(tempos);
                             deltaPerLap = regression.slope;
                             rSquared = regression.rSquared;
                         }
                         
-                        // Desvio padrão (consistência)
-                        const stdDev = tempos.length > 0 
-                            ? Math.sqrt(tempos.reduce((sum, t) => sum + (t - avgTime) ** 2, 0) / tempos.length)
+                        // CV% = coeficiente de variação (consistência real)
+                        // Desvio padrão amostral (n-1) para maior precisão
+                        const variance = n > 1
+                            ? tempos.reduce((sum, t) => sum + (t - avgTime) ** 2, 0) / (n - 1)
                             : 0;
+                        const stdDev = Math.sqrt(variance);
+                        // CV% — quanto menor, mais consistente; 100 - CV% = score de consistência
+                        const cvPct = avgTime > 0 ? (stdDev / avgTime) * 100 : 0;
+                        const consistency = Math.max(0, Math.min(100, 100 - cvPct));
                         
-                        const consistency = avgTime > 0 ? Math.max(0, 100 - (stdDev / avgTime) * 100) : 0;
+                        // Degradação em %/volta (relativa ao tempo médio)
+                        const degradPctPerLap = avgTime > 0 ? (deltaPerLap / avgTime) * 100 : 0;
                         
-                        // 🆕 Desgaste por volta estimado (se disponível)
+                        // Desgaste físico do pneu por volta (se disponível no DB)
                         const desgastes = voltasDoStint
                             .map(v => v.desgaste_pneu)
-                            .filter(d => d !== undefined && d !== null);
+                            .filter(d => d !== undefined && d !== null && d > 0);
                         
                         let wearRate = 0;
                         if (desgastes.length >= 2) {
+                            // taxa de desgaste = (fim - inicio) / n_voltas
                             wearRate = (desgastes[desgastes.length - 1] - desgastes[0]) / desgastes.length;
                         }
                         
                         return {
                             ...stint,
-                            tempos: tempos,
-                            avgTime: avgTime,
-                            bestTime: bestTime,
-                            worstTime: worstTime,
-                            deltaPerLap: deltaPerLap,
-                            rSquared: rSquared,
-                            stdDev: stdDev,
-                            consistency: consistency,
-                            wearRate: wearRate,
-                            totalVoltas: stint.total_voltas || tempos.length
+                            tempos,
+                            avgTime,
+                            bestTime,
+                            worstTime,
+                            deltaPerLap,       // s/volta (regressão)
+                            degradPctPerLap,   // %/volta relativa (nova métrica)
+                            rSquared,
+                            stdDev,
+                            cvPct,             // coeficiente de variação %
+                            consistency,       // 100 - CV%
+                            wearRate,
+                            totalVoltas: stint.total_voltas || n
                         };
                     });
                     
+                    // Danos do piloto vindos do endpoint /api/danos_carro
+                    const danos = danosPorNome[piloto.nome] || {};
+                    
+                    // Injeta danos em cada stint para o MiniChart acessar
+                    const stintsComDanos = stintsComTempos.map(s => ({ ...s, _danos: danos }));
+                    
                     return { 
                         ...piloto, 
-                        stints: stintsComTempos,
-                        posicao: piloto.posicao || piloto.position || 99
+                        stints: stintsComDanos,
+                        posicao: piloto.posicao || piloto.position || 99,
+                        danos
                     };
                 })
                 // remove pilotos que ficaram sem nenhum stint válido
@@ -929,19 +950,53 @@
                 
                 const deltaClass = stint.deltaPerLap > 0.02 ? 'positive' : stint.deltaPerLap < -0.02 ? 'negative' : 'neutral';
                 
+                // Ícone de dano (aparece embaixo do Cons se o piloto tiver algum dano)
+                const danos = stint._danos || {};
+                const totalDano = danos.total || 0;
+                const temDano = totalDano > 1;
+                const nivelDano = danos.nivel || 'verde';
+                const corDano = nivelDano === 'vermelho' ? '#e10600' : nivelDano === 'amarelo' ? '#f59e0b' : '#22c55e';
+                
+                // Partes com dano para tooltip
+                const partesDanadas = [];
+                if ((danos.asa_esquerda||0) > 5) partesDanadas.push(`Asa E: ${danos.asa_esquerda.toFixed(0)}%`);
+                if ((danos.asa_direita||0)  > 5) partesDanadas.push(`Asa D: ${danos.asa_direita.toFixed(0)}%`);
+                if ((danos.asa_traseira||0) > 5) partesDanadas.push(`Asa T: ${danos.asa_traseira.toFixed(0)}%`);
+                if ((danos.assoalho||0)     > 5) partesDanadas.push(`Assoalho: ${danos.assoalho.toFixed(0)}%`);
+                if ((danos.difusor||0)      > 5) partesDanadas.push(`Difusor: ${danos.difusor.toFixed(0)}%`);
+                if ((danos.sidepods||0)     > 5) partesDanadas.push(`Sidepod: ${danos.sidepods.toFixed(0)}%`);
+                
+                // Unidade principal: s/volta (regressão)
+                const deltaSLap = stint.deltaPerLap.toFixed(3);
+                const deltaSign = stint.deltaPerLap >= 0 ? '+' : '';
+                
                 return (
                     <div className="chart-cell">
                         <div className="stats">
                             <div className="avg">Avg: {formatTime(stint.avgTime)}</div>
                             <div className={`delta ${deltaClass}`}>
-                                Δ/lap: {stint.deltaPerLap >= 0 ? '+' : ''}{stint.deltaPerLap.toFixed(3)}s
+                                Δ/volta: {deltaSign}{deltaSLap}s
                             </div>
                             <div className="extra">
                                 Best: {formatTime(stint.bestTime)} | R²: {(stint.rSquared * 100).toFixed(0)}%
                             </div>
                             <div className="extra">
                                 Laps: {stint.tempos?.length} | Cons: {stint.consistency.toFixed(0)}%
+                                <span style={{color:'#aaa',fontWeight:400,marginLeft:'3px'}}>
+                                    (CV±{stint.cvPct?.toFixed(1) ?? '0.0'}%)
+                                </span>
                             </div>
+                            {temDano && (
+                                <div title={partesDanadas.length ? partesDanadas.join(' | ') : `Dano: ${totalDano.toFixed(0)}%`}
+                                     style={{
+                                         display:'inline-flex', alignItems:'center', gap:'4px',
+                                         marginTop:'3px', padding:'2px 6px', borderRadius:'4px',
+                                         background: corDano + '20', border: `1px solid ${corDano}`,
+                                         fontSize:'10px', fontWeight:700, color: corDano, cursor:'help'
+                                     }}>
+                                    🔧 Dano {totalDano.toFixed(0)}%
+                                </div>
+                            )}
                         </div>
                         <canvas ref={canvasRef} style={{ width: '100%', height: '100px' }} />
                     </div>
@@ -1007,7 +1062,7 @@
                                     <div className="stat-card">
                                         <div className="label">Melhor Degradação</div>
                                         <div className={`value ${stats.deltaDiff > 0 ? 'green' : 'red'}`}>
-                                            {Math.abs(stats.deltaDiff * 1000).toFixed(1)}ms/lap
+                                            {Math.abs(stats.deltaDiff).toFixed(3)}s/volta
                                         </div>
                                         <div className="driver">{stats.betterDegradation}</div>
                                     </div>
@@ -1055,14 +1110,43 @@
                                                     </div>
                                                     <div className="stint-stats">
                                                         <span>Avg: <strong>{formatTime(stint.avgTime)}</strong></span>
-                                                        <span>Δ: <strong style={{ color: stint.deltaPerLap > 0 ? '#e10600' : '#00d27f' }}>
+                                                        <span>Δ/volta: <strong style={{ color: stint.deltaPerLap > 0 ? '#e10600' : '#00d27f' }}>
                                                             {stint.deltaPerLap >= 0 ? '+' : ''}{stint.deltaPerLap.toFixed(3)}s
                                                         </strong></span>
                                                         <span>Laps: <strong>{stint.tempos?.length || 0}</strong></span>
+                                                        <span style={{fontSize:'10px',color:'#888'}}>Cons: {stint.consistency.toFixed(0)}% (CV±{(stint.cvPct||0).toFixed(1)}%)</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         ))}
+                                        {/* Ícone de dano no card de comparação */}
+                                        {(() => {
+                                            const d = driver.danos || {};
+                                            const tot = d.total || 0;
+                                            if (tot < 1) return null;
+                                            const cor = d.nivel === 'vermelho' ? '#e10600'
+                                                      : d.nivel === 'amarelo'  ? '#f59e0b'
+                                                      : '#22c55e';
+                                            const partes = [];
+                                            if ((d.asa_esquerda||0)>5) partes.push(`Asa E ${d.asa_esquerda.toFixed(0)}%`);
+                                            if ((d.asa_direita||0)>5)  partes.push(`Asa D ${d.asa_direita.toFixed(0)}%`);
+                                            if ((d.asa_traseira||0)>5) partes.push(`Asa T ${d.asa_traseira.toFixed(0)}%`);
+                                            if ((d.assoalho||0)>5)    partes.push(`Assoalho ${d.assoalho.toFixed(0)}%`);
+                                            if ((d.difusor||0)>5)     partes.push(`Difusor ${d.difusor.toFixed(0)}%`);
+                                            if ((d.sidepods||0)>5)    partes.push(`Sidepod ${d.sidepods.toFixed(0)}%`);
+                                            return (
+                                                <div title={partes.join(' | ')}
+                                                     style={{
+                                                         display:'inline-flex',alignItems:'center',gap:'5px',
+                                                         padding:'4px 10px',borderRadius:'8px',margin:'8px 0 0 0',
+                                                         background:cor+'20',border:`1.5px solid ${cor}`,
+                                                         fontSize:'11px',fontWeight:800,color:cor,
+                                                         cursor:'default',userSelect:'none'
+                                                     }}>
+                                                    🔧 Dano {tot.toFixed(0)}%
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             ))}
@@ -1198,6 +1282,35 @@
                                                 ></div>
                                                 <div className="driver-name">{driver.nome}</div>
                                                 <div className="driver-position">P{driver.posicao}</div>
+                                                {/* Ícone de dano — não clicável, só visual */}
+                                                {(() => {
+                                                    const d = driver.danos || {};
+                                                    const tot = d.total || 0;
+                                                    if (tot < 1) return null;
+                                                    const cor = d.nivel === 'vermelho' ? '#e10600'
+                                                              : d.nivel === 'amarelo'  ? '#f59e0b'
+                                                              : '#22c55e';
+                                                    const partes = [];
+                                                    if ((d.asa_esquerda||0)>5) partes.push(`Asa E ${d.asa_esquerda.toFixed(0)}%`);
+                                                    if ((d.asa_direita||0)>5)  partes.push(`Asa D ${d.asa_direita.toFixed(0)}%`);
+                                                    if ((d.asa_traseira||0)>5) partes.push(`Asa T ${d.asa_traseira.toFixed(0)}%`);
+                                                    if ((d.assoalho||0)>5)    partes.push(`Assoalho ${d.assoalho.toFixed(0)}%`);
+                                                    if ((d.difusor||0)>5)     partes.push(`Difusor ${d.difusor.toFixed(0)}%`);
+                                                    if ((d.sidepods||0)>5)    partes.push(`Sidepod ${d.sidepods.toFixed(0)}%`);
+                                                    return (
+                                                        <div title={partes.length ? partes.join(' | ') : `Dano total: ${tot.toFixed(0)}%`}
+                                                             style={{
+                                                                 display:'inline-flex', alignItems:'center', gap:'3px',
+                                                                 padding:'2px 7px', borderRadius:'10px',
+                                                                 background: cor + '25', border:`1.5px solid ${cor}`,
+                                                                 fontSize:'10px', fontWeight:800, color: cor,
+                                                                 marginTop:'2px', cursor:'default', userSelect:'none',
+                                                                 letterSpacing:'.3px'
+                                                             }}>
+                                                            🔧 {tot.toFixed(0)}%
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         ))}
                                         
@@ -1228,7 +1341,16 @@
                         <div className="legend-section">
                             <div className="legend-item">
                                 <div className="legend-line solid"></div>
-                                <span>Regression trend (R² = precisão)</span>
+                                <span>Tendência de regressão (R² = precisão do ajuste)</span>
+                            </div>
+                            <div className="legend-item" style={{fontSize:'11px',color:'#666',marginTop:'4px'}}>
+                                <strong>Δ/volta (s):</strong> degradação de tempo por volta via regressão linear — positivo = ficando mais lento
+                            </div>
+                            <div className="legend-item" style={{fontSize:'11px',color:'#666'}}>
+                                <strong>Cons % (CV±%):</strong> consistência de ritmo — quanto maior, mais estável; CV = coeficiente de variação
+                            </div>
+                            <div className="legend-item" style={{fontSize:'11px',color:'#666'}}>
+                                <strong>🔧 Dano:</strong> nível de dano mecânico — 🟢 0-33% · 🟡 34-66% · 🔴 67-100% (passe o mouse para ver peças)
                             </div>
                         </div>
                         

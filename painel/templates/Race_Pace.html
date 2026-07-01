@@ -525,7 +525,168 @@
     </script>
     {% endraw %}
 <!-- ═══════════════════════════════════════════════════════
-     SCREENSHOT INSTAGRAM — injeta antes de </body>
+     SCREENSHOT INSTAGRAM — injeta antes de 
+<!-- ═══════════════════════════════════════════════════════
+     F1 INFO PANEL — 3 ÍCONES (pit stops · bandeiras · danos)
+════════════════════════════════════════════════════════ -->
+<style>
+#f1ip-bar{display:flex;gap:10px;flex-wrap:wrap;padding:10px 16px;background:#0d0f1c;border-bottom:1px solid #1c1f35;position:sticky;top:0;z-index:8888;}
+.f1ip-btn{display:flex;align-items:center;gap:7px;padding:7px 15px;border:none;border-radius:7px;cursor:pointer;font-family:'Titillium Web','Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;transition:opacity .15s;color:#fff;}
+.f1ip-btn:hover{opacity:.8;}
+.f1ip-btn.pit{background:#15151e;border:2px solid #e10600;}
+.f1ip-btn.flag{background:#15151e;border:2px solid #f5c518;}
+.f1ip-btn.dmg{background:#15151e;border:2px solid #3b82f6;}
+.f1ip-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;align-items:center;justify-content:center;}
+.f1ip-ov.open{display:flex;}
+.f1ip-modal{background:#15151e;color:#d8daf0;border-radius:10px;max-width:720px;width:95%;max-height:84vh;overflow-y:auto;padding:24px;position:relative;border-top:4px solid var(--fip-accent,#e10600);font-family:'Titillium Web','Rajdhani',sans-serif;}
+.f1ip-modal h2{font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:16px;}
+.f1ip-x{position:absolute;top:14px;right:16px;background:none;border:none;color:#888;font-size:22px;cursor:pointer;line-height:1;}
+.f1ip-x:hover{color:#fff;}
+.fipt{width:100%;border-collapse:collapse;font-size:13px;}
+.fipt th{background:#1c1f35;color:#6b6e8a;text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;}
+.fipt td{padding:7px 10px;border-bottom:1px solid #252840;vertical-align:middle;}
+.fipt tr:last-child td{border:none;}
+.fipt tr:hover td{background:#1c1f35;}
+.fchip{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;}
+.fchip.SC{background:#f59e0b;color:#000;}
+.fchip.VSC{background:#f97316;color:#000;}
+.fchip.AMARELA{background:#eab308;color:#000;}
+.fchip.VERMELHA{background:#e10600;color:#fff;}
+.fchip.Verde{background:#16a34a;color:#fff;}
+.dv{color:#22c55e;font-weight:700;}
+.da{color:#f59e0b;font-weight:700;}
+.dr{color:#e10600;font-weight:700;}
+.dbar{display:inline-block;width:70px;height:7px;border-radius:4px;background:#252840;vertical-align:middle;margin-right:5px;overflow:hidden;}
+.dbf{height:100%;border-radius:4px;}
+.fempty{color:#6b6e8a;text-align:center;padding:28px;font-style:italic;}
+</style>
+
+<div id="f1ip-bar">
+  <button class="f1ip-btn pit" onclick="f1ip_open('pit')">🏁 Pit Stops</button>
+  <button class="f1ip-btn flag" onclick="f1ip_open('flag')">🚩 Bandeiras</button>
+  <button class="f1ip-btn dmg" onclick="f1ip_open('dmg')">🔧 Danos</button>
+</div>
+
+<!-- Modal Pit -->
+<div class="f1ip-ov" id="f1ip-ov-pit" onclick="if(event.target===this)f1ip_close('pit')">
+  <div class="f1ip-modal" style="--fip-accent:#e10600">
+    <button class="f1ip-x" onclick="f1ip_close('pit')">✕</button>
+    <h2>🏁 Pit Stops</h2>
+    <div id="f1ip-body-pit"><div class="fempty">Carregando...</div></div>
+  </div>
+</div>
+
+<!-- Modal Bandeiras -->
+<div class="f1ip-ov" id="f1ip-ov-flag" onclick="if(event.target===this)f1ip_close('flag')">
+  <div class="f1ip-modal" style="--fip-accent:#f5c518">
+    <button class="f1ip-x" onclick="f1ip_close('flag')">✕</button>
+    <h2>🚩 Bandeiras &amp; Safety Car</h2>
+    <div id="f1ip-body-flag"><div class="fempty">Carregando...</div></div>
+  </div>
+</div>
+
+<!-- Modal Danos -->
+<div class="f1ip-ov" id="f1ip-ov-dmg" onclick="if(event.target===this)f1ip_close('dmg')">
+  <div class="f1ip-modal" style="--fip-accent:#3b82f6">
+    <button class="f1ip-x" onclick="f1ip_close('dmg')">✕</button>
+    <h2>🔧 Danos dos Carros</h2>
+    <div id="f1ip-body-dmg"><div class="fempty">Carregando...</div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const _cache={};
+  function _sid(){
+    const p=new URLSearchParams(window.location.search);
+    return p.get('sessao')||window.SESSAO_ID||window.currentSessaoId||
+      (typeof sessaoAtual!=='undefined'?sessaoAtual:null)||
+      (typeof sessId!=='undefined'?sessId:null);
+  }
+  function _dbar(v,nivel){
+    const c=nivel==='vermelho'?'#e10600':nivel==='amarelo'?'#f59e0b':'#22c55e';
+    return `<span class="dbar"><span class="dbf" style="width:${Math.min(v,100)}%;background:${c}"></span></span>`;
+  }
+  function _dcell(v,n){return`${_dbar(v,n)}<span class="d${n==='vermelho'?'r':n==='amarelo'?'a':'v'}">${(v||0).toFixed(0)}%</span>`;}
+
+  function _renderPit(d){
+    const ps=d.pilotos||[];
+    if(!ps.length)return'<div class="fempty">Nenhum dado de pit stop.</div>';
+    const rows=ps.map(p=>{
+      const pits=p.pit_stops||[];
+      const vs=pits.length?pits.map(x=>`V${x.volta} <small style="color:#888">(${x.pneu_novo||'?'})</small>`).join(' · '):'<span style="color:#6b6e8a">Sem pit</span>';
+      return`<tr><td>${p.posicao||'—'}</td><td style="font-weight:700">${p.nome}</td><td style="text-align:center;font-size:17px;font-weight:900;color:${p.total_pits>0?'#e10600':'#6b6e8a'}">${p.total_pits}</td><td>${vs}</td></tr>`;
+    }).join('');
+    return`<table class="fipt"><thead><tr><th>P</th><th>Piloto</th><th>Pits</th><th>Voltas</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  function _renderFlag(d){
+    const bs=d.bandeiras||[];
+    if(d.aviso)return`<div class="fempty">${d.aviso}</div>`;
+    if(!bs.length)return'<div class="fempty">Nenhuma bandeira registrada.</div>';
+    const ico={'SC':'🟡 SC','VSC':'🟠 VSC','AMARELA':'🟡 Amarela','VERMELHA':'🔴 Vermelha'};
+    const res=d.resumo||{};
+    const chips=Object.entries(res).map(([t,n])=>`<span class="fchip ${t}" style="margin-right:6px">${t}: ${n}×</span>`).join('');
+    const rows=bs.map(b=>`<tr><td><span class="fchip ${b.tipo}">${ico[b.tipo]||b.tipo}</span></td><td>V${b.volta_inicio}${b.volta_fim?` → V${b.volta_fim}`:''}</td><td style="color:#888;font-size:11px">${b.carro_nome||''}</td></tr>`).join('');
+    return`<div style="margin-bottom:12px">${chips}</div><table class="fipt"><thead><tr><th>Tipo</th><th>Voltas</th><th>Carro</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  function _renderDmg(d){
+    const ps=d.pilotos||[];
+    if(!ps.length)return'<div class="fempty">Nenhum dado de dano.</div>';
+    const rows=ps.map(p=>{
+      const dm=p.danos||{};
+      return`<tr>
+        <td style="font-size:11px;color:#888">${p.posicao||'—'}</td>
+        <td style="font-weight:700">${p.nome}</td>
+        <td>${_dcell(dm.asa_esquerda||0,dm.nivel_asa_e||'verde')}</td>
+        <td>${_dcell(dm.asa_direita||0,dm.nivel_asa_d||'verde')}</td>
+        <td>${_dcell(dm.asa_traseira||0,dm.nivel_asa_t||'verde')}</td>
+        <td>${_dcell(dm.assoalho||0,dm.nivel_assoalho||'verde')}</td>
+        <td>${_dcell(dm.difusor||0,dm.nivel_difusor||'verde')}</td>
+        <td class="d${(dm.nivel||'verde')==='vermelho'?'r':(dm.nivel||'verde')==='amarelo'?'a':'v'}" style="font-size:15px;font-weight:900">${(dm.total||0).toFixed(0)}%</td>
+      </tr>`;
+    }).join('');
+    return`<div style="font-size:11px;color:#6b6e8a;margin-bottom:8px">🟢 Verde 0-33% &nbsp; 🟡 Amarelo 34-66% &nbsp; 🔴 Vermelho 67-100%</div>
+    <table class="fipt"><thead><tr><th>P</th><th>Piloto</th><th>Asa Esq</th><th>Asa Dir</th><th>Asa Tras</th><th>Assoalho</th><th>Difusor</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  async function _load(type){
+    const sid=_sid();
+    const el=document.getElementById('f1ip-body-'+type);
+    if(!el)return;
+    if(!sid){el.innerHTML='<div class="fempty">Selecione uma sessão primeiro.</div>';return;}
+    const k=type+'_'+sid;
+    if(_cache[k]){el.innerHTML=_cache[k];return;}
+    el.innerHTML='<div class="fempty">⏳ Carregando...</div>';
+    const ep={pit:'/api/pit_stops',flag:'/api/bandeiras',dmg:'/api/danos_carro'};
+    try{
+      const r=await fetch(ep[type]+'/'+sid);
+      const data=await r.json();
+      const fn={pit:_renderPit,flag:_renderFlag,dmg:_renderDmg};
+      const html=fn[type](data);
+      _cache[k]=html;
+      el.innerHTML=html;
+    }catch(e){el.innerHTML=`<div class="fempty">❌ Erro: ${e.message}</div>`;}
+  }
+
+  window.f1ip_open=function(type){
+    document.getElementById('f1ip-ov-'+type).classList.add('open');
+    document.body.style.overflow='hidden';
+    _load(type);
+  };
+  window.f1ip_close=function(type){
+    document.getElementById('f1ip-ov-'+type).classList.remove('open');
+    document.body.style.overflow='';
+  };
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape')['pit','flag','dmg'].forEach(t=>{
+      document.getElementById('f1ip-ov-'+t).classList.remove('open');
+      document.body.style.overflow='';
+    });
+  });
+})();
+</script>
+<!-- ═══════════════════════════════ FIM F1 INFO PANEL ═══════════════════════════════ -->
+</body>
 ════════════════════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 

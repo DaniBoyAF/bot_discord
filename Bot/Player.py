@@ -25,6 +25,7 @@ class Player:
         self.tyres_temp_inner = [0, 0, 0, 0]
         self.tyres_temp_surface = [0, 0, 0, 0]
         self.tyresAgeLaps = 0
+        self.tyre_blisters = [0, 0, 0, 0]
         self.lastLapTime: float = 0
         self.currentSectors = [0] * 3
         self.lastLapSectors = [0] * 3
@@ -54,6 +55,10 @@ class Player:
         self.speed_trap = 0
         self.delta_to_leader = 0
         self.currentLapInvalid = 1
+        self.team_name=""
+        self.m_team_id = 0
+        self.m_my_team = False
+        self.m_ai_controlled = False
 
     def __str__(self):
         return self.name + str(self.position)
