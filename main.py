@@ -960,7 +960,7 @@ async def volta_salvar(bot):
                         except Exception as e:
                             print("Erro insert pneus:", e)
 
-                    # danos
+                    # danos — snapshot geral (último valor, usado para tela ao vivo)
                     try:
                         cursor.execute('''
                             INSERT OR REPLACE INTO danos (sessao_id, piloto_id, delta_to_leader, combustivel_restante,
@@ -977,6 +977,34 @@ async def volta_salvar(bot):
                               time.time()))
                     except Exception as e:
                         print("Erro insert danos:", e)
+
+                    # ── danos_por_volta — histórico exato volta a volta ───────
+                    # Salva o estado de dano de cada piloto na volta recém-concluída.
+                    # Usa current_lap_num - 1 porque o dano registrado agora é da
+                    # volta que acabou de ser completada (não a que está em curso).
+                    try:
+                        _volta_atual = getattr(j, 'current_lap_num', 0) or 0
+                        _volta_dano  = max(1, _volta_atual - 1)  # volta concluída
+                        _asa_e  = float(getattr(j, 'FrontLeftWingDamage',  0) or 0)
+                        _asa_d  = float(getattr(j, 'FrontRightWingDamage', 0) or 0)
+                        _asa_t  = float(getattr(j, 'rearWingDamage',       0) or 0)
+                        _assoa  = float(getattr(j, 'floorDamage',          0) or 0)
+                        _difus  = float(getattr(j, 'diffuserDamage',       0) or 0)
+                        _sidep  = float(getattr(j, 'sidepodDamage',        0) or 0)
+                        # Só salva se há pelo menos 1 dano > 0 OU ainda não existe registro
+                        # (garante que voltas sem dano também ficam no histórico como 0)
+                        cursor.execute('''
+                            INSERT OR REPLACE INTO danos_por_volta
+                            (sessao_id, piloto_id, numero_volta,
+                             asa_esquerda, asa_direita, asa_traseira,
+                             assoalho, difusor, sidepods, timestamp)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (sessao_id_atual, piloto_id, _volta_dano,
+                              _asa_e, _asa_d, _asa_t,
+                              _assoa, _difus, _sidep,
+                              time.time()))
+                    except Exception as e:
+                        print("Erro insert danos_por_volta:", e)
 
                     # ── salvar ultrapassagens acumuladas ─────────────────
                     try:
@@ -1467,7 +1495,27 @@ def criar_tabelas():
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id)
     )
     ''')
-    
+
+    # ── Histórico de dano volta a volta (precisão 100%) ──────────────────────
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS danos_por_volta (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sessao_id INTEGER NOT NULL,
+        piloto_id INTEGER NOT NULL,
+        numero_volta INTEGER NOT NULL,
+        asa_esquerda REAL DEFAULT 0,
+        asa_direita  REAL DEFAULT 0,
+        asa_traseira REAL DEFAULT 0,
+        assoalho     REAL DEFAULT 0,
+        difusor      REAL DEFAULT 0,
+        sidepods     REAL DEFAULT 0,
+        timestamp    REAL,
+        FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
+        FOREIGN KEY (piloto_id) REFERENCES pilotos(id),
+        UNIQUE(sessao_id, piloto_id, numero_volta)
+    )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -1549,6 +1597,36 @@ def migrar_ultrapassagens():
 migrar_ultrapassagens()
 criar_tabela_regras()
 criar_tabela_clips()
+
+def migrar_danos_por_volta():
+    """Cria tabela danos_por_volta se não existir (banco já criado antes desta versão)."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS danos_por_volta (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sessao_id INTEGER NOT NULL,
+                piloto_id INTEGER NOT NULL,
+                numero_volta INTEGER NOT NULL,
+                asa_esquerda REAL DEFAULT 0,
+                asa_direita  REAL DEFAULT 0,
+                asa_traseira REAL DEFAULT 0,
+                assoalho     REAL DEFAULT 0,
+                difusor      REAL DEFAULT 0,
+                sidepods     REAL DEFAULT 0,
+                timestamp    REAL,
+                FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
+                FOREIGN KEY (piloto_id) REFERENCES pilotos(id),
+                UNIQUE(sessao_id, piloto_id, numero_volta)
+            )
+        ''')
+        conn.commit(); conn.close()
+        print("✅ Tabela danos_por_volta pronta.")
+    except Exception as e:
+        print(f"Erro migrar_danos_por_volta: {e}")
+
+migrar_danos_por_volta()
 
 async def _monitorar_e_atualizar_nome_sessao(sessao_id, timeout=300, intervalo=1.0):
     """Aguarda SESSION.track_name / m_track_id e atualiza sessoes.nome_pista quando disponível."""

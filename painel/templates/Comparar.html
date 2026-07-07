@@ -161,6 +161,46 @@
   .driver-tbl-label.r { background: rgba(225,6,0,0.2); color: var(--red); border: 1px solid rgba(225,6,0,0.3); }
   .driver-tbl-label.b { background: rgba(0,144,208,0.2); color: var(--blue); border: 1px solid rgba(0,144,208,0.3); }
 
+  /* ── Pit stop icon in lap table ── */
+  .pit-icon {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 800;
+    background: rgba(225,6,0,0.18); border: 1px solid rgba(225,6,0,0.5);
+    color: var(--red); margin-left: 5px; vertical-align: middle; letter-spacing: .3px;
+    font-family: 'Rajdhani', sans-serif;
+  }
+  .pit-loss { color: #ff6b6b; font-size: 9px; }
+
+  /* ── Damage icon in lap row ── */
+  .dmg-lap-icon {
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 1px 4px; border-radius: 3px; font-size: 9px; font-weight: 800;
+    vertical-align: middle; margin-left: 4px; cursor: help; letter-spacing: .2px;
+    font-family: 'Rajdhani', sans-serif;
+  }
+
+  /* ── Damage impact table ── */
+  .dmg-impact-panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px; margin-top: 14px;
+  }
+  .dmg-impact-title {
+    font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase; color: var(--cyan);
+    margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  }
+  .dmg-impact-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .dmg-impact-table th {
+    background: #1c1f35; color: var(--muted); text-align: left;
+    padding: 7px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .dmg-impact-table td { padding: 8px 12px; border-bottom: 1px solid var(--border2); vertical-align: middle; }
+  .dmg-impact-table tr:last-child td { border: none; }
+  .dmg-impact-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .impact-bar-wrap { width: 120px; height: 6px; background: var(--border); border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 8px; overflow: hidden; }
+  .impact-bar-fill { height: 100%; border-radius: 3px; }
+  .impact-val { font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700; }
+
   .lap-chart-container {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -327,8 +367,10 @@ const App = () => {
   const [tab,      setTab]        = useState('lapchart');
   const [refIdx,   setRefIdx]     = useState(0);
   const [cmpIdx,   setCmpIdx]     = useState(1);
+  const [pitData,  setPitData]    = useState({});
+  const [danoData, setDanoData]   = useState({});
+  const [danoHist, setDanoHist]   = useState({}); // histórico REAL: {nome:{volta:{ asa_esquerda,...}}}
 
-  // Busca sessões de /historico_sessoes (mesmo que Media_lap)
   useEffect(() => {
     fetch('/historico_sessoes')
       .then(r => r.json())
@@ -339,23 +381,42 @@ const App = () => {
       }).catch(console.error);
   }, []);
 
-  // Busca dados de /dados_voltas/<id> (mesmo endpoint do Media_lap)
   useEffect(() => {
     if (!sessId) return;
     setLoading(true); setPilotos([]); setSessao({});
-    fetch(`/dados_voltas/${sessId}`)
-      .then(r => r.json())
-      .then(raw => {
-        console.log('📊 dados_voltas raw:', raw);
-        const transformed = transformDadosVoltas(raw);
-        console.log('📊 transformed:', transformed);
-        setPilotos(transformed);
-        setSessao(raw.sessao || {});
-        setRefIdx(0);
-        setCmpIdx(transformed.length > 1 ? 1 : 0);
-        setLoading(false);
-      })
-      .catch(e => { console.error(e); setLoading(false); });
+    setPitData({}); setDanoData({}); setDanoHist({});
+
+    Promise.all([
+      fetch(`/dados_voltas/${sessId}`).then(r => r.json()),
+      fetch(`/api/pit_stops/${sessId}`).then(r => r.json()).catch(() => ({ pilotos: [] })),
+      fetch(`/api/danos_carro/${sessId}`).then(r => r.json()).catch(() => ({ pilotos: [] })),
+      fetch(`/api/danos_por_volta/${sessId}`).then(r => r.json()).catch(() => ({ pilotos: [] })),
+    ]).then(([raw, pits, danos, danosPV]) => {
+      console.log('📊 dados_voltas:', raw);
+      const transformed = transformDadosVoltas(raw);
+      setPilotos(transformed);
+      setSessao(raw.sessao || {});
+      setRefIdx(0);
+      setCmpIdx(transformed.length > 1 ? 1 : 0);
+
+      const pitMap = {};
+      (pits.pilotos || []).forEach(p => { pitMap[p.nome] = p.pit_stops || []; });
+      setPitData(pitMap);
+
+      const danoMap = {};
+      (danos.pilotos || []).forEach(p => { danoMap[p.nome] = p.danos || {}; });
+      setDanoData(danoMap);
+
+      // histórico real: { nomePiloto: { numero_volta: { asa_esquerda, asa_direita, ... } } }
+      const histMap = {};
+      (danosPV.pilotos || []).forEach(p => {
+        histMap[p.nome] = {};
+        (p.voltas || []).forEach(v => { histMap[p.nome][v.numero_volta] = v; });
+      });
+      setDanoHist(histMap);
+
+      setLoading(false);
+    }).catch(e => { console.error(e); setLoading(false); });
   }, [sessId]);
 
   const ref  = pilotos[refIdx];
@@ -415,7 +476,7 @@ const App = () => {
 
           {tab === 'lapchart' && <LapChart pilotos={pilotos} />}
           {tab === 'compare' && ref && comp && <CompareView ref_={ref} comp={comp} />}
-          {tab === 'individual' && <IndividualView pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} />}
+          {tab === 'individual' && <IndividualView pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} pitData={pitData} danoData={danoData} danoHist={danoHist} />}
         </>
       )}
     </div>
@@ -769,67 +830,297 @@ const MetricRow = ({label,valA,valB,wA,wB,fmt:fmtVal})=>{
 };
 
 // ─── INDIVIDUAL VIEW ─────────────────────────────────
-const IndividualView = ({pilotos, refIdx, cmpIdx}) => {
-  const ref = pilotos[refIdx];
+const IndividualView = ({pilotos, refIdx, cmpIdx, pitData, danoData, danoHist}) => {
+  const ref  = pilotos[refIdx];
   const comp = pilotos[cmpIdx];
   if (!ref || !comp) return null;
 
-  const refMap = {};
+  const refMap  = {};
   const compMap = {};
-  (ref.voltas || []).forEach(v => { refMap[v.n] = v; });
+  (ref.voltas  || []).forEach(v => { refMap[v.n]  = v; });
   (comp.voltas || []).forEach(v => { compMap[v.n] = v; });
 
   const allLaps = [...new Set([
-    ...(ref.voltas || []).map(v => v.n),
-    ...(comp.voltas || []).map(v => v.n)
+    ...(ref.voltas  || []).map(v => v.n),
+    ...(comp.voltas || []).map(v => v.n),
   ])].sort((a, b) => a - b);
 
-  const dColor = (v) => v === null ? 'var(--muted)' : v > 0.005 ? 'var(--red)' : v < -0.005 ? 'var(--green)' : 'var(--cyan)';
+  const dColor = (v) =>
+    v === null ? 'var(--muted)' : v > 0.005 ? 'var(--red)' : v < -0.005 ? 'var(--green)' : 'var(--cyan)';
+
+  // ── Pit helpers ────────────────────────────────────────────────────────────
+  const refPitFull  = pitData[ref.nome]  || [];
+  const compPitFull = pitData[comp.nome] || [];
+  const refPits     = refPitFull.map(p => p.volta);
+  const compPits    = compPitFull.map(p => p.volta);
+
+  const pitLoss = (piloData, pitVoltas, lapMap) => {
+    const normal = (piloData.voltas || [])
+      .filter(v => !pitVoltas.includes(v.n) && v.t > 10 && v.t < (piloData.media_volta||999) * 1.08)
+      .map(v => v.t);
+    const avgN = normal.length ? normal.reduce((a,b)=>a+b,0)/normal.length : (piloData.media_volta||0);
+    return pitVoltas.reduce((acc,vn) => {
+      const v = lapMap[vn];
+      if (v && v.t) acc[vn] = v.t - avgN;
+      return acc;
+    }, {});
+  };
+  const refPitLoss  = pitLoss(ref,  refPits,  refMap);
+  const compPitLoss = pitLoss(comp, compPits, compMap);
+
+  // ── Damage helpers (usando histórico REAL volta a volta) ───────────────────
+  const refHist  = danoHist[ref.nome]  || {};  // { numero_volta: { asa_esquerda,... } }
+  const compHist = danoHist[comp.nome] || {};
+
+  // Pega o dano de um piloto numa volta específica
+  // Se não há histórico, cai no snapshot atual (retrocompat)
+  const getDanoVolta = (hist, snapDano, lap) => {
+    if (Object.keys(hist).length > 0) {
+      return hist[lap] || { asa_esquerda:0, asa_direita:0, asa_traseira:0, assoalho:0, difusor:0, sidepods:0 };
+    }
+    // fallback: spread do snapshot para todas as voltas (comportamento antigo)
+    return snapDano || {};
+  };
+
+  const totalDano = (d) =>
+    (d.asa_esquerda||0)*0.35 + (d.asa_direita||0)*0.35 + (d.asa_traseira||0)*0.15 +
+    (d.assoalho||0)*0.2 + (d.difusor||0)*0.15 + (d.sidepods||0)*0.15;
+
+  const nivelDano = (tot) =>
+    tot >= 67 ? 'vermelho' : tot >= 34 ? 'amarelo' : tot > 0 ? 'verde' : null;
+
+  const corDanoNivel = (n) =>
+    n === 'vermelho' ? '#e10600' : n === 'amarelo' ? '#f59e0b' : '#22c55e';
+
+  // ── Tabela de impacto de dano — cálculo 100% preciso ──────────────────────
+  // Para cada piloto, separa voltas em 3 grupos usando o histórico real:
+  //   semDano  = voltas onde TODAS as peças = 0
+  //   comDano  = voltas onde alguma peça > 0 (excluindo voltas de pit)
+  // Isso isola o efeito do dano: mesmo piloto, mesma corrida, antes e depois da quebra.
+  const calcImpactPreciso = (piloData, hist, snapDano, pitVoltas) => {
+    const voltas = (piloData.voltas || []).filter(v => v.t > 30 && v.t < (piloData.media_volta||999)*1.15);
+    if (!voltas.length) return null;
+
+    const useHist = Object.keys(hist).length > 0;
+
+    const semDano = [];
+    const comDano = [];
+    const danoAcum = {}; // { 'asa_esquerda': [val_volta1, val_volta2, ...] }
+
+    voltas.forEach(v => {
+      if (pitVoltas.includes(v.n)) return; // exclui voltas de pit
+      const d = getDanoVolta(hist, snapDano, v.n);
+      const tot = totalDano(d);
+
+      if (tot < 1) {
+        semDano.push(v.t);
+      } else {
+        comDano.push({ t: v.t, d });
+        // acumula valores de dano por peça
+        ['asa_esquerda','asa_direita','asa_traseira','assoalho','difusor','sidepods'].forEach(k => {
+          if (!danoAcum[k]) danoAcum[k] = [];
+          danoAcum[k].push(d[k] || 0);
+        });
+      }
+    });
+
+    if (!semDano.length || !comDano.length) return null;
+
+    const avgSem = semDano.reduce((a,b)=>a+b,0) / semDano.length;
+    const avgCom = comDano.reduce((a,v)=>a+v.t,0) / comDano.length;
+    const totalLoss = avgCom - avgSem;
+
+    if (Math.abs(totalLoss) < 0.001) return null;
+
+    // Média de cada peça nas voltas com dano
+    const partes = [
+      { key:'asa_esquerda',  label:'Asa Dianteira Esq' },
+      { key:'asa_direita',   label:'Asa Dianteira Dir' },
+      { key:'asa_traseira',  label:'Asa Traseira'      },
+      { key:'assoalho',      label:'Assoalho'          },
+      { key:'difusor',       label:'Difusor'           },
+      { key:'sidepods',      label:'Sidepods'          },
+    ].map(p => {
+      const vals = danoAcum[p.key] || [];
+      const avgDano = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+      return { ...p, avgDano };
+    }).filter(p => p.avgDano > 0.5);
+
+    if (!partes.length) return null;
+
+    const somaDano = partes.reduce((a,p)=>a+p.avgDano,0) || 1;
+    return {
+      partes: partes.map(p => ({
+        ...p,
+        loss: totalLoss * (p.avgDano / somaDano),
+      })),
+      totalLoss,
+      nSem: semDano.length,
+      nCom: comDano.length,
+      avgSem,
+      avgCom,
+      precisao: useHist ? '100% (histórico real)' : 'estimado (sem histórico)',
+    };
+  };
+
+  const refImpact  = calcImpactPreciso(ref,  refHist,  danoData[ref.nome],  refPits);
+  const compImpact = calcImpactPreciso(comp, compHist, danoData[comp.nome], compPits);
+  const maxLoss = Math.max(
+    ...(refImpact?.partes  || []).map(p => Math.abs(p.loss)),
+    ...(compImpact?.partes || []).map(p => Math.abs(p.loss)),
+    0.001
+  );
+
+  // ── Render helpers ─────────────────────────────────────────────────────────
+  const renderPitIcon = (lap, pitFull, pitLossMap) => {
+    const hit = pitFull.find(p => p.volta === lap);
+    if (!hit) return null;
+    const loss = pitLossMap[lap];
+    return (
+      <span className="pit-icon" title={`Pit stop V${lap}${loss ? ` — perdeu ~${loss.toFixed(1)}s` : ''}`}>
+        🔴 PIT {loss ? <span className="pit-loss">+{loss.toFixed(1)}s</span> : null}
+      </span>
+    );
+  };
+
+  const renderDmgIcon = (hist, snapDano, lap, pitVoltas) => {
+    if (pitVoltas.includes(lap)) return null;
+    const d   = getDanoVolta(hist, snapDano, lap);
+    const tot = totalDano(d);
+    if (tot < 1) return null;
+    const nivel = nivelDano(tot);
+    const cor   = corDanoNivel(nivel);
+    const partes = [];
+    if ((d.asa_esquerda||0)>5) partes.push(`Asa E ${(d.asa_esquerda).toFixed(0)}%`);
+    if ((d.asa_direita||0)>5)  partes.push(`Asa D ${(d.asa_direita).toFixed(0)}%`);
+    if ((d.asa_traseira||0)>5) partes.push(`Asa T ${(d.asa_traseira).toFixed(0)}%`);
+    if ((d.assoalho||0)>5)     partes.push(`Assoalho ${(d.assoalho).toFixed(0)}%`);
+    if ((d.difusor||0)>5)      partes.push(`Difusor ${(d.difusor).toFixed(0)}%`);
+    if ((d.sidepods||0)>5)     partes.push(`Sidepod ${(d.sidepods).toFixed(0)}%`);
+    return (
+      <span className="dmg-lap-icon"
+        style={{ background:`${cor}20`, border:`1px solid ${cor}`, color: cor }}
+        title={partes.join(' | ') || `Dano: ${tot.toFixed(0)}%`}>
+        🔧{tot.toFixed(0)}%
+      </span>
+    );
+  };
+
+  const ImpactTable = ({ impact, nome, color }) => {
+    if (!impact) return (
+      <div style={{color:'var(--muted)',fontSize:'12px',padding:'12px 0'}}>
+        Sem dano registrado para {nome}.
+      </div>
+    );
+    const isReal = impact.precisao.includes('100%');
+    return (
+      <div>
+        <div style={{fontSize:'11px',marginBottom:'10px',display:'flex',gap:'8px',alignItems:'center'}}>
+          <span style={{
+            padding:'2px 8px',borderRadius:'4px',fontWeight:700,fontSize:'10px',
+            background: isReal ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)',
+            color: isReal ? '#22c55e' : '#f59e0b',
+            border: `1px solid ${isReal ? '#22c55e' : '#f59e0b'}`
+          }}>
+            {isReal ? '✅ Precisão 100%' : '⚠️ Estimativa'}
+          </span>
+          <span style={{color:'var(--muted)'}}>
+            {impact.nSem}v sem dano (avg {fmt(impact.avgSem)}) vs {impact.nCom}v com dano (avg {fmt(impact.avgCom)})
+          </span>
+        </div>
+        <div style={{
+          padding:'8px 12px',borderRadius:'6px',marginBottom:'12px',
+          background:'rgba(255,255,255,0.03)',border:'1px solid var(--border)',
+          fontSize:'13px',fontWeight:700,
+        }}>
+          Perda total por volta: <span style={{color: impact.totalLoss > 0 ? '#e10600':'#22c55e',fontFamily:'Orbitron,monospace'}}>
+            {impact.totalLoss >= 0 ? '+' : ''}{impact.totalLoss.toFixed(3)}s
+          </span>
+        </div>
+        <table className="dmg-impact-table">
+          <thead>
+            <tr>
+              <th>Peça</th>
+              <th>Dano médio</th>
+              <th>Perda por volta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {impact.partes.map(p => {
+              const barW = Math.min(100, Math.abs(p.loss) / maxLoss * 100);
+              const cor  = p.avgDano >= 67 ? '#e10600' : p.avgDano >= 34 ? '#f59e0b' : '#22c55e';
+              return (
+                <tr key={p.key}>
+                  <td style={{fontWeight:700,color:'var(--text)'}}>{p.label}</td>
+                  <td>
+                    <span style={{
+                      display:'inline-block',padding:'1px 7px',borderRadius:'4px',
+                      background:`${cor}20`,border:`1px solid ${cor}`,
+                      color:cor,fontSize:'11px',fontWeight:800,
+                    }}>{p.avgDano.toFixed(0)}%</span>
+                  </td>
+                  <td>
+                    <span className="impact-bar-wrap">
+                      <span className="impact-bar-fill" style={{width:`${barW}%`,background:color}}/>
+                    </span>
+                    <span className="impact-val" style={{color}}>
+                      {p.loss >= 0 ? '+' : ''}{p.loss.toFixed(3)}s
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   return (
     <div className="fade-in">
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px', gap:'12px', flexWrap:'wrap' }}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px',gap:'12px',flexWrap:'wrap'}}>
         <div className="driver-tbl-label r">{ref.nome} — {fmt(ref.melhor_volta)}</div>
         <div className="driver-tbl-label b">{comp.nome} — {fmt(comp.melhor_volta)}</div>
       </div>
 
-      <div style={{ background:'var(--panel)', border:'1px solid var(--border)', borderRadius:'8px', overflow:'auto', maxHeight:'650px' }}>
+      {/* ── Tabela de voltas ── */}
+      <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:'8px',overflow:'auto',maxHeight:'600px'}}>
         <table className="lap-table">
           <thead>
             <tr>
-              <th style={{ textAlign:'center' }}>Volta</th>
+              <th style={{textAlign:'center'}}>Volta</th>
               <th><span style={{color:'var(--red)'}}>■</span> {ref.nome}</th>
-              <th style={{ textAlign:'center' }}>Delta</th>
+              <th style={{textAlign:'center'}}>Delta</th>
               <th><span style={{color:'var(--blue)'}}>■</span> {comp.nome}</th>
             </tr>
           </thead>
           <tbody>
             {allLaps.map(lap => {
-              const r = refMap[lap];
-              const c = compMap[lap];
+              const r  = refMap[lap];
+              const c  = compMap[lap];
               const rT = r ? r.t : null;
               const cT = c ? c.t : null;
               const delta = (rT && cT) ? cT - rT : null;
-              const isRefBest = rT && rT === ref.melhor_volta;
+              const isRefBest  = rT && rT === ref.melhor_volta;
               const isCompBest = cT && cT === comp.melhor_volta;
 
               return (
-                <tr key={lap} style={{ background: (isRefBest||isCompBest) ? 'rgba(255,192,0,0.06)' : 'transparent' }}>
-                  <td style={{ textAlign:'center', fontFamily:'Rajdhani,sans-serif', fontWeight:'700', color:'var(--label)' }}>V{lap}</td>
-                  <td style={{ color: isRefBest ? 'var(--yellow)' : 'var(--text)', fontWeight: isRefBest ? '700' : '400' }}>
+                <tr key={lap} style={{background:(isRefBest||isCompBest)?'rgba(255,192,0,0.06)':'transparent'}}>
+                  <td style={{textAlign:'center',fontFamily:'Rajdhani,sans-serif',fontWeight:'700',color:'var(--label)'}}>
+                    V{lap}
+                  </td>
+                  <td style={{color:isRefBest?'var(--yellow)':'var(--text)',fontWeight:isRefBest?'700':'400'}}>
                     {rT ? fmt(rT) : '—'}
+                    {renderPitIcon(lap, refPitFull,  refPitLoss)}
+                    {renderDmgIcon(refHist,  danoData[ref.nome],  lap, refPits)}
                   </td>
-                  <td style={{
-                    textAlign:'center',
-                    fontFamily:'Orbitron,monospace',
-                    fontSize:'12px',
-                    fontWeight:'700',
-                    color: dColor(delta),
-                  }}>
-                    {delta === null ? '—' : `${delta >= 0 ? '+' : ''}${delta.toFixed(3)}`}
+                  <td style={{textAlign:'center',fontFamily:'Orbitron,monospace',fontSize:'12px',fontWeight:'700',color:dColor(delta)}}>
+                    {delta===null ? '—' : `${delta>=0?'+':''}${delta.toFixed(3)}s`}
                   </td>
-                  <td style={{ color: isCompBest ? 'var(--yellow)' : 'var(--text)', fontWeight: isCompBest ? '700' : '400' }}>
+                  <td style={{color:isCompBest?'var(--yellow)':'var(--text)',fontWeight:isCompBest?'700':'400'}}>
                     {cT ? fmt(cT) : '—'}
+                    {renderPitIcon(lap, compPitFull, compPitLoss)}
+                    {renderDmgIcon(compHist, danoData[comp.nome], lap, compPits)}
                   </td>
                 </tr>
               );
@@ -838,182 +1129,44 @@ const IndividualView = ({pilotos, refIdx, cmpIdx}) => {
         </table>
       </div>
 
-      <div style={{ display:'flex', gap:'20px', justifyContent:'center', marginTop:'12px' }}>
-        <span style={{ fontSize:'11px', color:'var(--muted)' }}><span style={{color:'var(--green)'}}>■</span> {comp.nome} mais rápido</span>
-        <span style={{ fontSize:'11px', color:'var(--muted)' }}><span style={{color:'var(--red)'}}>■</span> {comp.nome} mais lento</span>
-        <span style={{ fontSize:'11px', color:'var(--muted)' }}><span style={{color:'var(--yellow)'}}>■</span> Melhor volta</span>
+      {/* legenda */}
+      <div style={{display:'flex',gap:'16px',justifyContent:'center',marginTop:'10px',flexWrap:'wrap'}}>
+        <span style={{fontSize:'11px',color:'var(--muted)'}}><span style={{color:'var(--green)'}}>■</span> {comp.nome} mais rápido</span>
+        <span style={{fontSize:'11px',color:'var(--muted)'}}><span style={{color:'var(--red)'}}>■</span> {comp.nome} mais lento</span>
+        <span style={{fontSize:'11px',color:'var(--muted)'}}><span style={{color:'var(--yellow)'}}>■</span> Melhor volta</span>
+        <span style={{fontSize:'11px',color:'var(--muted)'}}>🔴 PIT = pit stop · +Xs = tempo perdido</span>
+        <span style={{fontSize:'11px',color:'var(--muted)'}}>🔧 = dano ativo nessa volta (some quando pit repara)</span>
       </div>
+
+      {/* ── Tabela de impacto de dano ── */}
+      {(refImpact || compImpact) && (
+        <div className="dmg-impact-panel">
+          <div className="dmg-impact-title">⚙️ Impacto do Dano no Ritmo</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'24px'}}>
+            <div>
+              <div style={{color:'var(--red)',fontWeight:700,fontSize:'12px',marginBottom:'10px',textTransform:'uppercase',letterSpacing:'1px'}}>
+                {ref.nome}
+              </div>
+              <ImpactTable impact={refImpact}  nome={ref.nome}  color="var(--red)"  />
+            </div>
+            <div>
+              <div style={{color:'var(--blue)',fontWeight:700,fontSize:'12px',marginBottom:'10px',textTransform:'uppercase',letterSpacing:'1px'}}>
+                {comp.nome}
+              </div>
+              <ImpactTable impact={compImpact} nome={comp.nome} color="var(--blue)" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
 const root=ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App/>);
 </script>
 {% endraw %}
 <!-- ═══════════════════════════════════════════════════════
-     SCREENSHOT INSTAGRAM — injeta antes de 
-<!-- ═══════════════════════════════════════════════════════
-     F1 INFO PANEL — 3 ÍCONES (pit stops · bandeiras · danos)
-════════════════════════════════════════════════════════ -->
-<style>
-#f1ip-bar{display:flex;gap:10px;flex-wrap:wrap;padding:10px 16px;background:#0d0f1c;border-bottom:1px solid #1c1f35;position:sticky;top:0;z-index:8888;}
-.f1ip-btn{display:flex;align-items:center;gap:7px;padding:7px 15px;border:none;border-radius:7px;cursor:pointer;font-family:'Titillium Web','Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;transition:opacity .15s;color:#fff;}
-.f1ip-btn:hover{opacity:.8;}
-.f1ip-btn.pit{background:#15151e;border:2px solid #e10600;}
-.f1ip-btn.flag{background:#15151e;border:2px solid #f5c518;}
-.f1ip-btn.dmg{background:#15151e;border:2px solid #3b82f6;}
-.f1ip-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;align-items:center;justify-content:center;}
-.f1ip-ov.open{display:flex;}
-.f1ip-modal{background:#15151e;color:#d8daf0;border-radius:10px;max-width:720px;width:95%;max-height:84vh;overflow-y:auto;padding:24px;position:relative;border-top:4px solid var(--fip-accent,#e10600);font-family:'Titillium Web','Rajdhani',sans-serif;}
-.f1ip-modal h2{font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:16px;}
-.f1ip-x{position:absolute;top:14px;right:16px;background:none;border:none;color:#888;font-size:22px;cursor:pointer;line-height:1;}
-.f1ip-x:hover{color:#fff;}
-.fipt{width:100%;border-collapse:collapse;font-size:13px;}
-.fipt th{background:#1c1f35;color:#6b6e8a;text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;}
-.fipt td{padding:7px 10px;border-bottom:1px solid #252840;vertical-align:middle;}
-.fipt tr:last-child td{border:none;}
-.fipt tr:hover td{background:#1c1f35;}
-.fchip{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;}
-.fchip.SC{background:#f59e0b;color:#000;}
-.fchip.VSC{background:#f97316;color:#000;}
-.fchip.AMARELA{background:#eab308;color:#000;}
-.fchip.VERMELHA{background:#e10600;color:#fff;}
-.fchip.Verde{background:#16a34a;color:#fff;}
-.dv{color:#22c55e;font-weight:700;}
-.da{color:#f59e0b;font-weight:700;}
-.dr{color:#e10600;font-weight:700;}
-.dbar{display:inline-block;width:70px;height:7px;border-radius:4px;background:#252840;vertical-align:middle;margin-right:5px;overflow:hidden;}
-.dbf{height:100%;border-radius:4px;}
-.fempty{color:#6b6e8a;text-align:center;padding:28px;font-style:italic;}
-</style>
-
-<div id="f1ip-bar">
-  <button class="f1ip-btn pit" onclick="f1ip_open('pit')">🏁 Pit Stops</button>
-  <button class="f1ip-btn flag" onclick="f1ip_open('flag')">🚩 Bandeiras</button>
-  <button class="f1ip-btn dmg" onclick="f1ip_open('dmg')">🔧 Danos</button>
-</div>
-
-<!-- Modal Pit -->
-<div class="f1ip-ov" id="f1ip-ov-pit" onclick="if(event.target===this)f1ip_close('pit')">
-  <div class="f1ip-modal" style="--fip-accent:#e10600">
-    <button class="f1ip-x" onclick="f1ip_close('pit')">✕</button>
-    <h2>🏁 Pit Stops</h2>
-    <div id="f1ip-body-pit"><div class="fempty">Carregando...</div></div>
-  </div>
-</div>
-
-<!-- Modal Bandeiras -->
-<div class="f1ip-ov" id="f1ip-ov-flag" onclick="if(event.target===this)f1ip_close('flag')">
-  <div class="f1ip-modal" style="--fip-accent:#f5c518">
-    <button class="f1ip-x" onclick="f1ip_close('flag')">✕</button>
-    <h2>🚩 Bandeiras &amp; Safety Car</h2>
-    <div id="f1ip-body-flag"><div class="fempty">Carregando...</div></div>
-  </div>
-</div>
-
-<!-- Modal Danos -->
-<div class="f1ip-ov" id="f1ip-ov-dmg" onclick="if(event.target===this)f1ip_close('dmg')">
-  <div class="f1ip-modal" style="--fip-accent:#3b82f6">
-    <button class="f1ip-x" onclick="f1ip_close('dmg')">✕</button>
-    <h2>🔧 Danos dos Carros</h2>
-    <div id="f1ip-body-dmg"><div class="fempty">Carregando...</div></div>
-  </div>
-</div>
-
-<script>
-(function(){
-  const _cache={};
-  function _sid(){
-    const p=new URLSearchParams(window.location.search);
-    return p.get('sessao')||window.SESSAO_ID||window.currentSessaoId||
-      (typeof sessaoAtual!=='undefined'?sessaoAtual:null)||
-      (typeof sessId!=='undefined'?sessId:null);
-  }
-  function _dbar(v,nivel){
-    const c=nivel==='vermelho'?'#e10600':nivel==='amarelo'?'#f59e0b':'#22c55e';
-    return `<span class="dbar"><span class="dbf" style="width:${Math.min(v,100)}%;background:${c}"></span></span>`;
-  }
-  function _dcell(v,n){return`${_dbar(v,n)}<span class="d${n==='vermelho'?'r':n==='amarelo'?'a':'v'}">${(v||0).toFixed(0)}%</span>`;}
-
-  function _renderPit(d){
-    const ps=d.pilotos||[];
-    if(!ps.length)return'<div class="fempty">Nenhum dado de pit stop.</div>';
-    const rows=ps.map(p=>{
-      const pits=p.pit_stops||[];
-      const vs=pits.length?pits.map(x=>`V${x.volta} <small style="color:#888">(${x.pneu_novo||'?'})</small>`).join(' · '):'<span style="color:#6b6e8a">Sem pit</span>';
-      return`<tr><td>${p.posicao||'—'}</td><td style="font-weight:700">${p.nome}</td><td style="text-align:center;font-size:17px;font-weight:900;color:${p.total_pits>0?'#e10600':'#6b6e8a'}">${p.total_pits}</td><td>${vs}</td></tr>`;
-    }).join('');
-    return`<table class="fipt"><thead><tr><th>P</th><th>Piloto</th><th>Pits</th><th>Voltas</th></tr></thead><tbody>${rows}</tbody></table>`;
-  }
-  function _renderFlag(d){
-    const bs=d.bandeiras||[];
-    if(d.aviso)return`<div class="fempty">${d.aviso}</div>`;
-    if(!bs.length)return'<div class="fempty">Nenhuma bandeira registrada.</div>';
-    const ico={'SC':'🟡 SC','VSC':'🟠 VSC','AMARELA':'🟡 Amarela','VERMELHA':'🔴 Vermelha'};
-    const res=d.resumo||{};
-    const chips=Object.entries(res).map(([t,n])=>`<span class="fchip ${t}" style="margin-right:6px">${t}: ${n}×</span>`).join('');
-    const rows=bs.map(b=>`<tr><td><span class="fchip ${b.tipo}">${ico[b.tipo]||b.tipo}</span></td><td>V${b.volta_inicio}${b.volta_fim?` → V${b.volta_fim}`:''}</td><td style="color:#888;font-size:11px">${b.carro_nome||''}</td></tr>`).join('');
-    return`<div style="margin-bottom:12px">${chips}</div><table class="fipt"><thead><tr><th>Tipo</th><th>Voltas</th><th>Carro</th></tr></thead><tbody>${rows}</tbody></table>`;
-  }
-  function _renderDmg(d){
-    const ps=d.pilotos||[];
-    if(!ps.length)return'<div class="fempty">Nenhum dado de dano.</div>';
-    const rows=ps.map(p=>{
-      const dm=p.danos||{};
-      return`<tr>
-        <td style="font-size:11px;color:#888">${p.posicao||'—'}</td>
-        <td style="font-weight:700">${p.nome}</td>
-        <td>${_dcell(dm.asa_esquerda||0,dm.nivel_asa_e||'verde')}</td>
-        <td>${_dcell(dm.asa_direita||0,dm.nivel_asa_d||'verde')}</td>
-        <td>${_dcell(dm.asa_traseira||0,dm.nivel_asa_t||'verde')}</td>
-        <td>${_dcell(dm.assoalho||0,dm.nivel_assoalho||'verde')}</td>
-        <td>${_dcell(dm.difusor||0,dm.nivel_difusor||'verde')}</td>
-        <td class="d${(dm.nivel||'verde')==='vermelho'?'r':(dm.nivel||'verde')==='amarelo'?'a':'v'}" style="font-size:15px;font-weight:900">${(dm.total||0).toFixed(0)}%</td>
-      </tr>`;
-    }).join('');
-    return`<div style="font-size:11px;color:#6b6e8a;margin-bottom:8px">🟢 Verde 0-33% &nbsp; 🟡 Amarelo 34-66% &nbsp; 🔴 Vermelho 67-100%</div>
-    <table class="fipt"><thead><tr><th>P</th><th>Piloto</th><th>Asa Esq</th><th>Asa Dir</th><th>Asa Tras</th><th>Assoalho</th><th>Difusor</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`;
-  }
-
-  async function _load(type){
-    const sid=_sid();
-    const el=document.getElementById('f1ip-body-'+type);
-    if(!el)return;
-    if(!sid){el.innerHTML='<div class="fempty">Selecione uma sessão primeiro.</div>';return;}
-    const k=type+'_'+sid;
-    if(_cache[k]){el.innerHTML=_cache[k];return;}
-    el.innerHTML='<div class="fempty">⏳ Carregando...</div>';
-    const ep={pit:'/api/pit_stops',flag:'/api/bandeiras',dmg:'/api/danos_carro'};
-    try{
-      const r=await fetch(ep[type]+'/'+sid);
-      const data=await r.json();
-      const fn={pit:_renderPit,flag:_renderFlag,dmg:_renderDmg};
-      const html=fn[type](data);
-      _cache[k]=html;
-      el.innerHTML=html;
-    }catch(e){el.innerHTML=`<div class="fempty">❌ Erro: ${e.message}</div>`;}
-  }
-
-  window.f1ip_open=function(type){
-    document.getElementById('f1ip-ov-'+type).classList.add('open');
-    document.body.style.overflow='hidden';
-    _load(type);
-  };
-  window.f1ip_close=function(type){
-    document.getElementById('f1ip-ov-'+type).classList.remove('open');
-    document.body.style.overflow='';
-  };
-  document.addEventListener('keydown',function(e){
-    if(e.key==='Escape')['pit','flag','dmg'].forEach(t=>{
-      document.getElementById('f1ip-ov-'+t).classList.remove('open');
-      document.body.style.overflow='';
-    });
-  });
-})();
-</script>
-<!-- ═══════════════════════════════ FIM F1 INFO PANEL ═══════════════════════════════ -->
-</body>
+     SCREENSHOT INSTAGRAM — injeta antes de </body>
 ════════════════════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 

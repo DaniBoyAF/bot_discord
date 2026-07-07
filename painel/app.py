@@ -1517,6 +1517,57 @@ def api_danos_carro(sessao_id):
         import traceback; traceback.print_exc()
         return jsonify({"pilotos": [], "erro": str(e)}), 500
 
+@app.route("/api/danos_por_volta/<int:sessao_id>")
+def api_danos_por_volta(sessao_id):
+    """
+    Retorna o histórico EXATO de dano por volta de cada piloto.
+    Cada linha = estado dos danos naquele momento da corrida.
+    Usado pelo Comparar.html para calcular impacto real do dano.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        # Verifica se tabela existe
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='danos_por_volta'")
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({"pilotos": [], "aviso": "Tabela danos_por_volta ainda não existe. Reinicie o main.py."})
+
+        cur.execute("""
+            SELECT MIN(p.id) as pid, p.nome, MAX(p.posicao) as posicao
+            FROM pilotos p WHERE p.sessao_id = ?
+            GROUP BY p.nome ORDER BY posicao
+        """, (sessao_id,))
+        pilotos = [dict(r) for r in cur.fetchall()]
+
+        resultado = []
+        for p in pilotos:
+            cur.execute("""
+                SELECT numero_volta,
+                       asa_esquerda, asa_direita, asa_traseira,
+                       assoalho, difusor, sidepods
+                FROM danos_por_volta
+                WHERE sessao_id = ? AND piloto_id = ?
+                ORDER BY numero_volta
+            """, (sessao_id, p["pid"]))
+            voltas = [dict(r) for r in cur.fetchall()]
+
+            resultado.append({
+                "nome":    p["nome"],
+                "posicao": p["posicao"],
+                "voltas":  voltas   # lista [{numero_volta, asa_esquerda, ...}]
+            })
+
+        conn.close()
+        return jsonify({"pilotos": resultado})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"pilotos": [], "erro": str(e)}), 500
+
+
 if __name__ == "__main__":
     print(f"[INFO] STATIC_PATH: {STATIC_PATH}")
     print()

@@ -35,6 +35,7 @@ tyres_dictionnary = {
     13: "Médio",
     14: "Duro",
     15: "Chuva"
+    
 }
 
 tyres_color_dictionnary = {
