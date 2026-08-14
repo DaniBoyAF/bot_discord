@@ -965,7 +965,6 @@ HEADER_FIELD_TO_PACKET_TYPE = {
     14:PacketTimeTrialData,
     15:PacketLapPositions
 }
-
 import time
 from Bot.Session import SESSION
 from utils.dictionnaries import session_dictionary, weather_dictionary, color_flag_dict
@@ -1207,11 +1206,27 @@ def atualizar_participantes(pacote_participantes):
 
 def atualizar_car_status(pacote_status):
     from Bot.jogadores import JOGADORES
+    from utils.dictionnaries import tyres_dictionnary
     for idx, status in enumerate(pacote_status.m_car_status_data):
         piloto = JOGADORES[idx]
-        piloto.tyres = status.m_actual_tyre_compound
         piloto.tyresAgeLaps = status.m_tyres_age_laps
 
+        # CORREÇÃO (bug do pneu trocado): m_actual_tyre_compound NÃO é Soft/Medium/Hard.
+        # Ele indica qual dos 5 compostos absolutos (C1-C5) está montado, e isso muda
+        # de pista pra pista. Quem corresponde a Soft/Medium/Hard de fato é o composto
+        # VISUAL (m_visual_tyre_compound) — é o que o próprio jogo mostra na tela.
+        # O dicionário (16=Macio/17=Médio/18=Duro) foi feito pensando no visual; usar o
+        # actual fazia o pneu salvo sair trocado em pistas que usam C1-C3 (Silverstone,
+        # Spa, Monza, Suzuka...). Mantido fallback pro actual porque no modo F2 o
+        # Soft/Medium/Hard vem por ali mesmo (códigos 11-15).
+        composto_visual = status.m_visual_tyre_compound
+        composto_real = status.m_actual_tyre_compound
+        tipo_pneu = tyres_dictionnary.get(composto_visual)
+        if tipo_pneu is None:
+            tipo_pneu = tyres_dictionnary.get(composto_real, "Desconhecido")
+
+        piloto.tyres = composto_visual if composto_visual in tyres_dictionnary else composto_real
+        piloto.tyre_type = tipo_pneu
 
 def atualizar_damage_data(pacote_danos):
     from Bot.jogadores import JOGADORES
@@ -1288,9 +1303,12 @@ def atualizar_setores(pacote_setores_history):
             volta_fim = num_laps if num_laps > 0 else volta_inicio
         total_voltas = max(0, volta_fim - volta_inicio + 1)
 
+        composto_visual = getattr(stint, "m_tyre_visual_compound", None)
         composto_real = getattr(stint, "m_tyre_actual_compound", None)
-        tipo_pneu = tyres_dictionnary.get(composto_real, "Desconhecido")
-
+        tipo_pneu = tyres_dictionnary.get(composto_visual)
+        if tipo_pneu is None:
+            tipo_pneu = tyres_dictionnary.get(composto_real, "Desconhecido")
+        
         piloto.pneu_stints.append({
             "stint_numero": i + 1,
             "tipo_pneu": tipo_pneu,

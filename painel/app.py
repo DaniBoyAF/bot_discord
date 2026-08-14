@@ -41,7 +41,9 @@ def graf_page():
 @app.route("/pit")
 def pit_page():
     return render_template("pit_stop.html")
-
+@app.route("/surpresa")
+def surpresa_page():
+    return render_template("surpresa.html")
 @app.route("/painel")
 def painel():
     return render_template("painel.html")

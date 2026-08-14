@@ -440,6 +440,7 @@ const App = () => {
         <button className={`tab-btn ${tab==='lapchart'?'active':''}`} onClick={()=>setTab('lapchart')}>Lap Chart</button>
         <button className={`tab-btn ${tab==='compare'?'active':''}`} onClick={()=>setTab('compare')}>Comparison</button>
         <button className={`tab-btn ${tab==='individual'?'active':''}`} onClick={()=>setTab('individual')}>Individual</button>
+        <button className={`tab-btn ${tab==='delta'?'active':''}`} onClick={()=>setTab('delta')}>Delta Chart</button>
       </div>
 
       <div className="sess-select-row">
@@ -477,6 +478,7 @@ const App = () => {
           {tab === 'lapchart' && <LapChart pilotos={pilotos} />}
           {tab === 'compare' && ref && comp && <CompareView ref_={ref} comp={comp} />}
           {tab === 'individual' && <IndividualView pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} pitData={pitData} danoData={danoData} danoHist={danoHist} />}
+          {tab === 'delta' && <DeltaChart pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} />}
         </>
       )}
     </div>
@@ -1161,6 +1163,329 @@ const IndividualView = ({pilotos, refIdx, cmpIdx, pitData, danoData, danoHist}) 
     </div>
   );
 };
+// ─── DELTA CHART ─────────────────────────────────────────────────────────────
+// Gráfico de delta acumulado por tempo dentro da volta.
+// Cada volta tem 4 pontos: início (0,0) → fim S1 → fim S2 → fim volta (S3).
+// O piloto de referência fica sempre na linha 0; os outros oscilam ±.
+// ─────────────────────────────────────────────────────────────────────────────
+const DeltaChart = ({ pilotos, refIdx, cmpIdx }) => {
+  const canvasRef  = useRef(null);
+  const overlayRef = useRef(null);
+  const [hover,    setHover]    = useState(null);
+  const [selLap,   setSelLap]   = useState('best'); // 'best' | numero_volta
+  const [selPilot, setSelPilot] = useState(null);   // nome do piloto para destaque
+
+  // ── Cores fixas por piloto ──────────────────────────────────────────────────
+  const COLORS = [
+    '#e10600','#0090d0','#00e87a','#ffc000',
+    '#ff8c00','#c800ff','#00c8ff','#ff69b4',
+    '#a0ff00','#ff4444','#44ffff','#ffaa00',
+  ];
+  const colorOf = (idx) => COLORS[idx % COLORS.length];
+
+  // ── Constrói pontos do delta para uma volta de um piloto vs referência ──────
+  // Retorna array de { x (tempo acumulado), y (delta acumulado), label }
+  const buildDeltaPoints = (refVolta, cmpVolta) => {
+    if (!refVolta || !cmpVolta) return null;
+    // Garante setores — usa proporção 38/30/32 se faltar
+    const fallbackSplit = (t) => [t * 0.38, t * 0.30, t * 0.32];
+    const [rs1, rs2, rs3] = (refVolta.s1 && refVolta.s2 && refVolta.s3)
+      ? [refVolta.s1, refVolta.s2, refVolta.s3]
+      : fallbackSplit(refVolta.t);
+    const [cs1, cs2, cs3] = (cmpVolta.s1 && cmpVolta.s2 && cmpVolta.s3)
+      ? [cmpVolta.s1, cmpVolta.s2, cmpVolta.s3]
+      : fallbackSplit(cmpVolta.t);
+
+    // X = tempo de referência acumulado (base do eixo)
+    const xS1 = rs1;
+    const xS2 = rs1 + rs2;
+    const xS3 = rs1 + rs2 + rs3;
+
+    // Delta acumulado: positivo = cmp está perdendo, negativo = cmp está ganhando
+    const d1 = cs1 - rs1;
+    const d2 = d1 + (cs2 - rs2);
+    const d3 = d2 + (cs3 - rs3);
+
+    return [
+      { x: 0,   y: 0,  label: 'Início'  },
+      { x: xS1, y: d1, label: 'S1'      },
+      { x: xS2, y: d2, label: 'S2'      },
+      { x: xS3, y: d3, label: 'Fim'     },
+    ];
+  };
+
+  // ── Escolhe qual volta usar (best ou número específico) ────────────────────
+  const getVolta = (piloto, lap) => {
+    if (!piloto) return null;
+    if (lap === 'best') {
+      return piloto.voltas.reduce((best, v) =>
+        (!best || v.t < best.t) ? v : best, null);
+    }
+    return piloto.voltas.find(v => v.n === lap) || null;
+  };
+
+  // ── Lista de voltas comuns (para o select) ─────────────────────────────────
+  const ref = pilotos[refIdx];
+  const voltas_comuns = ref
+    ? ref.voltas.map(v => v.n).sort((a,b) => a-b)
+    : [];
+
+  const lapLabel = selLap === 'best' ? 'Melhor volta' : `Volta ${selLap}`;
+
+  // ── Pontos de todos os pilotos vs referência ───────────────────────────────
+  const allSeries = pilotos.map((p, idx) => {
+    const refVolta = getVolta(ref, selLap);
+    const myVolta  = getVolta(p,   selLap);
+    const pts      = (idx === refIdx)
+      ? [{ x:0, y:0, label:'Início' }, { x: (refVolta?.s1||0), y:0, label:'S1' },
+         { x: (refVolta?.s1||0)+(refVolta?.s2||0), y:0, label:'S2' },
+         { x: refVolta?.t||0, y:0, label:'Fim' }]
+      : buildDeltaPoints(refVolta, myVolta);
+    return { nome: p.nome, idx, color: colorOf(idx), pts, volta: myVolta };
+  }).filter(s => s.pts);
+
+  // ── Canvas render ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !allSeries.length) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width  = canvas.offsetWidth;
+    const H = canvas.height = canvas.offsetHeight;
+    ctx.clearRect(0, 0, W, H);
+
+    const PAD = { top: 40, right: 30, bottom: 50, left: 70 };
+    const CW  = W - PAD.left - PAD.right;
+    const CH  = H - PAD.top  - PAD.bottom;
+
+    // Ranges
+    const allX = allSeries.flatMap(s => s.pts.map(p => p.x));
+    const allY = allSeries.flatMap(s => s.pts.map(p => p.y));
+    const xMin = 0, xMax = Math.max(...allX, 1);
+    const yRaw = Math.max(Math.abs(Math.min(...allY)), Math.abs(Math.max(...allY)), 0.05);
+    const yMax =  yRaw * 1.25;
+    const yMin = -yRaw * 1.25;
+
+    const toX = (v) => PAD.left + (v - xMin) / (xMax - xMin) * CW;
+    const toY = (v) => PAD.top  + (1 - (v - yMin) / (yMax - yMin)) * CH;
+
+    // ── Grid ────────────────────────────────────────────────────────────────
+    ctx.strokeStyle = '#1a1d2e';
+    ctx.lineWidth   = 1;
+    // Horizontais
+    const yTicks = 6;
+    for (let i = 0; i <= yTicks; i++) {
+      const yv = yMin + (yMax - yMin) * (i / yTicks);
+      const yp = toY(yv);
+      ctx.beginPath(); ctx.moveTo(PAD.left, yp); ctx.lineTo(W - PAD.right, yp); ctx.stroke();
+      ctx.fillStyle = '#5a5d78'; ctx.font = '11px Rajdhani, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText((yv >= 0 ? '+' : '') + yv.toFixed(2) + 's', PAD.left - 6, yp + 4);
+    }
+
+    // ── Linha zero (referência) ─────────────────────────────────────────────
+    const y0 = toY(0);
+    ctx.beginPath(); ctx.moveTo(PAD.left, y0); ctx.lineTo(W - PAD.right, y0);
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
+
+    // ── Linhas de setor ─────────────────────────────────────────────────────
+    const refSerie = allSeries.find(s => s.idx === refIdx);
+    if (refSerie && refSerie.pts.length >= 3) {
+      const sectorX = [refSerie.pts[1].x, refSerie.pts[2].x]; // S1, S2
+      const labels  = ['S2', 'S3'];
+      sectorX.forEach((sx, si) => {
+        const xp = toX(sx);
+        ctx.beginPath(); ctx.moveTo(xp, PAD.top); ctx.lineTo(xp, H - PAD.bottom);
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = '#8a8db0'; ctx.font = 'bold 11px Orbitron, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(labels[si], xp, PAD.top - 8);
+      });
+    }
+
+    // ── Séries ──────────────────────────────────────────────────────────────
+    allSeries.forEach(serie => {
+      const { pts, color, nome, idx } = serie;
+      const isRef = idx === refIdx;
+      const isHL  = selPilot === null || selPilot === nome;
+      const alpha = isHL ? 1 : 0.2;
+
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      pts.forEach((p, i) => {
+        const x = toX(p.x), y = toY(p.y);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = isRef ? 'rgba(255,255,255,0.5)' : color;
+      ctx.lineWidth   = isRef ? 1.5 : (isHL ? 2.5 : 1.5);
+      ctx.setLineDash(isRef ? [6, 4] : []);
+      ctx.stroke(); ctx.setLineDash([]);
+
+      // Pontos S1/S2/Fim
+      pts.slice(1).forEach(p => {
+        ctx.beginPath();
+        ctx.arc(toX(p.x), toY(p.y), 4, 0, Math.PI * 2);
+        ctx.fillStyle = isRef ? '#ffffff' : color;
+        ctx.fill();
+      });
+
+      // Label no final da linha
+      const last = pts[pts.length - 1];
+      ctx.fillStyle = isRef ? '#ffffff' : color;
+      ctx.font = 'bold 11px Rajdhani, sans-serif';
+      ctx.textAlign = 'left';
+      const dy = last.y;
+      const lx = toX(last.x) + 6;
+      const ly = toY(last.y);
+      const lapN = serie.volta ? `V${serie.volta.n}` : '';
+      const deltaStr = isRef ? '0' : ((dy >= 0 ? '+' : '') + dy.toFixed(3));
+      ctx.fillText(`${nome.split('_')[0].substring(0,10)} ${lapN}  ${deltaStr}`, lx, ly + 4);
+      ctx.globalAlpha = 1;
+    });
+
+    // Eixo X — tempo em segundos
+    ctx.fillStyle = '#5a5d78'; ctx.font = '10px Rajdhani, sans-serif'; ctx.textAlign = 'center';
+    const xTicks = 8;
+    for (let i = 0; i <= xTicks; i++) {
+      const xv = xMin + (xMax - xMin) * (i / xTicks);
+      ctx.fillText(xv.toFixed(1) + 's', toX(xv), H - PAD.bottom + 16);
+    }
+
+    // Título eixos
+    ctx.save(); ctx.translate(14, H/2); ctx.rotate(-Math.PI/2);
+    ctx.fillStyle = '#8a8db0'; ctx.font = '11px Rajdhani, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Delta (s)', 0, 0); ctx.restore();
+
+    ctx.fillStyle = '#8a8db0'; ctx.font = '11px Rajdhani, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Tempo na volta (s)', W / 2, H - 8);
+
+  }, [allSeries, selPilot, refIdx]);
+
+  // ── Hover ──────────────────────────────────────────────────────────────────
+  const handleMouseMove = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !allSeries.length) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx   = e.clientX - rect.left;
+    const my   = e.clientY - rect.top;
+    const W = canvas.width, H = canvas.height;
+    const PAD = { top:40, right:30, bottom:50, left:70 };
+    const CW  = W - PAD.left - PAD.right;
+    const CH  = H - PAD.top  - PAD.bottom;
+    const allX = allSeries.flatMap(s => s.pts.map(p => p.x));
+    const allY = allSeries.flatMap(s => s.pts.map(p => p.y));
+    const xMax = Math.max(...allX, 1);
+    const yRaw = Math.max(Math.abs(Math.min(...allY)), Math.abs(Math.max(...allY)), 0.05);
+    const yMax =  yRaw * 1.25;
+    const yMin = -yRaw * 1.25;
+    const toX = (v) => PAD.left + v / xMax * CW;
+    const toY = (v) => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * CH;
+
+    // Ponto mais próximo em qualquer série
+    let best = null, bestDist = 30;
+    allSeries.forEach(serie => {
+      serie.pts.forEach(pt => {
+        const dx = toX(pt.x) - mx, dy = toY(pt.y) - my;
+        const d  = Math.sqrt(dx*dx + dy*dy);
+        if (d < bestDist) { bestDist = d; best = { ...pt, nome: serie.nome, color: serie.color, idx: serie.idx }; }
+      });
+    });
+
+    if (best) {
+      const isRef = best.idx === refIdx;
+      const dy = best.y;
+      const msg = isRef
+        ? `${best.nome} — Referência (${best.label})`
+        : dy > 0.001
+          ? `${best.nome} perdendo ${dy.toFixed(3)}s (${best.label})`
+          : dy < -0.001
+            ? `${best.nome} ganhando ${Math.abs(dy).toFixed(3)}s (${best.label})`
+            : `${best.nome} empatado (${best.label})`;
+      setHover({ x: e.clientX, y: e.clientY, msg, color: best.color });
+    } else {
+      setHover(null);
+    }
+  };
+
+  return (
+    <div className="fade-in">
+      {/* ── Controles ── */}
+      <div style={{ display:'flex', gap:'12px', alignItems:'center', marginBottom:'14px', flexWrap:'wrap' }}>
+        <span style={{ color:'var(--label)', fontSize:'12px', fontWeight:700, textTransform:'uppercase', letterSpacing:'1px' }}>
+          Volta
+        </span>
+        <select value={selLap} onChange={e => setSelLap(e.target.value === 'best' ? 'best' : Number(e.target.value))}
+          style={{ width:'140px' }}>
+          <option value="best">Melhor volta</option>
+          {voltas_comuns.map(n => <option key={n} value={n}>Volta {n}</option>)}
+        </select>
+
+        <span style={{ color:'var(--label)', fontSize:'12px', fontWeight:700, textTransform:'uppercase', letterSpacing:'1px', marginLeft:'8px' }}>
+          Destacar
+        </span>
+        <select value={selPilot || ''} onChange={e => setSelPilot(e.target.value || null)}
+          style={{ width:'180px' }}>
+          <option value="">Todos</option>
+          {pilotos.map((p,i) => <option key={i} value={p.nome}>{p.nome}</option>)}
+        </select>
+
+        <div style={{ marginLeft:'auto', color:'var(--muted)', fontSize:'11px' }}>
+          📌 Referência: <strong style={{color:'var(--cyan)'}}>{ref?.nome}</strong> — {lapLabel}
+        </div>
+      </div>
+
+      {/* ── Legenda ── */}
+      <div style={{ display:'flex', gap:'16px', flexWrap:'wrap', marginBottom:'10px' }}>
+        {allSeries.map(s => (
+          <div key={s.nome}
+            style={{ display:'flex', alignItems:'center', gap:'6px', cursor:'pointer', opacity: selPilot && selPilot !== s.nome ? 0.35 : 1 }}
+            onClick={() => setSelPilot(selPilot === s.nome ? null : s.nome)}>
+            <div style={{ width:24, height:3, background: s.idx === refIdx ? 'rgba(255,255,255,0.5)' : s.color,
+              borderRadius:2, borderTop: s.idx === refIdx ? '1px dashed rgba(255,255,255,0.5)' : 'none' }} />
+            <span style={{ fontSize:'12px', color: s.idx === refIdx ? '#fff' : s.color, fontWeight:700 }}>
+              {s.nome}
+            </span>
+            {s.volta && (
+              <span style={{ fontSize:'10px', color:'var(--muted)' }}>
+                V{s.volta.n} — {fmt(s.volta.t)}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Canvas ── */}
+      <div style={{ position:'relative', background:'var(--panel)', border:'1px solid var(--border)', borderRadius:'8px', overflow:'hidden' }}>
+        <canvas ref={canvasRef} style={{ width:'100%', height:'380px', display:'block' }}
+          onMouseMove={handleMouseMove} onMouseLeave={() => setHover(null)} />
+
+        {/* Tooltip */}
+        {hover && (
+          <div style={{
+            position:'fixed', left: hover.x + 14, top: hover.y - 10, pointerEvents:'none',
+            background:'rgba(13,15,28,0.96)', border:`1px solid ${hover.color}`,
+            borderRadius:'6px', padding:'7px 12px', fontSize:'12px', fontWeight:700,
+            color: hover.color, zIndex:9999, whiteSpace:'nowrap',
+            boxShadow:`0 0 12px ${hover.color}44`,
+          }}>
+            {hover.msg}
+          </div>
+        )}
+      </div>
+
+      {/* ── Nota explicativa ── */}
+      <div style={{ marginTop:'10px', display:'flex', gap:'20px', flexWrap:'wrap', fontSize:'11px', color:'var(--muted)' }}>
+        <span>📈 Subindo = perdendo tempo para a referência</span>
+        <span>📉 Descendo = ganhando tempo</span>
+        <span>── Linha tracejada = piloto de referência (zero)</span>
+        <span>S2 / S3 = início dos setores</span>
+        <span>Clique na legenda para destacar um piloto</span>
+      </div>
+    </div>
+  );
+};
+
 const root=ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App/>);
 </script>

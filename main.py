@@ -1067,7 +1067,7 @@ async def volta_salvar(bot):
                         desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr = map(float, tyre_wear[:4])
                         idade_volta_atual = int(getattr(j, "tyresAgeLaps", 0) or 0)
 
-                        pneu_atual = _norm_tyre(getattr(j, "tyres", None) or getattr(j, "m_visual_tyre_compound", None))
+                        pneu_atual = _norm_tyre(getattr(j, "tyres", None))  # composto já vem correto (visual com fallback p/ real) desde o parser2025.py
 
                         # não salva stint se o composto ainda não veio do jogo
                         if pneu_atual in ("DESCONHECIDO", None, ""):
