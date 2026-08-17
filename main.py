@@ -1029,11 +1029,11 @@ async def volta_salvar(bot):
                                 ev.get("timestamp", 0),
                             ))
                         if hist:
-                            _JOG_U[0].historico_ultrapassagens = []
+                           setattr(_JOG_U[0], "historico_ultrapassagens", [])
                     except Exception as e:
                         print("Erro salvar ultrapassagens:", e)
 
-                    # telemetria
+                   # telemetria
                     try:
                         cursor.execute('''
                             INSERT OR REPLACE INTO telemetria (sessao_id, piloto_id, velocidade, timestamp)
@@ -1041,7 +1041,6 @@ async def volta_salvar(bot):
                         ''', (sessao_id_atual, piloto_id, maior_speed, time.time()))
                     except Exception as e:
                         print("Erro insert telemetria:", e)
-
                     # stints
                     try:
                         # detecta volta atual (múltiplos fallbacks)
