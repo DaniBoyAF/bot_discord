@@ -14,7 +14,7 @@ async def ers(ctx):
         mode_names = {0: 'None', 1: 'Medium', 2: 'Hotlap', 3: 'Overtake'}
 
         linhas = ["```"]
-        linhas.append("P  PILOTO           ERS%   MODE      DRS")
+        linhas.append("P  PILOTO                   ERS%   MODE      DRS")
         linhas.append("─" * 50)
 
         ERS_MAX = 4000000  # 4MJ
