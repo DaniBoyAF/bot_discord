@@ -1,4 +1,3 @@
-from dash import ctx
 import discord
 from discord.ext import commands
 import asyncio
@@ -6,7 +5,6 @@ import threading
 import time as _time
 import time
 import sqlite3
-import PyPDF2
 import threading
 from comandos.pneusv import comando_pneusv
 from comandos.delta import comando_delta  # se o nome correto for esse

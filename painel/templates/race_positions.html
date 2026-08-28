@@ -45,16 +45,37 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
-const PALETTE = [
-  "#00d2be","#e10600","#ff8700","#0090ff","#ffffff",
-  "#dc0000","#006f62","#2b4562","#b6babd","#f596c8",
-  "#37bedd","#a5c0dd","#3671c6","#0082fa","#ff87bc",
-  "#c92d4b","#6cd3bf","#e8002d","#52e252","#b3c7c7",
-  "#fe86bc","#ff3300",
+// ── Cores oficiais das equipes F1 25 (team_id → cor hex) ─────────────────────
+const TEAM_COLORS = {
+  0:  '#3671C6', // Red Bull Racing
+  1:  '#E8002D', // Ferrari
+  2:  '#27F4D2', // Mercedes
+  3:  '#FF8000', // McLaren
+  4:  '#358C75', // Aston Martin
+  5:  '#0093CC', // Alpine
+  6:  '#64C4FF', // Williams
+  7:  '#B6BABD', // AlphaTauri / RB
+  8:  '#C92D4B', // Haas
+  9:  '#52E252', // Kick Sauber / Stake
+  85: '#FFFFFF', // My Team (branco)
+};
+// Fallback palette para quando team_id não está mapeado
+const PALETTE_FALLBACK = [
+  '#e10600','#ff8700','#0090ff','#00d2be','#006f62',
+  '#2b4562','#b6babd','#f596c8','#37bedd','#a5c0dd',
+  '#c92d4b','#6cd3bf','#52e252','#ff87bc','#3671c6',
+  '#ffcc00','#ff3300','#00e87a','#c800ff','#fe86bc',
 ];
-const MARGIN  = { top: 24, right: 100, bottom: 58, left: 64 };//tamanhos dos espaços em branco ao redor do gráfico
-const ROW_H   = 38; // altura de cada linha (posição) no gráfico
-const col     = i => PALETTE[i % PALETTE.length];
+
+// Retorna cor da equipe se disponível, senão usa fallback por índice
+const col = (idx, teamId) => {
+  if (teamId !== undefined && teamId !== null && TEAM_COLORS[teamId]) {
+    return TEAM_COLORS[teamId];
+  }
+  return PALETTE_FALLBACK[idx % PALETTE_FALLBACK.length];
+};
+const MARGIN  = { top: 24, right: 100, bottom: 58, left: 64 };
+const ROW_H   = 38;
 const abbr3   = n => (n || '?').split(' ').pop().substring(0, 3).toUpperCase();
 
 // ── TOOLTIP ──────────────────────────────────────────────────────────────────
@@ -122,10 +143,10 @@ const StatsPanel = ({ pilotos, ultrapassagens, hidden, onToggle }) => {
             onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'}
             onMouseLeave={e=>e.currentTarget.style.background='transparent'}
           >
-            <div style={{ width:4, height:28, borderRadius:2, background:col(p.i), boxShadow:`0 0 8px ${col(p.i)}66` }}/>
+            <div style={{ width:4, height:28, borderRadius:2, background:col(p.i, p.team_id), boxShadow:`0 0 8px ${col(p.i, p.team_id)}66` }}/>
             <div style={{ fontWeight:700, fontSize:13 }}>{p.nome}</div>
             <div style={{ textAlign:'center', color:'var(--label)', fontFamily:"'Orbitron',monospace", fontSize:11 }}>{p.posStart?`P${p.posStart}`:'—'}</div>
-            <div style={{ textAlign:'center', fontFamily:"'Orbitron',monospace", fontSize:12, fontWeight:700, color:col(p.i) }}>{p.posEnd?`P${p.posEnd}`:'—'}</div>
+            <div style={{ textAlign:'center', fontFamily:"'Orbitron',monospace", fontSize:12, fontWeight:700, color:col(p.i, p.team_id) }}>{p.posEnd?`P${p.posEnd}`:'—'}</div>
             <div style={{ textAlign:'center', fontWeight:700, fontSize:13, color:gc }}>{p.ganhou>0?`+${p.ganhou}`:p.ganhou<0?`${p.ganhou}`:'—'}</div>
             <div style={{ textAlign:'center', color:'#00e87a', fontWeight:700 }}>{p.fez||'—'}</div>
             <div style={{ textAlign:'center', color:'#e10600', fontWeight:700 }}>{p.levou||'—'}</div>
@@ -199,7 +220,7 @@ const RaceChart = ({ data, hidden, onMouseMove, onMouseLeave, containerW }) => {
     // driver lines
     pilotos.forEach((p,idx) => {
       if (hidden.has(idx)) return;
-      const c = col(idx);
+      const c = col(idx, p.team_id);
       const vs = Object.keys(p.posicoes).map(Number).sort((a,b)=>a-b);
       if (!vs.length) return;
 
@@ -271,7 +292,7 @@ const RaceChart = ({ data, hidden, onMouseMove, onMouseLeave, containerW }) => {
       if (!ev.volta||!ev.ultrapassou_nome||!ev.pos_ultrapassou) return;
       const idxA=pilotos.findIndex(p=>p.nome===ev.ultrapassou_nome);
       if (idxA<0||hidden.has(idxA)) return;
-      const x=xScale(ev.volta), y=yScale(ev.pos_ultrapassou), c=col(idxA);
+      const x=xScale(ev.volta), y=yScale(ev.pos_ultrapassou), c=col(idxA, pilotos[idxA]?.team_id);
       ctx.save(); ctx.translate(x,y-14);
       ctx.fillStyle=c; ctx.strokeStyle='#07080f'; ctx.lineWidth=1.5;
       ctx.shadowColor=c; ctx.shadowBlur=8;
@@ -291,7 +312,7 @@ const RaceChart = ({ data, hidden, onMouseMove, onMouseLeave, containerW }) => {
     const lap=Math.round(1+xNorm*(maxVolta-1));
     if (lap<1||lap>maxVolta){onMouseLeave();return;}
     const rows=pilotos
-      .map((p,i)=>({nome:p.nome,pos:p.posicoes[lap],color:col(i),i}))
+      .map((p,i)=>({nome:p.nome,pos:p.posicoes[lap],color:col(i, p.team_id),i}))
       .filter(r=>r.pos&&!hidden.has(r.i)).sort((a,b)=>a.pos-b.pos);
     onMouseMove({lap,rows,clientX:e.clientX,clientY:e.clientY});
   }, [W, maxVolta, pilotos, hidden, onMouseMove, onMouseLeave]);
@@ -434,7 +455,7 @@ const App = () => {
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
                 onMouseLeave={e=>e.currentTarget.style.background='transparent'}
               >
-                <div style={{ width:24, height:3, borderRadius:2, background:col(i), boxShadow:`0 0 6px ${col(i)}88` }}/>
+                <div style={{ width:24, height:3, borderRadius:2, background:col(i, p.team_id), boxShadow:`0 0 6px ${col(i, p.team_id)}88` }}/>
                 <span>{p.nome}</span>
                 <span style={{ background:'rgba(255,255,255,.07)', borderRadius:3, padding:'1px 5px', fontSize:10, color:'var(--label)' }}>#{p.numero||'?'}</span>
               </div>
