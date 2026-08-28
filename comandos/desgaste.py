@@ -18,8 +18,8 @@ async def desgaste(ctx):
     for j in jogadores[:20]:
         pos = getattr(j, 'position', 0)
         nome = getattr(j, 'name', 'Unknown')[:15].ljust(15)
-        
-        wear = getattr(j, 'tyre_wear', [0, 0, 0, 0])
+    
+        wear = getattr(j, 'tyre_wear', None)
         # Excelente proteção que você fez!
         if not isinstance(wear, (list, tuple)) or len(wear) < 4:
             wear = [0, 0, 0, 0]

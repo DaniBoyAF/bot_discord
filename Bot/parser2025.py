@@ -1211,6 +1211,18 @@ def atualizar_car_status(pacote_status):
         piloto = JOGADORES[idx]
         piloto.tyresAgeLaps = status.m_tyres_age_laps
 
+        # ── Combustível (faltava ler isso do pacote) ────────────────────────
+        piloto.fuel_in_tank = float(status.m_fuel_in_tank)
+        piloto.fuel_remaining_laps = float(status.m_fuel_remaining_laps)
+        piloto.fuel_mix = int(status.m_fuel_mix)
+
+        # ── DRS (faltava ler isso do pacote) ─────────────────────────────────
+        piloto.drs_allowed = int(status.m_drs_allowed)
+
+        # ── ERS (faltava ler isso do pacote) ─────────────────────────────────
+        piloto.ers_store_energy = float(status.m_ers_store_energy)
+        piloto.ers_deploy_mode = int(status.m_ers_deploy_mode)
+
         # CORREÇÃO (bug do pneu trocado): m_actual_tyre_compound NÃO é Soft/Medium/Hard.
         # Ele indica qual dos 5 compostos absolutos (C1-C5) está montado, e isso muda
         # de pista pra pista. Quem corresponde a Soft/Medium/Hard de fato é o composto
