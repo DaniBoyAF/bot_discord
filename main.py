@@ -603,7 +603,7 @@ async def volta_salvar(bot):
         temp_ar = getattr(SESSION, "m_air_temperature", 0)
         temp_pista = getattr(SESSION, "m_track_temperature", 0)
         safety = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
-        flag = getattr(SESSION, "m_zone_flag", "Verde")
+        flag = obter_bandeira_atual(SESSION)  # 🆕 corrigido: antes lia atributo inexistente e sempre caía em "Verde"
         # --- CORREÇÃO DA PORCENTAGEM DE CHUVA ---
         chuva = 0
         amostras_clima = getattr(SESSION, "m_weatherForecastSamples", getattr(SESSION, "m_weather_forecast_samples", []))
@@ -675,7 +675,7 @@ async def volta_salvar(bot):
                 temp_ar = getattr(SESSION, "m_air_temperature", 0)
                 temp_pista = getattr(SESSION, "m_track_temperature", 0)
                 safety_val = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
-                flag_val = getattr(SESSION, "m_zone_flag", "Verde")
+                flag_val = obter_bandeira_atual(SESSION)  # 🆕 corrigido: idem acima
                 # --- CORREÇÃO DA PORCENTAGEM DE CHUVA ---
                 chuva_val = 0
                 amostras_clima = getattr(SESSION, "m_weatherForecastSamples", getattr(SESSION, "m_weather_forecast_samples", []))
@@ -735,6 +735,32 @@ async def volta_salvar(bot):
                 cursor.execute("UPDATE sessoes SET velocidade_maxima_geral = ? WHERE id = ?", (maior_speed_geral, sessao_id_atual))
             except Exception as e:
                 print("Erro update velocidade_maxima_geral:", e)
+
+            # ══════════════════════════════════════════════════
+            # 🆕 MONITORA BANDEIRA E SAFETY CAR POR VOLTA
+            # Grava na tabela 'bandeiras' toda vez que o estado muda,
+            # pra podermos usar esses períodos no cálculo do Comparar.html
+            # (ex.: não penalizar ritmo/posição perdidos durante SC/VSC/bandeira).
+            # ══════════════════════════════════════════════════
+            try:
+                lider = next((j for j in jogadores if getattr(j, "position", None) == 1), jogadores[0])
+                volta_referencia = int(
+                    getattr(lider, "current_lap_num", getattr(lider, "current_lap", 1)) or 1
+                )
+            except Exception:
+                volta_referencia = 1
+
+            try:
+                bandeira_agora = obter_bandeira_atual(SESSION)
+                _registrar_evento_bandeira(cursor, conn, sessao_id_atual, bandeira_agora, volta_referencia, estado_bandeira_atual)
+            except Exception as e:
+                print("Erro no monitor de bandeira:", e)
+
+            try:
+                safety_agora = obter_safety_status_atual(SESSION, safetyCarStatusDict)
+                _registrar_evento_bandeira(cursor, conn, sessao_id_atual, safety_agora, volta_referencia, estado_safety_atual)
+            except Exception as e:
+                print("Erro no monitor de safety car:", e)
 
             for j in jogadores:
                 nome = getattr(j, 'name', None)
@@ -1624,6 +1650,88 @@ def migrar_danos_por_volta():
         print(f"Erro migrar_danos_por_volta: {e}")
 
 migrar_danos_por_volta()
+
+def migrar_bandeiras():
+    """
+    🆕 Cria a tabela 'bandeiras' se não existir.
+    Guarda o histórico de bandeiras (Verde/Amarela/Vermelha/Azul) e status
+    de Safety Car/VSC por volta, pra permitir cálculo correto no Comparar.html
+    (ex.: não penalizar ritmo/posição perdida durante SC/VSC/bandeira vermelha).
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS bandeiras (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sessao_id INTEGER NOT NULL,
+                tipo TEXT NOT NULL,
+                volta_inicio INTEGER NOT NULL,
+                volta_fim INTEGER,
+                carro_idx INTEGER,
+                carro_nome TEXT,
+                timestamp REAL,
+                FOREIGN KEY (sessao_id) REFERENCES sessoes(id)
+            )
+        ''')
+        conn.commit(); conn.close()
+        print("✅ Tabela bandeiras pronta.")
+    except Exception as e:
+        print(f"Erro migrar_bandeiras: {e}")
+
+migrar_bandeiras()
+
+# 🆕 Controle de estado atual de bandeira/safety car por sessão
+# {sessao_id: {"tipo": str, "registro_id": int, "volta_inicio": int}}
+estado_bandeira_atual = {}
+estado_safety_atual = {}
+
+def obter_bandeira_atual(session):
+    """
+    Mesma lógica usada em comandos/clima.py: olha a primeira 'marshal zone'
+    da sessão e traduz o m_zoneFlag pro nome da bandeira.
+    (Antes o código tentava ler session.m_zone_flag, que não existe -
+    por isso sempre caía no padrão "Verde".)
+    """
+    zonas = getattr(session, "m_marshalZones", getattr(session, "m_marshal_zones", []))
+    if len(zonas) > 0:
+        zona_atual = zonas[0]
+        flag_id = getattr(zona_atual, "m_zoneFlag", getattr(zona_atual, "m_zone_flag", -1))
+        return {1: "Verde", 2: "Azul", 3: "Amarela", 4: "Vermelha"}.get(flag_id, "Verde")
+    return "Verde"
+
+def obter_safety_status_atual(session, safety_dict):
+    """Status atual de Safety Car / VSC da sessão."""
+    status_id = getattr(session, "m_safety_car_status", getattr(session, "m_safetyCarStatus", 0))
+    return safety_dict.get(status_id, "Nenhum")
+
+def _registrar_evento_bandeira(cursor, conn, sessao_id, tipo_novo, volta_referencia, estado_dict):
+    """
+    Registra troca de estado (bandeira OU safety car) na tabela 'bandeiras'.
+    Fecha o registro anterior (define volta_fim) e abre um novo.
+    """
+    estado_ant = estado_dict.get(sessao_id)
+    if estado_ant is not None and estado_ant["tipo"] == tipo_novo:
+        return  # nada mudou, não faz nada
+
+    if estado_ant is not None:
+        try:
+            volta_fim = max(volta_referencia - 1, estado_ant["volta_inicio"])
+            cursor.execute("UPDATE bandeiras SET volta_fim = ? WHERE id = ?", (volta_fim, estado_ant["registro_id"]))
+        except Exception as e:
+            print(f"Erro ao fechar registro de bandeira ({tipo_novo}):", e)
+
+    try:
+        cursor.execute(
+            '''INSERT INTO bandeiras (sessao_id, tipo, volta_inicio, volta_fim, carro_idx, carro_nome, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, ?)''',
+            (sessao_id, tipo_novo, volta_referencia, None, None, None, time.time())
+        )
+        novo_id = cursor.lastrowid
+        estado_dict[sessao_id] = {"tipo": tipo_novo, "registro_id": novo_id, "volta_inicio": volta_referencia}
+        execute_with_retry(lambda: conn.commit())
+    except Exception as e:
+        print(f"Erro ao inserir registro de bandeira ({tipo_novo}):", e)
 
 async def _monitorar_e_atualizar_nome_sessao(sessao_id, timeout=300, intervalo=1.0):
     """Aguarda SESSION.track_name / m_track_id e atualiza sessoes.nome_pista quando disponível."""

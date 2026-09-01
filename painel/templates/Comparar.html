@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
@@ -373,6 +372,7 @@ const App = () => {
   const [danoHist, setDanoHist]   = useState({}); // histórico REAL: {nome:{volta:{ asa_esquerda,...}}}
   const [posData,  setPosData]    = useState({}); // grid → final: {nome:{grid, final}}
   const [liderancaData, setLiderancaData] = useState({}); // {nome:true/false} — nunca perdeu o P1 (p/ Grand Chelem)
+  const [voltasAfetadas, setVoltasAfetadas] = useState(new Set()); // 🆕 voltas sob SC/VSC/bandeira amarela/vermelha
 
   useEffect(() => {
     fetch('/historico_sessoes')
@@ -387,7 +387,7 @@ const App = () => {
   useEffect(() => {
     if (!sessId) return;
     setLoading(true); setPilotos([]); setSessao({});
-    setPitData({}); setDanoData({}); setDanoHist({}); setPosData({}); setLiderancaData({});
+    setPitData({}); setDanoData({}); setDanoHist({}); setPosData({}); setLiderancaData({}); setVoltasAfetadas(new Set());
 
     Promise.all([
       fetch(`/dados_voltas/${sessId}`).then(r => r.json()),
@@ -395,7 +395,8 @@ const App = () => {
       fetch(`/api/danos_carro/${sessId}`).then(r => r.json()).catch(() => ({ pilotos: [] })),
       fetch(`/api/danos_por_volta/${sessId}`).then(r => r.json()).catch(() => ({ pilotos: [] })),
       fetch(`/api/race_positions/${sessId}`).then(r => r.json()).catch(() => ({ pilotos: [] })),
-    ]).then(([raw, pits, danos, danosPV, racePos]) => {
+      fetch(`/api/bandeiras/${sessId}`).then(r => r.json()).catch(() => ({ bandeiras: [] })),
+    ]).then(([raw, pits, danos, danosPV, racePos, bandeiras]) => {
       console.log('📊 dados_voltas:', raw);
       const transformed = transformDadosVoltas(raw);
       setPilotos(transformed);
@@ -441,6 +442,19 @@ const App = () => {
       });
       setPosData(posMap);
       setLiderancaData(liderancaMap);
+
+      // 🆕 voltas sob Amarela/Vermelha/Safety Car/VSC (tudo que não é "normal")
+      // são marcadas aqui pra não distorcer o ritmo médio dos pilotos —
+      // ver PerformanceView → calcMedia.
+      const NORMAIS = new Set(['Verde', 'Nenhum', 'Azul']); // Azul é só aviso de trânsito, não afeta ritmo geral
+      const afetadas = new Set();
+      (bandeiras.bandeiras || []).forEach(b => {
+        if (NORMAIS.has(b.tipo)) return;
+        const ini = b.volta_inicio || 0;
+        const fim = b.volta_fim || ini; // se ainda "aberto" (sem volta_fim), assume só a volta de início
+        for (let v = ini; v <= fim; v++) afetadas.add(v);
+      });
+      setVoltasAfetadas(afetadas);
 
       setLoading(false);
     }).catch(e => { console.error(e); setLoading(false); });
@@ -507,7 +521,7 @@ const App = () => {
           {tab === 'compare' && ref && comp && <CompareView ref_={ref} comp={comp} />}
           {tab === 'individual' && <IndividualView pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} pitData={pitData} danoData={danoData} danoHist={danoHist} />}
           {tab === 'delta' && <DeltaChart pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} />}
-          {tab === 'performance' && <PerformanceView pilotos={pilotos} tipoSessao={sessInfo.tipo_sessao} danoData={danoData} posData={posData} liderancaData={liderancaData} />}
+          {tab === 'performance' && <PerformanceView pilotos={pilotos} tipoSessao={sessInfo.tipo_sessao} danoData={danoData} posData={posData} liderancaData={liderancaData} voltasAfetadas={voltasAfetadas} />}
         </>
       )}
     </div>
@@ -1585,12 +1599,18 @@ const DeltaChart = ({ pilotos, refIdx, cmpIdx }) => {
 // Em sessões de corrida, só entra quem completou o mesmo nº de voltas do líder (sem folga).
 // Quanto menor o tempo médio num setor vs o melhor do grid = score mais alto.
 // ─────────────────────────────────────────────────────────────────────────────
-const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData }) => {
+const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData, voltasAfetadas }) => {
   if (!pilotos.length) return <div style={{color:'var(--muted)',padding:'40px',textAlign:'center'}}>Sem dados</div>;
 
   // ── Calcula média de setor filtrando outliers (voltas lentas E rápidas demais) ──
+  // 🆕 Antes disso, remove voltas feitas sob Safety Car / VSC / bandeira
+  // amarela ou vermelha (voltasAfetadas), já que são artificialmente lentas
+  // por causa da pista, não por ritmo real do piloto. Isso é mais preciso
+  // que confiar só no filtro estatístico de ±10% abaixo.
   const calcMedia = (voltas, campo) => {
-    const raw = (voltas||[]).map(v=>v[campo]).filter(v=>v&&v>1&&v<300);
+    const semSC = (voltas||[]).filter(v => !voltasAfetadas || !voltasAfetadas.has(v.n));
+    const base  = semSC.length ? semSC : (voltas || []); // fallback: se filtrar tudo, usa original
+    const raw = base.map(v=>v[campo]).filter(v=>v&&v>1&&v<300);
     if (!raw.length) return null;
     const ordenado = [...raw].sort((a,b)=>a-b);
     const mediana  = ordenado[Math.floor(ordenado.length/2)];
@@ -1713,7 +1733,7 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData
   // a partir do campo "posicoes" de /api/race_positions (ver fetch lá em
   // cima) — não precisa mais de rota separada no backend.
   const BONUS_HATTRICK     = 2.0;
-  const BONUS_GRAND_CHELEM = 4.5;
+  const BONUS_GRAND_CHELEM = 7.0;
 
   const calcBonusFeitos = (p) => {
     const pole   = p.grid === 1;
@@ -1727,32 +1747,46 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData
     return { valor: 0, tipo: null, pole, vmr, venceu };
   };
 
-  // ── Score final com os bônus (dano + posição + feitos) aplicados só no GERAL ─
-  const scoreFinal = (val, bestVal, bonusDano, bonusPos, bonusGrid, bonusFeitos) => {
+  // ── Bônus de Ritmo (bateu o mais rápido) + Bônus de Pódio ────────────────
+  // ── Ritmo (identificação, sem pontuar) ───────────────────────────────────
+  // Antes dava +0.5 (bater o líder de ritmo) e +1 (pódio). Agora não soma
+  // mais pontos — só identifica quem teve o ritmo médio mais rápido do
+  // grid, pra aparecer como badge ao lado do nome dele na tabela.
+  const ritmoOrdenado = [...pilotsData]
+    .filter(p => p.tot && p.tot > 0)
+    .sort((a, b) => a.tot - b.tot);
+
+  const ritmoLiderNome = ritmoOrdenado.length > 0 ? ritmoOrdenado[0].nome : null;
+
+  const calcBonusRitmo = () => 0; // 🆕 não pontua mais — mantido só p/ não quebrar as chamadas existentes
+
+  // ── Score final com os bônus (dano + posição + grid + feitos + ritmo) ───
+  const scoreFinal = (val, bestVal, bonusDano, bonusPos, bonusGrid, bonusFeitos, bonusRitmo) => {
     const base = scorePuro(val, bestVal);
     if (base === null) return null;
-    const total = base + (bonusDano||0) + (bonusPos||0) + (bonusGrid||0) + (bonusFeitos||0);
-    return Math.max(0, Math.min(20.0, total)).toFixed(1);// capa em 20.0 
+    const total = base + (bonusDano||0) + (bonusPos||0) + (bonusGrid||0) + (bonusFeitos||0) + (bonusRitmo||0);
+    return Math.max(0, Math.min(24.0, total)).toFixed(1);// capa em 24.0 
   };
 
   // ── Bônus de Grid Forte (P1-P5) ──────────────────────────────────────────
-  // Mede a força do TOP 5 (nota GERAL sem o próprio bônus de grid, pra não
-  // virar referência circular) e libera um bônus extra só pra quem terminou
-  // no top 5 — escalado por posição: P1 leva o bônus cheio, e vai caindo
-  // até P5. P6 pra baixo não recebe nada.
-  const GRID_BONUS_FORTE       = 0.5;  // maioria do top5 com nota GERAL >= 7.5
-  const GRID_BONUS_MUITO_FORTE = 1.0;  // maioria do top5 com nota GERAL >= 9.0
-  const GRID_BONUS_FORTISSIMO  = 2.0;  // maioria do top5 com nota GERAL >= 10.0
-  const GRID_GOD_TIER          = 3.0;  // maioria do top5 com nota GERAL >= 12.0
+  // Mede a força do TOP 5 usando o score puro (ritmo) + bônus/penalidade de
+  // posição (▲ remontada largada→chegada / ▼ perdeu posições, penaliza) +
+  // feitos reais (🏆 Grand Chelem / 🎩 Hat-trick) — ignora dano e ritmo, que
+  // são bônus situacionais e não medem a força real do grid. Libera um
+  // bônus extra só pra quem terminou no top 5 — escalado por posição: P1
+  // leva o bônus cheio, e vai caindo até P5. P6 pra baixo não recebe nada.
+  const GRID_BONUS_FORTE       = 0.5;  // maioria do top5 com nota (puro+pos+feitos) >= 7.5
+  const GRID_BONUS_MUITO_FORTE = 1.0;  // maioria do top5 com nota (puro+pos+feitos) >= 9.0
+  const GRID_BONUS_FORTISSIMO  = 2.0;  // maioria do top5 com nota (puro+pos+feitos) >= 10.0
+  const GRID_GOD_TIER          = 3.0;  // maioria do top5 com nota (puro+pos+feitos) >= 12.0
   const GRID_BONUS_FATOR_POS   = { 1: 1.0, 2: 0.8, 3: 0.6, 4: 0.4, 5: 0.2 };
 
   const scoreSemGrid = (p) => {
     const base = scorePuro(p.tot, best.tot);
     if (base === null) return null;
-    const bd = calcBonusDano(p.nome, p.posicao);
-    const bp = calcBonusPosicao(p.grid, p.posFinal);
-    const bf = calcBonusFeitos(p).valor;
-    return Math.max(0, Math.min(18, base + bd + bp + bf));
+    const bp = calcBonusPosicao(p.grid, p.posFinal); // ▲ remontada (+) / ▼ perdeu posições (-)
+    const bf = calcBonusFeitos(p).valor;              // 🏆 Grand Chelem (+4.5) / 🎩 Hat-trick (+2)
+    return Math.max(0, Math.min(18, base + bp + bf));
   };
 
   const top5      = pilotsData.filter(p => p.posicao <= 5);
@@ -1786,10 +1820,15 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData
   const scoreColor = (s) => {
     if (s===null) return 'var(--muted)';
     const n = parseFloat(s);
-    if (n >= 19) return '#FFD700'; // ⭐ 19.0 - PERFECT
-    if (n >= 18)   return '#FF1744'; // 🌌 18+ - GRAND CHELEM / ALÉM DO LIMITE
-    if (n >= 17)   return '#FFD700'; // 👑 17 - MÁXIMO
-    if (n >= 16)   return '#FF2D55'; // 🔥 16 - LENDÁRIO
+    if (n >= 24) return '#FFD700';// HIGHLANDER
+    if (n >= 23) return '#9D4EDD';// 🌌 20.0 - GOD TIER
+    if (n >= 22) return '#3A86FF';
+    if (n >= 21) return '#00F5FF'; // 
+    if (n >= 20) return '#39FF14'; // 🟦 21+ - ALÉM DO LIMITE
+    if (n >= 19) return '#FF6EC7'; // ⭐ 19.0 - PERFECT
+    if (n >= 18)   return '#FF1493'; // 🌌 18+ - GRAND CHELEM / ALÉM DO LIMITE
+    if (n >= 17)   return '#FF800'; // 👑 17 - MÁXIMO
+    if (n >= 16)   return '#DC143C'; // 🔥 16 - LENDÁRIO
     if (n >= 15)   return '#FF00FF'; // 💗 15 - FENOMENAL
     if (n >= 14)   return '#FF6B00'; // 🟠 14 - EXCEPCIONAL
     if (n >= 13)   return '#8A2BE2'; // 🟣 13 - SOBRENATURAL
@@ -1803,18 +1842,45 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData
     return '#e10600'; // 🔴 0 - PESSIMO
   };
 
-  const ScoreBar = ({val, base, bonusDano=0, bonusPos=0, bonusGrid=0, bonusFeitos=0, feitosTipo=null}) => {
+  // 🆕 Nome/emoji de cada faixa de nota — mesmos degraus do scoreColor acima.
+  const scoreLabel = (s) => {
+    if (s===null) return null;
+    const n = parseFloat(s);
+    if (n >= 24)   return '🌌 HIGHLANDER';//CAMILA
+    if (n >= 23)   return '💥 HYPERNOVA';
+    if (n >= 22)   return '🌌 TRANSCENDENTAL';
+    if (n >= 21)   return '🌌 SOBRENATURAL';
+    if (n >= 20)   return '🚀 OUTRO NIVEL';
+    if (n >= 19)   return '👾 BIZARRO';
+    if (n >= 18)   return '✨ ALÉM DO LIMITE';
+    if (n >= 17)   return '👑 PERFECT';
+    if (n >= 16)   return '🔥 INSANO';
+    if (n >= 15)   return '💗 FENOMENAL';
+    if (n >= 14)   return '🟠 LENDÁRIO';
+    if (n >= 13)   return '🟣 ELITE';
+    if (n >= 12)   return '🔵 EXCEPCIONAL';
+    if (n >= 10.5) return '🩵 ÓTIMO';
+    if (n >= 9.5)  return '💚 EXCELENTE';
+    if (n >= 9)    return '🟢 MUITO BOM';
+    if (n >= 7.5)  return '🟡 BOM';
+    if (n >= 6)    return '🟡 OK';
+    if (n >= 4)    return '🟠 RUIM';
+    return '🔴 PÉSSIMO';// MORTE A GUS
+  };
+
+  const ScoreBar = ({val, base, bonusDano=0, bonusPos=0, bonusGrid=0, bonusFeitos=0, bonusRitmo=0, feitosTipo=null}) => {
     if (val===null) return <span style={{color:'var(--muted)'}}>—</span>;
     const n=parseFloat(val);
     const color=scoreColor(val);
     // A barra representa sempre o score PURO (pace); os bônus/penalidade de
-    // dano, posição, grid e feitos (hat-trick/grand chelem) aparecem como
-    // segmentos extras (ou tag vermelha, se negativo)
+    // dano, posição, grid, feitos (hat-trick/grand chelem) e ritmo (top3 de
+    // pace) aparecem como segmentos extras (ou tag vermelha, se negativo)
     const basePct   = Math.min(100, (base||0) * 10);
     const danoPct   = Math.min(100, Math.max(0, bonusDano) * 10);
     const posPct    = Math.min(100, Math.max(0, bonusPos) * 10);
     const gridPct   = Math.min(100, Math.max(0, bonusGrid) * 10);
     const feitosPct = Math.min(100, Math.max(0, bonusFeitos) * 10);
+    const ritmoPct  = Math.min(100, Math.max(0, bonusRitmo) * 10);
     const feitosCor = feitosTipo === 'grand_chelem' ? '#ffd700' : '#c850c0';
     return (
       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'4px'}}>
@@ -1824,16 +1890,20 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData
             {bonusDano>0   && <div style={{width:`${danoPct}%`,height:'100%',background:'#ffffff60'}}/>}
             {bonusPos>0    && <div style={{width:`${posPct}%`,height:'100%',background:'#00e87a'}}/>}
             {bonusGrid>0   && <div style={{width:`${gridPct}%`,height:'100%',background:'#ffc000'}}/>}
+            {bonusRitmo>0  && <div style={{width:`${ritmoPct}%`,height:'100%',background:'#00d4ff'}}/>}
             {bonusFeitos>0 && <div style={{width:`${feitosPct}%`,height:'100%',background:feitosCor,borderRadius:'0 3px 3px 0'}}/>}
           </div>
           <span style={{fontFamily:'Orbitron,monospace',fontSize:'13px',fontWeight:900,color,minWidth:'36px'}}>{val}</span>
         </div>
-        {(bonusDano>0 || bonusPos!==0 || bonusGrid>0 || bonusFeitos>0) && (
+        <span style={{fontSize:'9px',fontWeight:800,color,letterSpacing:'.3px'}}>{scoreLabel(val)}</span>
+        {(bonusDano>0 || bonusPos!==0 || bonusGrid>0 || bonusFeitos>0 || bonusRitmo!==0) && (
           <div style={{display:'flex',gap:'6px',fontSize:'9px',fontFamily:'Orbitron,monospace'}}>
             {bonusDano>0   && <span style={{color:'#ffffff90'}}>🔧+{bonusDano.toFixed(1)}</span>}
             {bonusPos>0    && <span style={{color:'#00e87a'}}>🏁+{bonusPos.toFixed(1)}</span>}
             {bonusPos<0    && <span style={{color:'#e10600'}}>🏁{bonusPos.toFixed(1)}</span>}
             {bonusGrid>0   && <span style={{color:'#ffc000'}}>👑+{bonusGrid.toFixed(1)}</span>}
+            {bonusRitmo>0  && <span style={{color:'#00d4ff'}}>⏱️+{bonusRitmo.toFixed(1)}</span>}
+            {bonusRitmo<0  && <span style={{color:'#e10600'}}>⏱️{bonusRitmo.toFixed(1)}</span>}
             {bonusFeitos>0 && <span style={{color:feitosCor}}>{feitosTipo==='grand_chelem'?'🏆':'🎩'}+{bonusFeitos.toFixed(1)}</span>}
           </div>
         )}
@@ -1911,6 +1981,7 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData
               const bonusDano   = calcBonusDano(p.nome, p.posicao);
               const bonusPos    = calcBonusPosicao(p.grid, p.posFinal);
               const bonusGrid   = gridBonusMap[p.nome] || 0;
+              const bonusRitmo  = calcBonusRitmo(p);
               const feitos      = calcBonusFeitos(p);
               const bonusFeitos = feitos.valor;
               const dano   = (danoData||{})[p.nome];
@@ -1969,21 +2040,29 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData
                   const bp = s.hasBonus ? bonusPos    : 0;
                   const bg = s.hasBonus ? bonusGrid   : 0;
                   const bf = s.hasBonus ? bonusFeitos : 0;
+                  const br = s.hasBonus ? bonusRitmo  : 0;
                   const base = scorePuro(p[s.key], best[s.key]);
                   const sc = s.hasBonus
-                    ? scoreFinal(p[s.key], best[s.key], bd, bp, bg, bf)
+                    ? scoreFinal(p[s.key], best[s.key], bd, bp, bg, bf, br)
                     : (base?.toFixed(1) ?? null);
                   const rk = s.rank[p.nome];
                   return (
                     <td key={s.key} style={{padding:'10px 14px',borderLeft:'1px solid var(--border)',textAlign:'center'}}>
                       <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'5px'}}>
-                        <ScoreBar val={sc} base={base} bonusDano={bd} bonusPos={bp} bonusGrid={bg} bonusFeitos={bf} feitosTipo={feitos.tipo}/>
+                        <ScoreBar val={sc} base={base} bonusDano={bd} bonusPos={bp} bonusGrid={bg} bonusFeitos={bf} bonusRitmo={br} feitosTipo={feitos.tipo}/>
                         <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
                           {rk && <RankBadge r={rk}/>}
                           {p[s.key] && <span style={{fontSize:'10px',color:'var(--muted)',fontFamily:'Orbitron,monospace'}}>
                             {p[s.key].toFixed(3)}s
                           </span>}
                         </div>
+                        {s.key === 'tot' && ritmoLiderNome && (
+                          <span title="Piloto com o ritmo médio (pace) mais rápido do grid" style={{
+                            fontSize:'9px',fontWeight:800,color:'#00d4ff',
+                          }}>
+                            ⏱️ {ritmoLiderNome}
+                          </span>
+                        )}
                       </div>
                     </td>
                   );
@@ -1998,22 +2077,23 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, posData, liderancaData
       {/* ── Legenda ───────────────────────────────────────────────────────── */}
       <div style={{marginTop:'12px',display:'flex',gap:'16px',flexWrap:'wrap',fontSize:'11px',color:'var(--muted)'}}>
 
-        <span>👑 17 = PERFEIÇÃO / MÁXIMO ABSOLUTO</span>
-        <span>🔥 16 = LENDÁRIO</span>
-        <span>💗 15 = TRANSCENDENTE</span>
-        <span>🟠 14 = EXCEPCIONAL</span>
-        <span>🟣 13 = SOBRENATURAL</span>
-        <span>🩵 10.5-12 = ELITE</span>
-        <span>🟢 9-10.5 = EXCELENTE</span>
+        <span>👑 17 = PERFECT</span>
+        <span>🔥 16 = INSANO</span>
+        <span>💗 15 = FENOMENAL</span>
+        <span>🟠 14 = LENDÁRIO</span>
+        <span>🟣 13 = ELITE</span>
+        <span>🩵 10.5-12 = EXCEPCIONAL</span>
+        <span>🟢 9-10.5 = MUITO BOM</span>
         <span>🟡 6-9 = BOM</span>
-        <span>🟠 4-6 = MÉDIO</span>
-        <span>🔴 0-4 = ABAIXO</span>
+        <span>🟠 4-6 = RUIM</span>
+        <span>🔴 0-4 = PESSIMO</span>
         <span>🔧 = bônus dano (branco) — terminou bem com carro danificado · máx +1.5</span>
         <span>🏁 = bônus/penalidade por posição (verde=ganhou, vermelho=perdeu) — compara largada (grid) com chegada</span>
         <span>▲P19→P2 = largou P19 e terminou P2 (bônus proporcional à remontada) · ▼ = perdeu posições, penaliza</span>
         <span>👑 = bônus de grid forte (P1-P5, escalado por posição) — libera quando a maioria do top 5 tem nota alta · Forte +0.5 / Muito Forte +1.0 / Fortíssimo +2.0</span>
+        <span>⏱️ &lt;nome&gt; = badge só informativo (não pontua), no GERAL de todo mundo — mostra quem teve o ritmo médio (pace) mais rápido do grid na sessão</span>
         <span>🎩 HAT-TRICK = Pole + Volta Mais Rápida + Vitória · +2</span>
-        <span>🏆 GRAND CHELEM = Hat-trick liderando a corrida do início ao fim, sem perder o P1 em nenhuma volta · +3</span>
+        <span>🏆 GRAND CHELEM = Hat-trick liderando a corrida do início ao fim, sem perder o P1 em nenhuma volta · +7.0</span>
         <span style={{marginLeft:'auto'}}>Bônus só aplicado no score Geral</span>
       </div>
     </div>
