@@ -20,6 +20,7 @@
   body {
     background: var(--bg); color: var(--text);
     font-family: 'Rajdhani', sans-serif; font-size: 14px;
+    padding-bottom: 58px;
   }
   body::before {
     content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
@@ -41,6 +42,40 @@
 </style>
 </head>
 <body>
+
+<div id="f1ip-bar">
+  <button class="f1ip-btn pit" onclick="f1ip_open('pit')">🏁 Pit Stops</button>
+  <button class="f1ip-btn flag" onclick="f1ip_open('flag')">🚩 Bandeiras</button>
+  <button class="f1ip-btn dmg" onclick="f1ip_open('dmg')">🔧 Danos</button>
+</div>
+
+<!-- Modal Pit -->
+<div class="f1ip-ov" id="f1ip-ov-pit" onclick="if(event.target===this)f1ip_close('pit')">
+  <div class="f1ip-modal" style="--fip-accent:#e10600">
+    <button class="f1ip-x" onclick="f1ip_close('pit')">✕</button>
+    <h2>🏁 Pit Stops</h2>
+    <div id="f1ip-body-pit"><div class="fempty">Carregando...</div></div>
+  </div>
+</div>
+
+<!-- Modal Bandeiras -->
+<div class="f1ip-ov" id="f1ip-ov-flag" onclick="if(event.target===this)f1ip_close('flag')">
+  <div class="f1ip-modal" style="--fip-accent:#f5c518">
+    <button class="f1ip-x" onclick="f1ip_close('flag')">✕</button>
+    <h2>🚩 Bandeiras &amp; Safety Car</h2>
+    <div id="f1ip-body-flag"><div class="fempty">Carregando...</div></div>
+  </div>
+</div>
+
+<!-- Modal Danos -->
+<div class="f1ip-ov" id="f1ip-ov-dmg" onclick="if(event.target===this)f1ip_close('dmg')">
+  <div class="f1ip-modal" style="--fip-accent:#3b82f6">
+    <button class="f1ip-x" onclick="f1ip_close('dmg')">✕</button>
+    <h2>🔧 Danos dos Carros</h2>
+    <div id="f1ip-body-dmg"><div class="fempty">Carregando...</div></div>
+  </div>
+</div>
+
 <div id="root"></div>
 {% raw %}
 <script type="text/babel">
@@ -485,12 +520,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 {% endraw %}
 <!-- ═══════════════════════════════════════════════════════
-     SCREENSHOT INSTAGRAM — injeta antes de 
-<!-- ═══════════════════════════════════════════════════════
      F1 INFO PANEL — 3 ÍCONES (pit stops · bandeiras · danos)
 ════════════════════════════════════════════════════════ -->
 <style>
-#f1ip-bar{display:flex;gap:10px;flex-wrap:wrap;padding:10px 16px;background:#0d0f1c;border-bottom:1px solid #1c1f35;position:sticky;top:0;z-index:8888;}
+#f1ip-bar{display:flex;gap:10px;flex-wrap:wrap;padding:10px 16px;background:#0d0f1c;border-top:1px solid #1c1f35;position:fixed;left:0;right:0;bottom:0;z-index:8888;box-shadow:0 -4px 20px rgba(0,0,0,.4);}
 .f1ip-btn{display:flex;align-items:center;gap:7px;padding:7px 15px;border:none;border-radius:7px;cursor:pointer;font-family:'Titillium Web','Rajdhani',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;transition:opacity .15s;color:#fff;}
 .f1ip-btn:hover{opacity:.8;}
 .f1ip-btn.pit{background:#15151e;border:2px solid #e10600;}
@@ -517,42 +550,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 .da{color:#f59e0b;font-weight:700;}
 .dr{color:#e10600;font-weight:700;}
 .dbar{display:inline-block;width:70px;height:7px;border-radius:4px;background:#252840;vertical-align:middle;margin-right:5px;overflow:hidden;}
-.dbf{height:100%;border-radius:4px;}
+.dbf{display:block;height:100%;border-radius:4px;transition:width .2s ease;}
 .fempty{color:#6b6e8a;text-align:center;padding:28px;font-style:italic;}
 </style>
-
-<div id="f1ip-bar">
-  <button class="f1ip-btn pit" onclick="f1ip_open('pit')">🏁 Pit Stops</button>
-  <button class="f1ip-btn flag" onclick="f1ip_open('flag')">🚩 Bandeiras</button>
-  <button class="f1ip-btn dmg" onclick="f1ip_open('dmg')">🔧 Danos</button>
-</div>
-
-<!-- Modal Pit -->
-<div class="f1ip-ov" id="f1ip-ov-pit" onclick="if(event.target===this)f1ip_close('pit')">
-  <div class="f1ip-modal" style="--fip-accent:#e10600">
-    <button class="f1ip-x" onclick="f1ip_close('pit')">✕</button>
-    <h2>🏁 Pit Stops</h2>
-    <div id="f1ip-body-pit"><div class="fempty">Carregando...</div></div>
-  </div>
-</div>
-
-<!-- Modal Bandeiras -->
-<div class="f1ip-ov" id="f1ip-ov-flag" onclick="if(event.target===this)f1ip_close('flag')">
-  <div class="f1ip-modal" style="--fip-accent:#f5c518">
-    <button class="f1ip-x" onclick="f1ip_close('flag')">✕</button>
-    <h2>🚩 Bandeiras &amp; Safety Car</h2>
-    <div id="f1ip-body-flag"><div class="fempty">Carregando...</div></div>
-  </div>
-</div>
-
-<!-- Modal Danos -->
-<div class="f1ip-ov" id="f1ip-ov-dmg" onclick="if(event.target===this)f1ip_close('dmg')">
-  <div class="f1ip-modal" style="--fip-accent:#3b82f6">
-    <button class="f1ip-x" onclick="f1ip_close('dmg')">✕</button>
-    <h2>🔧 Danos dos Carros</h2>
-    <div id="f1ip-body-dmg"><div class="fempty">Carregando...</div></div>
-  </div>
-</div>
 
 <script>
 (function(){
@@ -573,9 +573,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     const ps=d.pilotos||[];
     if(!ps.length)return'<div class="fempty">Nenhum dado de pit stop.</div>';
     const rows=ps.map(p=>{
-      const pits=p.pit_stops||[];
-      const vs=pits.length?pits.map(x=>`V${x.volta} <small style="color:#888">(${x.pneu_novo||'?'})</small>`).join(' · '):'<span style="color:#6b6e8a">Sem pit</span>';
-      return`<tr><td>${p.posicao||'—'}</td><td style="font-weight:700">${p.nome}</td><td style="text-align:center;font-size:17px;font-weight:900;color:${p.total_pits>0?'#e10600':'#6b6e8a'}">${p.total_pits}</td><td>${vs}</td></tr>`;
+      // remove voltas duplicadas (mesmo pit registrado + de 1x pela telemetria)
+      const seen=new Set();
+      const pits=(p.pit_stops||[]).filter(x=>{
+        if(seen.has(x.volta))return false;
+        seen.add(x.volta);
+        return true;
+      }).sort((a,b)=>a.volta-b.volta);
+      const totalReal=pits.length;
+      const vs=totalReal?pits.map(x=>`V${x.volta} <small style="color:#888">(${x.pneu_novo||'?'})</small>`).join(' · '):'<span style="color:#6b6e8a">Sem pit</span>';
+      return`<tr><td>${p.posicao||'—'}</td><td style="font-weight:700">${p.nome}</td><td style="text-align:center;font-size:17px;font-weight:900;color:${totalReal>0?'#e10600':'#6b6e8a'}">${totalReal}</td><td>${vs}</td></tr>`;
     }).join('');
     return`<table class="fipt"><thead><tr><th>P</th><th>Piloto</th><th>Pits</th><th>Voltas</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
@@ -646,14 +653,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 })();
 </script>
 <!-- ═══════════════════════════════ FIM F1 INFO PANEL ═══════════════════════════════ -->
-</body>
-════════════════════════════════════════════════════════ -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
 #insta-btn {
   position: fixed;
-  bottom: 22px;
+  bottom: 78px;
   right: 22px;
   z-index: 99999;
   display: flex;
