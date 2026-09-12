@@ -41,31 +41,35 @@ def graf_page():
 @app.route("/pit")
 def pit_page():
     return render_template("pit_stop.html")
+
 @app.route("/surpresa")
 def surpresa_page():
     return render_template("surpresa.html")
+
 @app.route("/painel")
 def painel():
     return render_template("painel.html")
+
 @app.route("/tyres")
 def tyres_page():
     return render_template("Tyre_hub.html")
 
+@app.route("/mapa")
+def mapa_page():
+    return render_template("mapa.html")
+
 @app.route('/setup_comparison')
 def setup_comparison_page():
-    """Página de comparação de setups"""
     return render_template('setup_comparison.html')
 
 @app.route('/listar_sessoes_json')
 def listar_sessoes_json():
-    """Retorna lista de sessões em JSON para o React"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Lista TODAS as sessões que têm pelo menos 1 setup salvo
         cursor.execute("""
             SELECT sess.id, 
                    sess.nome_pista, 
@@ -95,7 +99,6 @@ def listar_sessoes_json():
 
 @app.route('/setup_manual')
 def setup_manual_page():
-    """Página para criar setups manualmente"""
     return render_template('setup_manual.html')
 
 @app.route("/api/setups_para_comparar")
@@ -125,7 +128,6 @@ def setups_para_comparar():
 
 @app.route("/historico_sessoes")
 def historico_sessoes():
-    """Lista todas as sessões do banco"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -133,11 +135,9 @@ def historico_sessoes():
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Verifica colunas existentes
         cur.execute("PRAGMA table_info(sessoes)")
         colunas = [col[1] for col in cur.fetchall()]
 
-        # Monta campos dinamicamente
         campos = ["id", "nome_pista", "tipo_sessao", "data_hora", "total_voltas", "velocidade_maxima_geral"]
 
         if "nome_customizado" in colunas:
@@ -160,7 +160,6 @@ def historico_sessoes():
 
 @app.route("/dados_voltas/<int:sessao_id>")
 def dados_voltas(sessao_id):
-    """JSON: Voltas e setores - direto do banco"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -168,12 +167,25 @@ def dados_voltas(sessao_id):
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Busca info da sessão (total_voltas)
-        cur.execute("SELECT total_voltas FROM sessoes WHERE id = ?", (sessao_id,))
+        cur.execute("PRAGMA table_info(sessoes)")
+        _cols_sess = [c[1] for c in cur.fetchall()]
+
+        _campos_sess = ["total_voltas"]
+        for _c in ("delta_lider", "nome_pista", "tipo_sessao", "clima"):
+            if _c in _cols_sess:
+                _campos_sess.append(_c)
+        cur.execute(
+            f"SELECT {', '.join(_campos_sess)} FROM sessoes WHERE id = ?",
+            (sessao_id,)
+        )
         sessao_row = cur.fetchone()
         total_voltas_sessao = sessao_row["total_voltas"] if sessao_row else 0
 
-        # Busca pilotos ÚNICOS da sessão
+        sessao_extra = {}
+        if sessao_row:
+            for _k in sessao_row.keys():
+                sessao_extra[_k] = sessao_row[_k]
+
         cur.execute("""
             SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao
             FROM pilotos 
@@ -190,7 +202,6 @@ def dados_voltas(sessao_id):
             numero = p.get("numero")
             posicao = p.get("posicao")
 
-            # Busca voltas do piloto (agrupadas por numero_volta para evitar duplicatas)
             cur.execute("""
                 SELECT numero_volta, 
                        AVG(tempo_volta) as tempo_volta,
@@ -213,7 +224,6 @@ def dados_voltas(sessao_id):
                     "setor3": v["setor3"]
                 })
 
-            # CORRIGIDO: Pega o número da última volta (não a quantidade de registros)
             cur.execute("""
                 SELECT MAX(numero_volta) as max_volta
                 FROM voltas
@@ -227,22 +237,22 @@ def dados_voltas(sessao_id):
                 "numero": numero,
                 "posicao": posicao,
                 "voltas": voltas,
-                "total_voltas_piloto": total_voltas_piloto  # ← Agora é a última volta real
+                "total_voltas_piloto": total_voltas_piloto
             })
 
         conn.close()
 
         return jsonify({
             "total_voltas_sessao": total_voltas_sessao,
+            "sessao": sessao_extra,  
             "pilotos": dados
         })
     except Exception as e:
         print(f"Erro ao buscar dados_voltas: {e}")
-        return jsonify({"total_voltas_sessao": 0, "pilotos": []})
+        return jsonify({"total_voltas_sessao": 0, "sessao": {}, "pilotos": []})
 
 @app.route("/dados_pneus/<int:sessao_id>")
 def dados_pneus(sessao_id):
-    """JSON 2: Pneus e stints"""
     dados = carregar_json(f"sessao_{sessao_id}_pneus.json")
     if dados:
         return jsonify(dados.get("pilotos", []))
@@ -250,7 +260,6 @@ def dados_pneus(sessao_id):
 
 @app.route("/dados_danos/<int:sessao_id>")
 def dados_danos(sessao_id):
-    """JSON 3: Danos e velocidade"""
     dados = carregar_json(f"sessao_{sessao_id}_danos.json")
     if dados:
         return jsonify(dados.get("pilotos", []))
@@ -258,7 +267,6 @@ def dados_danos(sessao_id):
 
 @app.route("/dados_completos/<int:sessao_id>")
 def dados_completos(sessao_id):
-    """Retorna os 3 JSONs juntos"""
     voltas = carregar_json(f"sessao_{sessao_id}_voltas.json")
     pneus = carregar_json(f"sessao_{sessao_id}_pneus.json")
     danos = carregar_json(f"sessao_{sessao_id}_danos.json")
@@ -274,7 +282,6 @@ def dados_completos(sessao_id):
 
 @app.route("/dados_voltas")
 def dados_voltas_live():
-    """Pega a última sessão do banco"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -301,7 +308,6 @@ def dados_pneus_live():
 
 @app.route("/dados_pra_o_painel")
 def dados_pra_o_painel():
-    """JSON: Dados de pit stops/stints - AO VIVO do parser"""
     try:
         from Bot.jogadores import JOGADORES
         from utils.dictionnaries import tyres_dictionnary
@@ -312,10 +318,8 @@ def dados_pra_o_painel():
             if not nome or nome.strip() == '':
                 continue
 
-            # Pega stints do piloto
             pneu_stints = getattr(piloto, 'pneu_stints', [])
 
-            # Converte stints para formato esperado pelo frontend
             stints = []
             for stint in pneu_stints:
                 stints.append({
@@ -325,11 +329,9 @@ def dados_pra_o_painel():
                     "total_voltas": stint.get("total_voltas", 0)
                 })
 
-            # Composto atual
             tyres_code = getattr(piloto, 'tyres', 17)
             tyres_name = tyres_dictionnary.get(tyres_code, "MEDIUM")
 
-            # Voltas completadas
             num_laps = getattr(piloto, 'num_laps', 0) or getattr(piloto, 'currentLapNum', 0)
 
             dados.append({
@@ -341,13 +343,11 @@ def dados_pra_o_painel():
                 "stints": stints
             })
 
-        # Ordena por posição
         dados.sort(key=lambda x: x.get('position', 99))
 
         return jsonify(dados)
     except Exception as e:
         print(f"Erro dados_pra_o_painel: {e}")
-        # Fallback: tenta pegar do banco
         try:
             conn = sqlite3.connect(DB_PATH, timeout=30)
             conn.execute("PRAGMA journal_mode=WAL")
@@ -390,14 +390,12 @@ def dados_pra_o_painel():
 
 @app.route("/apagar_sessao/<int:sessao_id>", methods=["POST"])
 def apagar_sessao(sessao_id):
-    """Exclui uma sessão específica e todos os dados relacionados"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=30000")
         cur = conn.cursor()
 
-        # Deleta por sessao_id direto (sem IN com muitos ids)
         tabelas_com_sessao = ["voltas", "pneus", "danos", "telemetria", "pneu_stints", "setups", "pilotos"]
 
         for tabela in tabelas_com_sessao:
@@ -406,13 +404,11 @@ def apagar_sessao(sessao_id):
             except Exception as e:
                 print(f"⚠️ Erro ao limpar {tabela}: {e}")
 
-        # Deleta a sessão
         cur.execute("DELETE FROM sessoes WHERE id = ?", (sessao_id,))
 
         conn.commit()
         conn.close()
 
-        # Remove JSONs da sessão
         for suffix in ["_voltas.json", "_pneus.json", "_danos.json"]:
             json_path = os.path.join(STATIC_PATH, f"sessao_{sessao_id}{suffix}")
             if os.path.exists(json_path):
@@ -427,23 +423,13 @@ def apagar_sessao(sessao_id):
 
 @app.route("/apagar_db", methods=["POST"])
 def apagar_db():
-    """Limpa todo o banco sem apagar o arquivo físico"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=30000")
         cur = conn.cursor()
 
-        tabelas = [
-            "voltas",
-            "pneus",
-            "danos",
-            "telemetria",
-            "pneu_stints",
-            "setups",
-            "pilotos",
-            "sessoes"
-        ]
+        tabelas = ["voltas", "pneus", "danos", "telemetria", "pneu_stints", "setups", "pilotos", "sessoes"]
 
         for tabela in tabelas:
             try:
@@ -467,96 +453,560 @@ def apagar_db():
 
 @app.route("/dados_completos_live")
 def dados_completos_live():
-    """JSON: Dados completos da sessão atual - direto do banco"""
+    live_ok = False
+    pilotos_live = []
+    sessao_live = {}
+    lideres_live = {}
+    session_bests = {"lap": None, "s1": None, "s2": None, "s3": None}
+
     try:
-        conn = sqlite3.connect(DB_PATH, timeout=30)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=30000")
-        conn.row_factory = sqlite3.Row
-        cur = conn.cursor()
+        from Bot.jogadores import JOGADORES
+        from Bot.Session import SESSION
+        from utils.dictionnaries import (
+            tyres_dictionnary, teams_name_dictionary, teams_color_dictionary,
+            session_dictionary
+        )
 
-        # Pega a última sessão
-        cur.execute("SELECT * FROM sessoes ORDER BY id DESC LIMIT 1")
-        sessao = cur.fetchone()
-        if not sessao:
-            conn.close()
-            return jsonify({"pilotos": [], "clima": {}, "sessao": {}})
+        def _fmt(t):
+            if t is None or t == 0:
+                return None
+            try:
+                return round(float(t), 3)
+            except Exception:
+                return None
 
-        sessao_id = sessao["id"]
-        sessao_dict = dict(sessao)
+        def _get_weather_sample():
+            amostras = getattr(SESSION, "m_weatherForecastSamples", None)
+            if amostras is None:
+                amostras = getattr(SESSION, "m_weather_forecast_samples", None)
+            if not amostras:
+                return None
+            try:
+                return amostras[0]
+            except (IndexError, TypeError):
+                return None
 
-        # Busca pilotos únicos com JOIN em pneus e danos para dados ao vivo
-        cur.execute("""
-            SELECT
-                p.id, p.nome, p.numero, p.posicao,
-                pn.tipo_pneu       AS pneu_atual,
-                pn.idade_voltas    AS idade_pneu,
-                d.delta_to_leader,
-                d.combustivel_restante
-            FROM pilotos p
-            INNER JOIN (
-                SELECT nome, MAX(id) as max_id
-                FROM pilotos
-                WHERE sessao_id = ?
-                GROUP BY nome
-            ) latest ON p.id = latest.max_id
-            -- pneu mais recente do piloto
-            LEFT JOIN pneus pn ON pn.id = (
-                SELECT id FROM pneus
-                WHERE sessao_id = ? AND piloto_id = p.id
-                ORDER BY timestamp DESC LIMIT 1
-            )
-            -- dano/delta mais recente do piloto
-            LEFT JOIN danos d ON d.id = (
-                SELECT id FROM danos
-                WHERE sessao_id = ? AND piloto_id = p.id
-                ORDER BY timestamp DESC LIMIT 1
-            )
-            ORDER BY p.posicao
-        """, (sessao_id, sessao_id, sessao_id))
-        pilotos = [dict(r) for r in cur.fetchall()]
+        def _get_rain_percent():
+            amostra = _get_weather_sample()
+            if amostra is None:
+                return 0
+            return getattr(amostra, "m_rainPercentage",
+                    getattr(amostra, "m_rain_percentage", 0)) or 0
 
-        # Volta atual = maior numero_volta registrado na sessão
-        cur.execute("""
-            SELECT MAX(numero_volta) as volta_atual
-            FROM voltas
-            WHERE sessao_id = ?
-        """, (sessao_id,))
-        row_volta = cur.fetchone()
-        sessao_dict["volta_atual"] = row_volta["volta_atual"] if row_volta and row_volta["volta_atual"] else "-"
+        max_lap = 0
+        for _p in JOGADORES:
+            _n = getattr(_p, 'current_lap_num', 0) or 0
+            if _n > max_lap:
+                max_lap = _n
 
-        # Campos de clima da tabela sessoes
-        sessao_dict["temp_pista"] = sessao_dict.get("temperatura_pista") or sessao_dict.get("temp_pista") or "-"
-        sessao_dict["temp_ar"]    = sessao_dict.get("temperatura_ar")   or sessao_dict.get("temp_ar")    or "-"
-        sessao_dict["chance_chuva"] = sessao_dict.get("porcentagem_chuva") or sessao_dict.get("chance_chuva") or "-"
-        sessao_dict["bandeira"]   = sessao_dict.get("flag") or "Verde"
+        # ── Bandeira: lê das marshal zones e traduz para NOME ─────
+        _zonas = getattr(SESSION, "m_marshalZones", None)
+        if _zonas is None:
+            _zonas = getattr(SESSION, "m_marshal_zones", None)
 
-        # Busca clima (se existir tabela separada)
-        clima = {}
+        _flag_id = -1
+        if _zonas:
+            try:
+                _zona = _zonas[0]
+                _flag_id = getattr(_zona, "m_zoneFlag",
+                            getattr(_zona, "m_zone_flag", -1))
+            except (IndexError, TypeError):
+                _flag_id = -1
+
+        # 🆕 mapeamento direto ID → nome (evita o hex do color_flag_dict)
+        _flag_map = {
+            -1: "Desconhecida",
+             0: "Nenhuma",
+             1: "Verde",
+             2: "Azul",
+             3: "Amarela",
+             4: "Vermelha",
+        }
+        _flag_raw = _flag_map.get(_flag_id, "Verde")
+
+        # ── Tipo de sessão ────────────────────────────────────
+        _stype_code = getattr(SESSION, 'm_session_type', None)
+        if _stype_code is None:
+            _stype_code = -1
         try:
-            cur.execute("PRAGMA table_info(clima)")
-            if cur.fetchall():
-                cur.execute("SELECT * FROM clima WHERE sessao_id = ? ORDER BY id DESC LIMIT 1", (sessao_id,))
-                clima_row = cur.fetchone()
-                if clima_row:
-                    clima = dict(clima_row)
-        except:
-            pass
+            _stype_code = int(_stype_code)
+        except (TypeError, ValueError):
+            _stype_code = -1
+        _stype_name = session_dictionary.get(_stype_code, "Sessão")
 
-        conn.close()
+        _track = getattr(SESSION, 'track_name', None)
+        if not _track or str(_track).strip() in ("", "—", "Desconhecida", "DESCONHECIDA"):
+            _track = "—"
+
+        _total_laps = getattr(SESSION, 'm_total_laps', 0) or 0
+
+        _amostra = _get_weather_sample()
+
+        _temp_pista = (getattr(_amostra, 'm_track_temperature', None)
+                       if _amostra is not None else None)
+        if _temp_pista in (None, 0, ""):
+            _temp_pista = getattr(SESSION, 'm_track_temperature', None) or "—"
+
+        _temp_ar = (getattr(_amostra, 'm_air_temperature', None)
+                    if _amostra is not None else None)
+        if _temp_ar in (None, 0, ""):
+            _temp_ar = getattr(SESSION, 'm_air_temperature', None) or "—"
+
+        sessao_live = {
+            "id":            getattr(SESSION, 'id', None),
+            "nome_pista":    _track,
+            "tipo_sessao":   _stype_name,
+            "total_voltas":  _total_laps,
+            "volta_atual":   max_lap,
+            "temp_pista":    _temp_pista,
+            "temp_ar":       _temp_ar,
+            "chance_chuva":  _get_rain_percent(),
+            "bandeira":      _flag_raw,
+            "clima":         getattr(SESSION, 'weather', '—') or "—",
+            "sc_status":     getattr(SESSION, 'SafetyCarStatus', 'Nenhum') or "Nenhum",
+            "flag":          _flag_raw,
+        }
+
+        for idx, p in enumerate(JOGADORES):
+            nome = (getattr(p, 'name', '') or '').strip()
+            if not nome:
+                continue
+
+            voltas_all = getattr(p, 'todas_voltas_setores', []) or []
+            validas = [v for v in voltas_all
+                       if v.get('tempo_total') and v['tempo_total'] > 10]
+
+            best_lap_p = None
+            best_s1_p = best_s2_p = best_s3_p = None
+            if validas:
+                best_lap_p = min(v['tempo_total'] for v in validas)
+                s1s = [v['setores'][0] for v in validas
+                       if v.get('setores') and v['setores'][0] and v['setores'][0] > 5]
+                s2s = [v['setores'][1] for v in validas
+                       if v.get('setores') and v['setores'][1] and v['setores'][1] > 5]
+                s3s = [v['setores'][2] for v in validas
+                       if v.get('setores') and v['setores'][2] and v['setores'][2] > 5]
+                best_s1_p = min(s1s) if s1s else None
+                best_s2_p = min(s2s) if s2s else None
+                best_s3_p = min(s3s) if s3s else None
+
+            ultima_com_setores = None
+            for v in reversed(voltas_all):
+                setores = v.get('setores') or []
+                if any(s is not None and s > 0 for s in setores):
+                    ultima_com_setores = v
+                    break
+
+            last = validas[-1] if validas else None
+
+            best_lap_calc = _fmt(best_lap_p) or _fmt(getattr(p, 'bestLapTime', None))
+            last_lap = _fmt(last['tempo_total']) if last else _fmt(getattr(p, 'lastLapTime', None))
+
+            last_s1 = None
+            last_s2 = None
+            last_s3 = None
+            if ultima_com_setores and ultima_com_setores.get('setores'):
+                _set = ultima_com_setores['setores']
+                last_s1 = _fmt(_set[0]) if len(_set) > 0 else None
+                last_s2 = _fmt(_set[1]) if len(_set) > 1 else None
+                last_s3 = _fmt(_set[2]) if len(_set) > 2 else None
+
+            tyre = getattr(p, 'tyre_type', None)
+            if not tyre:
+                tyre_code = getattr(p, 'tyres', 17)
+                try:
+                    tyre_code = int(tyre_code)
+                except Exception:
+                    tyre_code = 17
+                tyre = tyres_dictionnary.get(tyre_code, "Médio")
+            else:
+                try:
+                    tyre_code = int(getattr(p, 'tyres', 17))
+                except Exception:
+                    tyre_code = 17
+
+            tyre_age = int(getattr(p, 'tyresAgeLaps', 0) or 0)
+
+            team_id = getattr(p, 'm_team_id', -1)
+            team_name = getattr(p, 'team_name', None) or teams_name_dictionary.get(team_id, "?")
+            team_color = teams_color_dictionary.get(team_id, "#666666")
+
+            try:
+                speed = int(getattr(p, 'speed_trap', 0) or 0)
+            except Exception:
+                speed = 0
+
+            delta = getattr(p, 'delta_to_leader', None)
+            if isinstance(delta, str):
+                delta = None
+
+            pilotos_live.append({
+                "idx":         idx,
+                "nome":        nome,
+                "numero":      getattr(p, 'numero', None),
+                "posicao":     getattr(p, 'position', None),
+                "equipe":      team_name,
+                "team_id":     team_id,
+                "team_color":  team_color,
+
+                "best_lap":    best_lap_calc,
+                "last_lap":    last_lap,
+                "s1":          last_s1,
+                "s2":          last_s2,
+                "s3":          last_s3,
+                "best_s1":     _fmt(best_s1_p),
+                "best_s2":     _fmt(best_s2_p),
+                "best_s3":     _fmt(best_s3_p),
+
+                "speed":       speed,
+                "tyre":        tyre,
+                "tyre_code":   tyre_code,
+                "tyre_age":    tyre_age,
+                "is_pit":      bool(getattr(p, 'pit', False)),
+
+                "delta_to_leader": delta,
+                "pneu_atual":  tyre,
+                "idade_pneu":  tyre_age,
+
+                "s1_atual":    last_s1,
+                "s2_atual":    last_s2,
+                "s3_atual":    last_s3,
+            })
+
+        if pilotos_live:
+            bl  = [x['best_lap'] for x in pilotos_live if x['best_lap']]
+            bs1 = [x['best_s1']  for x in pilotos_live if x['best_s1']]
+            bs2 = [x['best_s2']  for x in pilotos_live if x['best_s2']]
+            bs3 = [x['best_s3']  for x in pilotos_live if x['best_s3']]
+            sb_lap = min(bl)  if bl  else None
+            sb_s1  = min(bs1) if bs1 else None
+            sb_s2  = min(bs2) if bs2 else None
+            sb_s3  = min(bs3) if bs3 else None
+            session_bests = {"lap": sb_lap, "s1": sb_s1, "s2": sb_s2, "s3": sb_s3}
+
+            pilotos_live.sort(key=lambda x: (x['posicao'] is None,
+                                             x['posicao'] if x['posicao'] else 999))
+
+            for i, x in enumerate(pilotos_live):
+                d = x['delta_to_leader']
+                if isinstance(d, (int, float)) and d > 0:
+                    x['gap'] = round(float(d), 3)
+                elif x['best_lap'] and sb_lap:
+                    x['gap'] = round(x['best_lap'] - sb_lap, 3)
+                else:
+                    x['gap'] = None
+
+                if i == 0:
+                    x['interval'] = 0.0
+                else:
+                    prev = pilotos_live[i-1]
+                    if x['gap'] is not None and prev['gap'] is not None:
+                        x['interval'] = round(x['gap'] - prev['gap'], 3)
+                    else:
+                        x['interval'] = None
+
+            for x in pilotos_live:
+                x['is_sb_lap'] = bool(sb_lap and x['best_lap'] and abs(x['best_lap'] - sb_lap) < 0.001)
+                x['is_sb_s1']  = bool(sb_s1  and x['best_s1']  and abs(x['best_s1']  - sb_s1)  < 0.001)
+                x['is_sb_s2']  = bool(sb_s2  and x['best_s2']  and abs(x['best_s2']  - sb_s2)  < 0.001)
+                x['is_sb_s3']  = bool(sb_s3  and x['best_s3']  and abs(x['best_s3']  - sb_s3)  < 0.001)
+
+            for key, sbest in (("s1", sb_s1), ("s2", sb_s2), ("s3", sb_s3)):
+                if sbest is None:
+                    continue
+                for x in pilotos_live:
+                    if x[f"best_{key}"] and abs(x[f"best_{key}"] - sbest) < 0.001:
+                        lideres_live[key] = {
+                            "nome":       x['nome'],
+                            "numero":     x['numero'],
+                            "pos":        x['posicao'],
+                            "tempo":      x[f"best_{key}"],
+                            "team_color": x['team_color'],
+                        }
+                        break
+
+            live_ok = True
+
+    except Exception as e:
+        print(f"⚠️ live_timing indisponível ({e}) — caindo no banco")
+
+    if not live_ok:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=30000")
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+
+            cur.execute("SELECT * FROM sessoes ORDER BY id DESC LIMIT 1")
+            sessao = cur.fetchone()
+            if not sessao:
+                conn.close()
+                return jsonify({
+                    "pilotos": [], "clima": {}, "sessao": {},
+                    "lideres_setor": lideres_live,
+                    "session_bests": session_bests,
+                    "fonte": "vazio",
+                })
+
+            sessao_id = sessao["id"]
+            sessao_dict = dict(sessao)
+
+            cur.execute("""
+                SELECT
+                    p.id, p.nome, p.numero, p.posicao,
+                    pn.tipo_pneu       AS pneu_atual,
+                    pn.idade_voltas    AS idade_pneu,
+                    d.delta_to_leader,
+                    d.combustivel_restante
+                FROM pilotos p
+                INNER JOIN (
+                    SELECT nome, MAX(id) as max_id
+                    FROM pilotos
+                    WHERE sessao_id = ?
+                    GROUP BY nome
+                ) latest ON p.id = latest.max_id
+                LEFT JOIN pneus pn ON pn.id = (
+                    SELECT id FROM pneus
+                    WHERE sessao_id = ? AND piloto_id = p.id
+                    ORDER BY timestamp DESC LIMIT 1
+                )
+                LEFT JOIN danos d ON d.id = (
+                    SELECT id FROM danos
+                    WHERE sessao_id = ? AND piloto_id = p.id
+                    ORDER BY timestamp DESC LIMIT 1
+                )
+                ORDER BY p.posicao
+            """, (sessao_id, sessao_id, sessao_id))
+            pilotos_db = [dict(r) for r in cur.fetchall()]
+
+            cur.execute("SELECT MAX(numero_volta) as v FROM voltas WHERE sessao_id = ?", (sessao_id,))
+            r = cur.fetchone()
+            sessao_dict["volta_atual"] = r["v"] if r and r["v"] else 0
+
+            sessao_dict["temp_pista"]   = sessao_dict.get("temperatura_pista") or sessao_dict.get("temp_pista") or "—"
+            sessao_dict["temp_ar"]      = sessao_dict.get("temperatura_ar")   or sessao_dict.get("temp_ar")    or "—"
+            sessao_dict["chance_chuva"] = sessao_dict.get("porcentagem_chuva") or sessao_dict.get("chance_chuva") or 0
+            sessao_dict["bandeira"]     = sessao_dict.get("flag") or "Verde"
+
+            for p in pilotos_db:
+                p["best_lap"]   = None
+                p["last_lap"]   = None
+                p["s1"] = p["s2"] = p["s3"] = None
+                p["best_s1"] = p["best_s2"] = p["best_s3"] = None
+                p["s1_atual"] = p["s2_atual"] = p["s3_atual"] = None
+                p["speed"]      = 0
+                p["tyre"]       = p.get("pneu_atual") or "Médio"
+                p["tyre_age"]   = p.get("idade_pneu") or 0
+                p["gap"]        = None
+                p["interval"]   = None
+                p["is_sb_lap"]  = False
+                p["is_sb_s1"]   = False
+                p["is_sb_s2"]   = False
+                p["is_sb_s3"]   = False
+                p["is_pit"]     = False
+                p["team_color"] = "#666666"
+
+            clima = {}
+            try:
+                cur.execute("PRAGMA table_info(clima)")
+                if cur.fetchall():
+                    cur.execute("SELECT * FROM clima WHERE sessao_id = ? ORDER BY id DESC LIMIT 1", (sessao_id,))
+                    cr = cur.fetchone()
+                    if cr:
+                        clima = dict(cr)
+            except Exception:
+                pass
+
+            conn.close()
+
+            return jsonify({
+                "pilotos":       pilotos_db,
+                "clima":         clima,
+                "sessao":        sessao_dict,
+                "lideres_setor": lideres_live,
+                "session_bests": session_bests,
+                "fonte":         "banco",
+            })
+
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            return jsonify({
+                "pilotos": [], "clima": {}, "sessao": {},
+                "lideres_setor": lideres_live,
+                "session_bests": session_bests,
+                "erro": str(e),
+                "fonte": "erro",
+            }), 500
+
+    clima_live = {"condicao": sessao_live.get("clima", "—")}
+
+    return jsonify({
+        "pilotos":       pilotos_live,
+        "clima":         clima_live,
+        "sessao":        sessao_live,
+        "lideres_setor": lideres_live,
+        "session_bests": session_bests,
+        "fonte":         "live",
+    })
+
+@app.route("/api/mapa_posicoes")
+def api_mapa_posicoes():
+    try:
+        from Bot.jogadores import JOGADORES
+        from Bot.Session import SESSION
+        from utils.dictionnaries import (
+            teams_color_dictionary, teams_name_dictionary,
+            tyres_dictionnary, session_dictionary
+        )
+        from dados.map_performance import carros_dados
+
+        flag_raw = getattr(SESSION, 'flag', 'Verde')
+        if isinstance(flag_raw, str) and flag_raw.startswith('#'):
+            flag_map = {
+                "#FFFFFF": "Nenhuma", "#00FF00": "Verde",
+                "#0000FF": "Azul",    "#FFD700": "Amarela",
+                "#FF0000": "Vermelha",
+            }
+            flag_raw = flag_map.get(flag_raw.upper(), "Verde")
+
+        sess_type_code = getattr(SESSION, 'm_session_type', None)
+        sess_type_code = -1 if sess_type_code is None else sess_type_code
+        sess_type_name = session_dictionary.get(sess_type_code, "Sessão")
+
+        try:
+            sess_type_code = int(sess_type_code) if sess_type_code is not None else -1
+        except (TypeError, ValueError):
+            sess_type_code = -1
+            sess_type_name = session_dictionary.get(sess_type_code, "Sessão")
+
+        max_lap = 0
+        for p in JOGADORES:
+            n = getattr(p, 'current_lap_num', 0) or 0
+            if n > max_lap:
+                max_lap = n
+
+        total_laps = getattr(SESSION, 'm_total_laps', 0) or 0
+        track = getattr(SESSION, 'track_name', None) or 'unknown'
+
+        pilotos_raw = []
+        for idx, p in enumerate(JOGADORES):
+            nome = (getattr(p, 'name', '') or '').strip()
+            if not nome:
+                continue
+
+            pos_list = carros_dados.get(idx)
+            if not pos_list:
+                continue
+            ultimo = pos_list[-1]
+            if not (isinstance(ultimo, (list, tuple)) and len(ultimo) >= 3):
+                continue
+
+            try:
+                x = float(ultimo[0])
+                z = float(ultimo[1])
+            except (TypeError, ValueError):
+                continue
+
+            team_id = getattr(p, 'm_team_id', -1)
+
+            tyre_name = getattr(p, 'tyre_type', None)
+            if not tyre_name:
+                code = getattr(p, 'tyres', None)
+                try:
+                    code = int(code) if code is not None else None
+                except Exception:
+                    code = None
+                tyre_name = tyres_dictionnary.get(code, "Médio") if code is not None else "Médio"
+
+            voltas = getattr(p, 'todas_voltas_setores', []) or []
+            validas = [v for v in voltas
+                       if v.get('tempo_total') and v['tempo_total'] > 10]
+            best_lap_p = min((v['tempo_total'] for v in validas), default=None)
+
+            last_lap_p = getattr(p, 'lastLapTime', 0) or 0
+            if not last_lap_p and validas:
+                last_lap_p = validas[-1].get('tempo_total')
+
+            try:
+                speed = int(getattr(p, 'speed_trap', 0) or 0)
+            except Exception:
+                speed = 0
+
+            pilotos_raw.append({
+                "idx":     idx,
+                "nome":    nome,
+                "numero":  getattr(p, 'numero', None),
+                "posicao": getattr(p, 'position', None),
+                "x":       x,
+                "z":       z,
+                "speed":   speed,
+                "cor":     teams_color_dictionary.get(team_id, "#FFFFFF"),
+                "equipe":  teams_name_dictionary.get(team_id, "?"),
+                "pit":     bool(getattr(p, 'pit', False)),
+                "is_pit":  bool(getattr(p, 'pit', False)),
+                "tyre":    tyre_name,
+                "tyre_age": int(getattr(p, 'tyresAgeLaps', 0) or 0),
+                "best_lap": round(best_lap_p, 3) if best_lap_p else None,
+                "last_lap": round(last_lap_p, 3) if last_lap_p else None,
+                "gap":     None,
+                "interval": None,
+            })
+
+        pilotos_raw.sort(key=lambda x: (x['posicao'] is None,
+                                        x['posicao'] if x['posicao'] else 999))
+
+        leader_best = next((x['best_lap'] for x in pilotos_raw if x['best_lap']), None)
+        for i, x in enumerate(pilotos_raw):
+            if x['best_lap'] and leader_best:
+                x['gap'] = round(x['best_lap'] - leader_best, 3)
+                if x['gap'] == 0:
+                    x['gap'] = 0
+            if i == 0:
+                x['interval'] = 0.0 if x['gap'] == 0 else None
+            else:
+                prev = pilotos_raw[i-1]
+                if x['gap'] is not None and prev['gap'] is not None:
+                    x['interval'] = round(x['gap'] - prev['gap'], 3)
 
         return jsonify({
-            "pilotos": pilotos,
-            "clima": clima,
-            "sessao": sessao_dict
+            "track": track,
+            "sessao": {
+                "nome_pista":   track,
+                "tipo_sessao":  sess_type_name,
+                "volta_atual":  max_lap,
+                "total_voltas": total_laps,
+                "bandeira":     flag_raw,
+            },
+            "pilotos": pilotos_raw,
         })
+
     except Exception as e:
-        print(f"Erro ao buscar dados_completos_live: {e}")
-        return jsonify({"pilotos": [], "clima": {}, "sessao": {}})
+        import traceback; traceback.print_exc()
+        return jsonify({
+            "track": "unknown",
+            "sessao": {"volta_atual": 0, "total_voltas": 0, "bandeira": "—", "tipo_sessao": "—"},
+            "pilotos": [], "erro": str(e),
+        })
+
+@app.route("/debug_map")
+def debug_map():
+    import dados.map_performance as m
+    info = {
+        "atributos": [x for x in dir(m) if not x.startswith('__')],
+        "tipos":     {x: type(getattr(m, x)).__name__ for x in dir(m) if not x.startswith('__')},
+    }
+    for nome in ("MAP_POSITIONS", "POSICOES", "POSITIONS", "MAPA", "coordenadas", "dados"):
+        if hasattr(m, nome):
+            v = getattr(m, nome)
+            try:
+                info[f"preview_{nome}"] = str(v)[:500]
+            except Exception:
+                pass
+    return jsonify(info)
 
 @app.route("/dados_stints_ultimo")
 def dados_stints_ultimo():
-    """JSON: Stints da última sessão do banco"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -564,7 +1014,6 @@ def dados_stints_ultimo():
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Busca última sessão
         cur.execute("SELECT id, nome_pista, tipo_sessao, total_voltas FROM sessoes ORDER BY id DESC LIMIT 1")
         sessao = cur.fetchone()
 
@@ -583,7 +1032,6 @@ def dados_stints_ultimo():
 
 @app.route("/dados_stints/<int:sessao_id>")
 def dados_stints(sessao_id):
-    """JSON: Stints de uma sessão específica do banco"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -591,7 +1039,6 @@ def dados_stints(sessao_id):
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Busca info da sessão
         cur.execute("SELECT id, nome_pista, tipo_sessao, total_voltas FROM sessoes WHERE id = ?", (sessao_id,))
         sessao = cur.fetchone()
 
@@ -607,9 +1054,7 @@ def dados_stints(sessao_id):
 
 
 def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
-    """Função auxiliar: busca stints de uma sessão"""
     try:
-        # Busca pilotos únicos
         cur.execute("""
             SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao
             FROM pilotos 
@@ -624,7 +1069,6 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
             piloto_id = p.get("id")
             nome = p.get("nome", "Desconhecido")
 
-            # Busca stints do piloto
             cur.execute("""
                 SELECT stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas
                 FROM pneu_stints
@@ -662,27 +1106,23 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
     
 @app.route("/dados_setups/<int:sessao_id>")
 def dados_setups(sessao_id):
-    """Retorna todos os setups de uma sessão para comparação"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Info da sessão
         cursor.execute("SELECT * FROM sessoes WHERE id = ?", (sessao_id,))
         sessao_row = cursor.fetchone()
         sessao_info = dict(sessao_row) if sessao_row else {
             "id": sessao_id, "nome_pista": "Desconhecida", "tipo_sessao": "Manual"
         }
 
-        # Busca todos os setups desta sessão
         cursor.execute("SELECT * FROM setups WHERE sessao_id = ? ORDER BY id", (sessao_id,))
         setups_rows = [dict(row) for row in cursor.fetchall()]
 
         print(f"📊 dados_setups/{sessao_id}: encontrou {len(setups_rows)} setups")
 
-        # Transforma cada setup em um "piloto" para o frontend
         pilotos = []
         for i, s in enumerate(setups_rows):
             piloto = {
@@ -745,7 +1185,6 @@ def dados_setups(sessao_id):
 
 @app.route("/salvar_setup_manual", methods=["POST"])
 def salvar_setup_manual():
-    """Salva um setup digitado manualmente pelo usuário"""
     try:
         data = request.json
         if not data:
@@ -756,29 +1195,22 @@ def salvar_setup_manual():
         conn.execute("PRAGMA busy_timeout=30000")
         cur = conn.cursor()
         
-        # Descobre colunas existentes
         cur.execute("PRAGMA table_info(setups)")
         colunas_existentes = [col[1] for col in cur.fetchall()]
         
-        # Usa sessao_id existente OU cria nova
-        # Nota: por padrão não vinculamos setups manuais à sessão de corrida atual
-        # a menos que o front-end envie 'attach_to_session': True
         sessao_id = data.get('sessao_id')
         attach_to_session = bool(data.get('attach_to_session', False))
         if sessao_id and not attach_to_session:
-            # ignora sessao_id se não for para anexar ao evento atual
             sessao_id = None
         pista = data.get('pista', 'Custom')
         categoria = data.get('categoria', 'F1')
         
         if sessao_id:
-            # Verifica se a sessão realmente existe
             cur.execute("SELECT id FROM sessoes WHERE id = ?", (sessao_id,))
             if not cur.fetchone():
                 sessao_id = None
         
         if not sessao_id:
-            # Procura sessão existente com mesma pista e categoria (setup manual)
             cur.execute("""
                 SELECT id FROM sessoes 
                 WHERE nome_pista = ? AND tipo_sessao = ? AND clima = 'Manual'
@@ -797,20 +1229,17 @@ def salvar_setup_manual():
                 sessao_id = cur.lastrowid
                 print(f"📌 Nova sessão criada: #{sessao_id}")
         
-        # Cria piloto
         cur.execute("""
             INSERT INTO pilotos (sessao_id, nome, numero, posicao)
             VALUES (?, ?, ?, 1)
         """, (sessao_id, data.get('piloto_nome', 'Piloto'), data.get('numero', 0)))
         piloto_id = cur.lastrowid
         
-        # Todos os campos possíveis
         todos_campos = {
             'sessao_id': sessao_id,
             'piloto_id': piloto_id,
             'piloto_nome': data.get('piloto_nome', 'Piloto'),
             'pista': pista,
-            # mantém tipo_sessao consistente com sessão manual
             'tipo_sessao': categoria + ' - Setup Manual',
             'asa_dianteira': int(data.get('asa_dianteira', 0)),
             'asa_traseira': int(data.get('asa_traseira', 0)),
@@ -838,7 +1267,6 @@ def salvar_setup_manual():
             'estilo_pilotagem': data.get('estilo', 'MANUAL'),
         }
         
-        # Filtra campos que existem no banco
         campos_ok = {k: v for k, v in todos_campos.items() if k in colunas_existentes}
         
         colunas_sql = ', '.join(campos_ok.keys())
@@ -847,7 +1275,6 @@ def salvar_setup_manual():
         
         cur.execute(f"INSERT INTO setups ({colunas_sql}) VALUES ({placeholders})", valores)
         
-        # Conta quantos setups tem na sessão
         cur.execute("SELECT COUNT(*) FROM setups WHERE sessao_id = ?", (sessao_id,))
         total = cur.fetchone()[0]
         
@@ -871,18 +1298,15 @@ def salvar_setup_manual():
 
 @app.route("/listar_setups_manuais")
 def listar_setups_manuais():
-    """Lista todos os setups salvos manualmente"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
-        # Pega colunas existentes para montar query segura
         cur.execute("PRAGMA table_info(setups)")
         colunas = [col[1] for col in cur.fetchall()]
         
-        # Campos que queremos (se existirem)
         campos_desejados = [
             'id', 'sessao_id', 'piloto_nome', 'pista', 'tipo_sessao',
             'asa_dianteira', 'asa_traseira', 'tipo_setup',
@@ -914,19 +1338,16 @@ def listar_setups_manuais():
 
 @app.route("/deletar_setup/<int:setup_id>", methods=["POST"])
 def deletar_setup(setup_id):
-    """Deleta um setup manual"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         cur = conn.cursor()
         
-        # Pega sessao_id antes de deletar
         cur.execute("SELECT sessao_id FROM setups WHERE id = ?", (setup_id,))
         row = cur.fetchone()
         
         cur.execute("DELETE FROM setups WHERE id = ?", (setup_id,))
         
-        # Se a sessão ficou sem setups e é manual, deleta a sessão também
         if row:
             sessao_id = row[0]
             cur.execute("SELECT COUNT(*) FROM setups WHERE sessao_id = ?", (sessao_id,))
@@ -944,13 +1365,11 @@ def deletar_setup(setup_id):
 
 @app.route('/setup_editor')
 def setup_editor_page():
-    """Página para criar/editar setups manualmente"""
     return render_template('setup_editor.html')
 
 
 @app.route("/api/telemetry_insights/<int:sessao_id>")
 def telemetry_insights(sessao_id):
-    """Retorna dados para a página Telemetry Insights - comparação entre dois pilotos"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -958,7 +1377,6 @@ def telemetry_insights(sessao_id):
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Info sessão
         cur.execute("SELECT * FROM sessoes WHERE id = ?", (sessao_id,))
         sessao_row = cur.fetchone()
         sessao = dict(sessao_row) if sessao_row else {}
@@ -967,7 +1385,6 @@ def telemetry_insights(sessao_id):
             conn.close()
             return jsonify({"erro": "Sessão não encontrada", "sessao": {}, "pilotos": []})
 
-        # Pilotos únicos da sessão ordenados por posição
         cur.execute("""
             SELECT p.id, p.nome, p.numero, p.posicao
             FROM pilotos p
@@ -982,18 +1399,15 @@ def telemetry_insights(sessao_id):
             conn.close()
             return jsonify({"sessao": sessao, "pilotos": []})
 
-        # Verifica colunas disponíveis nas tabelas
         cur.execute("PRAGMA table_info(voltas)")
         voltas_cols = [col[1] for col in cur.fetchall()]
 
         cur.execute("PRAGMA table_info(pneus)")
         pneus_cols = [col[1] for col in cur.fetchall()]
 
-        # Verifica se tabela telemetria existe
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='telemetria'")
         tem_telemetria = cur.fetchone() is not None
 
-        # Verifica se tabela danos existe (para velocidade)
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='danos'")
         tem_danos = cur.fetchone() is not None
 
@@ -1004,8 +1418,6 @@ def telemetry_insights(sessao_id):
             pid = p["id"]
             nome = p["nome"]
 
-            # ── VOLTAS ──
-            # Busca todas as voltas do piloto (por sessao_id E piloto_id, OU só sessao_id + nome)
             cur.execute("""
                 SELECT numero_volta, tempo_volta, setor1, setor2, setor3
                 FROM voltas
@@ -1014,7 +1426,6 @@ def telemetry_insights(sessao_id):
             """, (sessao_id, pid))
             voltas_raw = [dict(r) for r in cur.fetchall()]
 
-            # Se não achou por piloto_id, tenta por todos os piloto_ids com mesmo nome
             if not voltas_raw:
                 cur.execute("""
                     SELECT id FROM pilotos WHERE sessao_id = ? AND nome = ?
@@ -1030,7 +1441,6 @@ def telemetry_insights(sessao_id):
                     """, [sessao_id] + all_pids)
                     voltas_raw = [dict(r) for r in cur.fetchall()]
 
-            # Filtra voltas válidas (tempo > 10s, ignora outlap/inlap)
             voltas = []
             for v in voltas_raw:
                 t = v.get("tempo_volta")
@@ -1045,18 +1455,15 @@ def telemetry_insights(sessao_id):
             melhor = min(tempos) if tempos else 0
             media = sum(tempos) / len(tempos) if tempos else 0
 
-            # Remove outliers (> media * 1.08)
             limpo = [t for t in tempos if t < media * 1.08] if media else tempos
             media_limpa = sum(limpo) / len(limpo) if limpo else media
 
-            # Consistência
             if len(limpo) > 1:
                 dp = math.sqrt(sum((t - media_limpa) ** 2 for t in limpo) / len(limpo))
                 consistencia = max(0, round(100 - (dp / media_limpa * 100), 1))
             else:
                 consistencia = 0.0
 
-            # Degradação (slope)
             degradacao = 0.0
             if len(limpo) >= 3:
                 n = len(limpo)
@@ -1066,9 +1473,7 @@ def telemetry_insights(sessao_id):
                 den = sum((i - x_mean) ** 2 for i in range(n))
                 degradacao = round(num / den, 4) if den else 0.0
 
-            # ── TOP SPEED ──
             top_speed = 0
-            # Tenta telemetria
             if tem_telemetria:
                 try:
                     cur.execute("PRAGMA table_info(telemetria)")
@@ -1090,7 +1495,6 @@ def telemetry_insights(sessao_id):
                 except Exception:
                     pass
 
-            # Fallback: tenta danos (alguns projetos gravam velocidade lá)
             if top_speed == 0 and tem_danos:
                 try:
                     cur.execute("PRAGMA table_info(danos)")
@@ -1109,11 +1513,9 @@ def telemetry_insights(sessao_id):
                 except Exception:
                     pass
 
-            # Fallback: sessão velocidade_maxima_geral
             if top_speed == 0:
                 top_speed = float(sessao.get("velocidade_maxima_geral") or 0)
 
-            # ── SETORES MÉDIOS ──
             avg_s1 = round(sum(s1_list) / len(s1_list), 3) if s1_list else 0
             avg_s2 = round(sum(s2_list) / len(s2_list), 3) if s2_list else 0
             avg_s3 = round(sum(s3_list) / len(s3_list), 3) if s3_list else 0
@@ -1121,7 +1523,6 @@ def telemetry_insights(sessao_id):
             best_s2 = round(min(s2_list), 3) if s2_list else 0
             best_s3 = round(min(s3_list), 3) if s3_list else 0
 
-            # ── PNEU ──
             pneu = {}
             try:
                 cur.execute("""
@@ -1135,7 +1536,6 @@ def telemetry_insights(sessao_id):
             except Exception:
                 pass
 
-            # ── MONTA VOLTAS PARA FRONTEND ──
             voltas_frontend = []
             for v in voltas:
                 voltas_frontend.append({
@@ -1169,7 +1569,6 @@ def telemetry_insights(sessao_id):
 
         conn.close()
 
-        # Debug
         for r in resultado:
             print(f"📊 {r['nome']}: {r['total_voltas']} voltas, best={r['melhor_volta']}, avg={r['media_volta']}, s1={r['avg_s1']}, s2={r['avg_s2']}, s3={r['avg_s3']}")
 
@@ -1182,7 +1581,6 @@ def telemetry_insights(sessao_id):
 
 @app.route("/renomear_sessao/<int:sessao_id>", methods=["POST"])
 def renomear_sessao(sessao_id):
-    """Renomeia uma sessão"""
     try:
         data = request.get_json()
         novo_nome = data.get("nome", "").strip()
@@ -1195,7 +1593,6 @@ def renomear_sessao(sessao_id):
         conn.execute("PRAGMA busy_timeout=30000")
         cur = conn.cursor()
 
-        # Verifica se coluna nome_customizado existe
         cur.execute("PRAGMA table_info(sessoes)")
         colunas = [col[1] for col in cur.fetchall()]
 
@@ -1217,7 +1614,6 @@ def telemetry_insights_page():
 
 @app.route("/api/race_positions/<int:sessao_id>")
 def race_positions(sessao_id):
-    """Posicao por volta de cada piloto para o grafico Race Positions"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -1228,9 +1624,6 @@ def race_positions(sessao_id):
         row = cur.fetchone()
         sessao = dict(row) if row else {}
 
-        # Busca pilotos com grid_position e posicao_final corretos
-        # MIN(id) = id original onde as voltas foram salvas
-        # COALESCE(posicao_final, ...) = posição final canônica do jogo
         cur.execute("""
             SELECT
                 MIN(p.id)                                        AS pid,
@@ -1276,11 +1669,9 @@ def race_positions(sessao_id):
                 if nv > max_volta:
                     max_volta = nv
 
-            # BUG 2: injeta posição de grid na volta 0 (ponto de largada)
-            # Assim o HTML sempre tem um ponto de partida mesmo se volta 1 não tem posicao
             grid = p.get("grid_position")
             if grid and grid > 0:
-                pos_por_volta[0] = int(grid)   # volta 0 = largada
+                pos_por_volta[0] = int(grid)
 
             resultado.append({
                 "nome":         p["nome"],
@@ -1307,7 +1698,6 @@ def race_positions_page():
 
 @app.route("/api/race_positions/<int:sessao_id>/ultrapassagens")
 def race_ultrapassagens(sessao_id):
-    """Ultrapassagens da sessão com volta, quem ultrapassou quem e posições"""
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.row_factory = sqlite3.Row
@@ -1324,28 +1714,19 @@ def race_ultrapassagens(sessao_id):
     except Exception as e:
         return jsonify([])
 
-# ══════════════════════════════════════════════════════════════════════
-# 🆕 ENDPOINTS PARA OS 3 ÍCONES (pit stops, bandeiras, danos)
-# ══════════════════════════════════════════════════════════════════════
 
 @app.route("/api/pit_stops/<int:sessao_id>")
 def api_pit_stops(sessao_id):
-    """
-    Retorna pit stops por piloto: quantidade e voltas em que aconteceram.
-    Fonte: tabela pneu_stints (stint_numero > 1 = pit stop ocorreu).
-    """
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Info básica da sessão
         cur.execute("SELECT nome_pista, tipo_sessao, total_voltas FROM sessoes WHERE id = ?", (sessao_id,))
         sessao_row = cur.fetchone()
         sessao = dict(sessao_row) if sessao_row else {}
 
-        # Pilotos únicos
         cur.execute("""
             SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao
             FROM pilotos WHERE sessao_id = ?
@@ -1357,7 +1738,6 @@ def api_pit_stops(sessao_id):
         for p in pilotos:
             pid = p["id"]
 
-            # Todos os stints deste piloto
             cur.execute("""
                 SELECT stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas
                 FROM pneu_stints
@@ -1366,8 +1746,6 @@ def api_pit_stops(sessao_id):
             """, (sessao_id, pid))
             stints = [dict(r) for r in cur.fetchall()]
 
-            # Cada troca de pneu (stint 2 em diante) = 1 pit stop
-            # A volta do pit = volta_inicio do stint atual
             pit_stops = []
             for s in stints:
                 if s["stint_numero"] > 1:
@@ -1394,18 +1772,12 @@ def api_pit_stops(sessao_id):
 
 @app.route("/api/bandeiras/<int:sessao_id>")
 def api_bandeiras(sessao_id):
-    """
-    Retorna eventos de bandeira (amarela, vermelha, SC, VSC) da sessão.
-    Fonte: tabela bandeiras (criada via migrar_bandeiras em main.py).
-    Fallback: devolve lista vazia mas não quebra.
-    """
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Verifica se tabela existe
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bandeiras'")
         if not cur.fetchone():
             conn.close()
@@ -1420,7 +1792,6 @@ def api_bandeiras(sessao_id):
         rows = [dict(r) for r in cur.fetchall()]
         conn.close()
 
-        # Agrupa por tipo para facilitar frontend
         resumo = {}
         for r in rows:
             t = r["tipo"]
@@ -1436,18 +1807,12 @@ def api_bandeiras(sessao_id):
 
 @app.route("/api/danos_carro/<int:sessao_id>")
 def api_danos_carro(sessao_id):
-    """
-    Retorna nível de dano de cada carro (asa dianteira, traseira, assoalho, difusor, sidepods).
-    Fonte: tabela danos (última leitura por piloto).
-    Nível: 0-33 = verde | 34-66 = amarelo | 67-100 = vermelho.
-    """
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Pilotos únicos da sessão
         cur.execute("""
             SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao
             FROM pilotos WHERE sessao_id = ?
@@ -1455,7 +1820,6 @@ def api_danos_carro(sessao_id):
         """, (sessao_id,))
         pilotos = [dict(r) for r in cur.fetchall()]
 
-        # Verifica colunas disponíveis na tabela danos
         cur.execute("PRAGMA table_info(danos)")
         danos_cols = [c[1] for c in cur.fetchall()]
 
@@ -1463,7 +1827,6 @@ def api_danos_carro(sessao_id):
         for p in pilotos:
             pid = p["id"]
 
-            # Pega último registro de danos do piloto
             cur.execute("""
                 SELECT * FROM danos
                 WHERE sessao_id = ? AND piloto_id = ?
@@ -1475,7 +1838,6 @@ def api_danos_carro(sessao_id):
             def _get(key, fallback=0):
                 return float(dano_dict.get(key) or fallback)
 
-            # Campos esperados (com fallbacks para nomes alternativos)
             asa_e  = _get("dano_asa_esquerda")
             asa_d  = _get("dano_asa_direita")
             asa_t  = _get("dano_asa_traseira")
@@ -1483,7 +1845,6 @@ def api_danos_carro(sessao_id):
             difus  = _get("dano_difusor")
             sidep  = _get("dano_sidepods")
 
-            # Dano geral = média ponderada (asa dianteira tem peso maior)
             total = (asa_e + asa_d) * 0.35 + asa_t * 0.15 + assoal * 0.2 + difus * 0.15 + sidep * 0.15
 
             def nivel(v):
@@ -1521,18 +1882,12 @@ def api_danos_carro(sessao_id):
 
 @app.route("/api/danos_por_volta/<int:sessao_id>")
 def api_danos_por_volta(sessao_id):
-    """
-    Retorna o histórico EXATO de dano por volta de cada piloto.
-    Cada linha = estado dos danos naquele momento da corrida.
-    Usado pelo Comparar.html para calcular impacto real do dano.
-    """
     try:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
 
-        # Verifica se tabela existe
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='danos_por_volta'")
         if not cur.fetchone():
             conn.close()
@@ -1560,7 +1915,7 @@ def api_danos_por_volta(sessao_id):
             resultado.append({
                 "nome":    p["nome"],
                 "posicao": p["posicao"],
-                "voltas":  voltas   # lista [{numero_volta, asa_esquerda, ...}]
+                "voltas":  voltas
             })
 
         conn.close()

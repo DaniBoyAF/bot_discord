@@ -1,214 +1,422 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Painel F1</title>
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #0a0e17 0%, #1a1f2e 100%);
-      color: white; padding: 20px; min-height: 100vh;
-    }
-    h1 {
-      text-align: center;
-      background: linear-gradient(90deg, #ff3c00, #ff6b00, #ff3c00);
-      background-size: 200% 100%;
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      font-size: 2.5em; margin-bottom: 20px;
-      animation: gradientShift 3s ease infinite; letter-spacing: 2px;
-    }
-    @keyframes gradientShift {
-      0%, 100% { background-position: 0% 50%; }
-      50%       { background-position: 100% 50%; }
-    }
-    table {
-      width: 90%; max-width: 1200px; margin: 80px auto 20px;
-      border-collapse: separate; border-spacing: 0;
-      background: linear-gradient(145deg, #1a1f2e, #141821);
-      border-radius: 15px; overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1);
-    }
-    th, td { padding: 16px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    th {
-      background: linear-gradient(135deg, #252b3a, #1e2330);
-      font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
-      font-size: 0.85em; color: #a8b2d1; position: sticky; top: 0; z-index: 10;
-    }
-    tbody tr { transition: background 260ms ease, transform 260ms ease, opacity 260ms ease; }
-    tbody tr.updating {
-      background: linear-gradient(90deg, rgba(255,60,0,0.06), rgba(255,107,0,0.03));
-      transform: translateY(2px); opacity: 0.98;
-    }
-    tbody tr:hover {
-      background: linear-gradient(90deg, rgba(255,60,0,0.1), rgba(255,107,0,0.05));
-      transform: scale(1.01);
-    }
-    tbody tr:last-child td { border-bottom: none; }
+<meta charset="UTF-8">
+<title>Live Timing F1</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    height:100%; background:#000; color:#fff;
+    font-family: 'Titillium Web','Segoe UI',Tahoma,sans-serif;
+    font-size:11px; overflow:hidden;
+  }
 
-    /* Cores dos pneus - classes em ingles para bater com o JS */
-    .soft, .macio       { color: #ff3c00; text-shadow: 0 0 10px rgba(255,60,0,0.5); font-weight: 600; }
-    .medium, .medio     { color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.5); font-weight: 600; }
-    .hard, .duro        { color: #ffffff; text-shadow: 0 0 10px rgba(255,255,255,0.3); font-weight: 600; }
-    .intermediate, .inter { color: #4cf509; text-shadow: 0 0 10px rgba(76,245,9,0.5); font-weight: 600; }
-    .wet, .chuva        { color: #0095ff; text-shadow: 0 0 10px rgba(0,149,255,0.5); font-weight: 600; }
-    .supersoft, .ss     { color: #cc00ff; text-shadow: 0 0 10px rgba(204,0,255,0.5); font-weight: 600; }
+  /* ─── TOP BAR ─────────────────────────────────────────── */
+  .top-bar {
+    display:flex; align-items:center; height:26px;
+    background:#000; border-bottom:1px solid #1a1a1a;
+    font-size:10px;
+  }
+  .session-name {
+    background:#009d45; color:#fff; padding:0 10px; height:100%;
+    display:flex; align-items:center; font-weight:700;
+    letter-spacing:.3px; text-transform:uppercase; white-space:nowrap;
+  }
+  .session-timer {
+    background:#ffd400; color:#000; padding:0 10px; height:100%;
+    display:flex; align-items:center; font-weight:800;
+    letter-spacing:.3px; font-variant-numeric: tabular-nums;
+  }
+  .status-badge {
+    background:#111; color:#fff; padding:0 10px; height:100%;
+    display:flex; align-items:center; font-weight:700;
+    letter-spacing:.3px; border-left:1px solid #222;
+    white-space:nowrap;
+  }
+  .status-badge.red    { background:#c40000; }
+  .status-badge.yellow { background:#c4a400; color:#000; }
 
-    /* Paineis informativos */
-    .info-panel {
-      position: fixed;
-      background: linear-gradient(135deg, rgba(26,31,46,0.95), rgba(20,24,33,0.95));
-      backdrop-filter: blur(10px); color: white; padding: 12px 18px; border-radius: 12px;
-      font-family: 'Segoe UI', sans-serif; font-size: 14px; font-weight: 500;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1),
-                  inset 0 1px 0 rgba(255,255,255,0.1);
-      z-index: 999; transition: all 0.3s ease;
-    }
-    .info-panel:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+  .weather-bar { margin-left:auto; display:flex; height:100%; }
+  .weather-item {
+    display:flex; align-items:center; gap:4px;
+    padding:0 8px; border-left:1px solid #1a1a1a; height:100%;
+    font-size:10px;
+  }
+  .weather-item .lbl { color:#888; font-size:9px; text-transform:uppercase; }
+  .weather-item .val { font-weight:700; color:#fff; font-variant-numeric: tabular-nums; }
 
-    #clima-painel  { top: 10px; left: 10px; }
-    #clima-painel2 { top: 60px; left: 10px; }
-    #clima-painel3 { top: 60px; right: 10px; }
-    #clima-painel4 {
-      top: 10px; right: 10px;
-      background: linear-gradient(135deg, rgba(255,60,0,0.2), rgba(255,107,0,0.1));
-      border: 1px solid rgba(255,60,0,0.3); font-weight: 700; font-size: 16px;
-    }
-    #circuito-painel {
-      top: 10px; right: 200px;
-      background: linear-gradient(135deg, rgba(46,161,190,0.3), rgba(31,108,128,0.3));
-      padding: 10px 24px; font-weight: 600; letter-spacing: 0.5px;
-    }
-    #umidade-painel { top: 10px; left: 200px; }
-    #flag-painel    { top: 60px; left: 200px; font-weight: 600; }
+  /* ─── TIMING TABLE ────────────────────────────────────── */
+  .timing-wrap {
+    width:100%; height: calc(100vh - 26px - 50px);
+    overflow-y:auto; background:#000;
+  }
+  table.timing {
+    width:100%; border-collapse:collapse; font-size:11px;
+    font-variant-numeric: tabular-nums;
+  }
+  table.timing thead th {
+    position:sticky; top:0; z-index:5;
+    background:#111; color:#888;
+    font-size:9px; letter-spacing:.5px; text-transform:uppercase;
+    font-weight:600; padding:5px 6px; text-align:left;
+    border-bottom:1px solid #222; white-space:nowrap;
+  }
+  table.timing thead th.num { text-align:right; }
 
-    td:first-child  { font-weight: 700; font-size: 1.1em; color: #ff6b00; }
-    td:nth-child(2) { font-weight: 600; color: #a8b2d1; }
-    td:nth-child(3) { font-weight: 600; text-align: left; padding-left: 30px; }
-  </style>
+  table.timing tbody tr {
+    height:22px; border-bottom:1px solid #0e0e0e;
+    transition: background .15s;
+  }
+  table.timing tbody tr:nth-child(even) { background:#050505; }
+  table.timing tbody tr:hover { background:#141414; }
+  table.timing tbody tr.pit { background:rgba(255,215,0,0.06); }
 
-  <script>
-    async function atualizar() {
-      try {
-        const res = await fetch("/dados_completos_live", { cache: "no-store" });
-        if (!res.ok) return;
-        const dados  = await res.json();
-        const pilotos = Array.isArray(dados.pilotos) ? dados.pilotos : [];
-        const sessao  = dados.sessao || {};
-        const clima   = dados.clima  || {};
-        const tbody   = document.getElementById("tabela_pilotos");
-        if (!tbody) return;
+  td.pos-cell {
+    padding:0; width:34px; text-align:center;
+    font-weight:800; font-size:11px; color:#fff;
+    background:#1a1a1a; border-left:3px solid transparent;
+  }
+  td.driver-cell {
+    padding:0 6px; font-weight:800; letter-spacing:.4px;
+    color:#fff; white-space:nowrap; font-size:11px;
+    min-width:90px;
+  }
+  td.driver-cell .num {
+    display:inline-block; min-width:18px; text-align:right;
+    margin-right:4px; opacity:.9; font-weight:700;
+  }
+  td.driver-cell .code { font-weight:900; }
 
-        // Paineis de info
-        const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-        set("clima-painel",    `Clima: ${clima.condicao || sessao.clima || "—"}`);
-        set("clima-painel2",   `Pista: ${sessao.temp_pista ?? "—"}°C`);
-        set("clima-painel3",   `Ar: ${sessao.temp_ar ?? "—"}°C`);
-        set("clima-painel4",   `Volta: ${sessao.volta_atual ?? "—"}/${sessao.total_voltas ?? "—"}`);
-        set("circuito-painel", `Track: ${sessao.nome_pista || "—"}`);
-        set("umidade-painel",  `Rain: ${sessao.chance_chuva ?? "—"}%`);
-        set("flag-painel",     `Bandeira: ${sessao.bandeira || "Verde"}`);
+  td.num { text-align:right; padding:0 6px; color:#e6e6e6; }
+  td.num.dim { color:#888; }
 
-        const existing = {};
-        tbody.querySelectorAll("tr[data-pid]").forEach(tr => existing[tr.dataset.pid] = tr);
+  td.purple { color:#c04cff; font-weight:800; }
+  td.red    { color:#ff3c00; font-weight:700; }
+  td.green  { color:#23e07a; font-weight:700; }
+  td.yellow { color:#ffd400; font-weight:600; }
+  td.leader { color:#ffd400; font-weight:800; }
 
-        const fragment = document.createDocumentFragment();
+  /* pneu */
+  .tyre-badge {
+    display:inline-block; width:12px; height:12px;
+    border-radius:50%; border:1px solid #333;
+    vertical-align:middle; margin-right:4px;
+  }
+  .tyre-SOFT      { background:#ff0000; border-color:#ff4444; }
+  .tyre-MEDIUM    { background:#ffd400; border-color:#fff07a; }
+  .tyre-HARD      { background:#eeeeee; border-color:#ffffff; }
+  .tyre-INTER     { background:#1de21d; border-color:#7dff7d; }
+  .tyre-WET       { background:#0080ff; border-color:#66b3ff; }
+  .tyre-SUPER     { background:#c04cff; border-color:#e6a8ff; }
 
-        pilotos
-          .sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999))
-          .forEach((p, idx) => {
-            const pid      = `p-${p.numero ?? idx}`;
-            const position = p.posicao ?? "-";
-            const numero   = p.numero  ?? "-";
-            const nome     = p.nome    ?? "—";
-            const deltaRaw = p.delta_to_leader ?? null;
-            const delta    = deltaRaw === 0       ? "Leader"
-                           : deltaRaw != null     ? `+${Number(deltaRaw).toFixed(3)}s`
-                           : "-";
+  td.speed-cell { text-align:right; padding:0 6px; white-space:nowrap; }
+  td.tyre-cell  { padding:0 6px; white-space:nowrap; }
 
-            // FIX: pneu vem do JOIN com pneus - campo pneu_atual
-            const tyresRaw   = (p.pneu_atual ?? p.tyres ?? "").toUpperCase();
-            const tyresClass = tyresRaw.includes("SUPER") || tyresRaw === "SS" ? "supersoft"
-                             : tyresRaw.includes("SOFT")  || tyresRaw.includes("MACIO")          ? "soft"
-                             : tyresRaw.includes("MEDIUM")|| tyresRaw.includes("MEDIO")          ? "medium"
-                             : tyresRaw.includes("HARD")  || tyresRaw.includes("DURO")           ? "hard"
-                             : tyresRaw.includes("INTER")                                         ? "intermediate"
-                             : tyresRaw.includes("WET")   || tyresRaw.includes("CHUVA")          ? "wet"
-                             : "";
+  /* ─── BOTTOM PANELS ───────────────────────────────────── */
+  .bottom-panels {
+    display:grid; grid-template-columns: 1fr 1fr 1fr;
+    height:50px; background:#050505; border-top:1px solid #1a1a1a;
+  }
+  .sector-panel {
+    padding:5px 10px; border-right:1px solid #1a1a1a;
+    display:flex; flex-direction:column; justify-content:center;
+  }
+  .sector-panel:last-child { border-right:none; }
+  .sector-title {
+    color:#888; font-size:9px; text-transform:uppercase;
+    letter-spacing:.5px; margin-bottom:1px;
+  }
+  .sector-content { display:flex; align-items:center; gap:8px; }
+  .sector-pos {
+    display:inline-block; min-width:20px; height:16px;
+    line-height:16px; text-align:center; font-weight:800;
+    color:#fff; border-left:3px solid #888; background:#1a1a1a;
+    padding:0 5px; font-size:10px;
+  }
+  .sector-name { font-weight:800; letter-spacing:.4px; font-size:11px; }
+  .sector-time { color:#c04cff; font-weight:800; font-variant-numeric: tabular-nums; font-size:11px; }
 
-            const tyresAge = p.idade_pneu ?? p.tyresAgeLaps ?? "-";
-
-            const html = `
-              <td>${position}</td>
-              <td>${numero}</td>
-              <td>${nome}</td>
-              <td>${delta}</td>
-              <td class="${tyresClass}">${tyresRaw || "—"}</td>
-              <td>${tyresAge}</td>`;
-
-            let tr = existing[pid];
-            if (tr) {
-              if (tr._lastHtml !== html) {
-                tr.classList.add("updating");
-                tr.innerHTML = html;
-                setTimeout(() => tr.classList.remove("updating"), 350);
-                tr._lastHtml = html;
-              }
-              delete existing[pid];
-            } else {
-              tr = document.createElement("tr");
-              tr.dataset.pid = pid;
-              tr._lastHtml   = html;
-              tr.innerHTML   = html;
-              tr.classList.add("updating");
-              setTimeout(() => tr.classList.remove("updating"), 500);
-            }
-            fragment.appendChild(tr);
-          });
-
-        Object.values(existing).forEach(tr => tr.remove());
-
-        requestAnimationFrame(() => {
-          let same = tbody.children.length === fragment.childElementCount;
-          if (same) {
-            const nodes = Array.from(fragment.children);
-            for (let i = 0; i < nodes.length; i++) {
-              if (tbody.children[i]?.dataset.pid !== nodes[i].dataset.pid) { same = false; break; }
-            }
-          }
-          if (!same) { tbody.innerHTML = ""; tbody.appendChild(fragment); }
-        });
-
-      } catch (err) {
-        console.error("Erro ao atualizar painel:", err);
-      }
-    }
-
-    setInterval(atualizar, 1200);
-    atualizar();
-  </script>
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:#000; }
+  ::-webkit-scrollbar-thumb { background:#222; border-radius:3px; }
+</style>
 </head>
 <body>
-  <h1>Painel Dinamico F1</h1>
 
-  <div id="clima-painel"    class="info-panel">Clima: Carregando...</div>
-  <div id="clima-painel2"   class="info-panel">Pista: Carregando...</div>
-  <div id="clima-painel3"   class="info-panel">Ar: Carregando...</div>
-  <div id="clima-painel4"   class="info-panel">Volta: Carregando...</div>
-  <div id="circuito-painel" class="info-panel">Track: Carregando...</div>
-  <div id="umidade-painel"  class="info-panel">Rain: Carregando...</div>
-  <div id="flag-painel"     class="info-panel">Bandeira: Carregando...</div>
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="session-name" id="sessionName">Carregando...</div>
+    <div class="session-timer" id="sessionTimer">--:--</div>
+    <div class="status-badge" id="statusBadge">Track Clear</div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>P</th><th>#</th><th>NOME</th><th>GAP</th><th>TYRES</th><th>TYRES AGE</th>
-      </tr>
-    </thead>
-    <tbody id="tabela_pilotos">
-      <tr><td colspan="6">Carregando...</td></tr>
-    </tbody>
-  </table>
+    <div class="weather-bar">
+      <div class="weather-item"><span class="lbl">Track</span><span class="val" id="wTrack">—</span></div>
+      <div class="weather-item"><span class="lbl">Air</span><span class="val" id="wAir">—</span></div>
+      <div class="weather-item"><span class="lbl">Rain</span><span class="val" id="wRain">—</span></div>
+      <div class="weather-item"><span class="lbl">Clima</span><span class="val" id="wClima">—</span></div>
+    </div>
+  </div>
+
+  <!-- TIMING -->
+  <div class="timing-wrap">
+    <table class="timing">
+      <thead>
+        <tr>
+          <th style="width:34px;">Pos</th>
+          <th>Driver</th>
+          <th class="num">Gap</th>
+          <th class="num">Int</th>
+          <th class="num">Best</th>
+          <th class="num">S1</th>
+          <th class="num">S2</th>
+          <th class="num">S3</th>
+          <th class="num">Last</th>
+          <th class="num">Spd</th>
+          <th>Tyre</th>
+        </tr>
+      </thead>
+      <tbody id="tabela_pilotos">
+        <tr><td colspan="11" style="text-align:center;padding:20px;color:#666">
+          Carregando...
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- LÍDERES DE SETOR -->
+  <div class="bottom-panels">
+    <div class="sector-panel">
+      <div class="sector-title">Sector 1</div>
+      <div class="sector-content" id="sector1Content">
+        <span class="sector-pos" style="border-left-color:#888">—</span>
+        <span class="sector-name">—</span>
+        <span class="sector-time">—</span>
+      </div>
+    </div>
+    <div class="sector-panel">
+      <div class="sector-title">Sector 2</div>
+      <div class="sector-content" id="sector2Content">
+        <span class="sector-pos" style="border-left-color:#888">—</span>
+        <span class="sector-name">—</span>
+        <span class="sector-time">—</span>
+      </div>
+    </div>
+    <div class="sector-panel">
+      <div class="sector-title">Sector 3</div>
+      <div class="sector-content" id="sector3Content">
+        <span class="sector-pos" style="border-left-color:#888">—</span>
+        <span class="sector-name">—</span>
+        <span class="sector-time">—</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ── helpers ──────────────────────────────────────────── */
+function shortCode(nome) {
+  if (!nome) return "???";
+  const partes = nome.trim().split(/\s+/);
+  const base = partes.length > 1 ? partes[partes.length - 1] : partes[0];
+  return base.substring(0, 3).toUpperCase();
+}
+function fmtTempo(t) {
+  if (t == null || t === 0) return "—";
+  const n = Number(t);
+  if (!isFinite(n)) return "—";
+  if (n < 60) return n.toFixed(3);
+  const min = Math.floor(n / 60);
+  const sec = n - min * 60;
+  return min + ":" + sec.toFixed(3).padStart(6, "0");
+}
+function tyreClass(nome) {
+  const n = String(nome || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  if (n.includes("SUPER")) return "tyre-SUPER";
+  if (n.includes("MACIO") || n.includes("SOFT")) return "tyre-SOFT";
+  if (n.includes("MEDIO") || n.includes("MEDIUM")) return "tyre-MEDIUM";
+  if (n.includes("DURO")  || n.includes("HARD")) return "tyre-HARD";
+  if (n.includes("INTER")) return "tyre-INTER";
+  if (n.includes("MOLH") || n.includes("WET") || n.includes("CHUVA")) return "tyre-WET";
+  return "tyre-MEDIUM";
+}
+
+/* 🆕 Converte hex de bandeira (se vier) para nome legível */
+function flagName(raw) {
+  if (!raw) return "Verde";
+  const s = String(raw);
+  if (!s.startsWith("#")) return s;
+  const map = {
+    "#FFFFFF": "Verde", "#00FF00": "Verde",
+    "#0000FF": "Azul",  "#FFD700": "Amarela",
+    "#FF0000": "Vermelha",
+  };
+  return map[s.toUpperCase()] || "Verde";
+}
+
+/* ── main loop ────────────────────────────────────────── */
+async function atualizar() {
+  try {
+    const res = await fetch("/dados_completos_live", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = await res.json();
+    const pilotos = Array.isArray(data.pilotos) ? data.pilotos : [];
+    const sessao  = data.sessao || {};
+    const lideres = data.lideres_setor || {};
+    const sessionBests = data.session_bests || {};
+
+    /* top bar */
+    const pista = sessao.nome_pista || "—";
+    const tipo  = sessao.tipo_sessao || "Sessão";
+    document.getElementById("sessionName").textContent = `${pista} : ${tipo}`;
+
+    const totalV = sessao.total_voltas || 0;
+    const voltaAtual = sessao.volta_atual || 0;
+    document.getElementById("sessionTimer").textContent =
+      totalV ? `LAP ${voltaAtual}/${totalV}` : "LIVE";
+
+    const flag = flagName(sessao.bandeira || "Verde");
+    const badge = document.getElementById("statusBadge");
+    badge.textContent = (sessao.sc_status && sessao.sc_status !== "Nenhum")
+      ? sessao.sc_status : flag;
+    badge.classList.toggle("red", /vermelh|red|Safety Car Completo/i.test(badge.textContent));
+    badge.classList.toggle("yellow", /amarel|yellow|Virtual|Formação/i.test(badge.textContent));
+
+    document.getElementById("wTrack").textContent = (sessao.temp_pista ?? "—") + "°C";
+    document.getElementById("wAir").textContent   = (sessao.temp_ar    ?? "—") + "°C";
+    document.getElementById("wRain").textContent  = (sessao.chance_chuva ?? 0) + "%";
+    document.getElementById("wClima").textContent = sessao.clima || "—";
+
+    /* tabela */
+    const tbody = document.getElementById("tabela_pilotos");
+    tbody.innerHTML = "";
+
+    if (!pilotos.length) {
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:20px;color:#666">
+        Nenhum piloto — aguardando sessão...
+      </td></tr>`;
+      return;
+    }
+
+    // ordena por posição
+    const ordered = [...pilotos].sort((a, b) =>
+      (a.posicao ?? 999) - (b.posicao ?? 999));
+
+    ordered.forEach((p, idx) => {
+      try {
+        const tr = document.createElement("tr");
+        if (p.is_pit) tr.classList.add("pit");
+
+        // Posição
+        const tdPos = document.createElement("td");
+        tdPos.className = "pos-cell";
+        tdPos.style.borderLeftColor = p.team_color || "#666";
+        tdPos.textContent = p.posicao ?? "-";
+        tr.appendChild(tdPos);
+
+        // Driver
+        const tdDriver = document.createElement("td");
+        tdDriver.className = "driver-cell";
+        tdDriver.style.borderLeft = `4px solid ${p.team_color || "#666"}`;
+        tdDriver.style.background = `linear-gradient(90deg, ${p.team_color || "#666"}22 0%, transparent 60%)`;
+        tdDriver.innerHTML = `<span class="num">${p.numero ?? ""}</span><span class="code">${shortCode(p.nome)}</span>`;
+        tr.appendChild(tdDriver);
+
+        // Gap
+        const tdGap = document.createElement("td");
+        const isLeader = p.gap != null && p.gap === 0;
+        tdGap.className = "num" + (isLeader ? " leader" : "");
+        tdGap.textContent = isLeader ? "Leader" :
+                            p.gap != null ? "+" + fmtTempo(p.gap) : "—";
+        tr.appendChild(tdGap);
+
+        // Interval
+        const tdInt = document.createElement("td");
+        tdInt.className = "num dim";
+        tdInt.textContent = (p.interval == null || p.interval === 0)
+          ? "—" : "+" + fmtTempo(p.interval);
+        tr.appendChild(tdInt);
+
+        // Best Lap
+        const tdBL = document.createElement("td");
+        tdBL.className = "num" + (p.is_sb_lap ? " purple" : "");
+        tdBL.textContent = fmtTempo(p.best_lap);
+        tr.appendChild(tdBL);
+
+        // S1 / S2 / S3
+        ["s1", "s2", "s3"].forEach(k => {
+          const td = document.createElement("td");
+          const valor = p[k + "_atual"] ?? p[k];
+          const sbVal = sessionBests[k];
+          const pbVal = p["best_" + k];
+
+          let cls = "num";
+
+          if (valor == null || valor <= 0) {
+            // sem dado → sem cor
+          } else if (sbVal != null && Math.abs(valor - sbVal) < 0.001) {
+            cls += " purple";
+          } else if (pbVal != null && valor <= pbVal + 0.001) {
+            cls += " green";
+          } else if (pbVal != null && (valor - pbVal) <= 1.5) {
+            cls += " yellow";
+          } else if (pbVal != null) {
+            cls += " red";
+          }
+
+          td.className = cls;
+          td.textContent = fmtTempo(valor);
+          tr.appendChild(td);
+        });
+
+        // Last Lap
+        const tdLL = document.createElement("td");
+        tdLL.className = "num";
+        tdLL.textContent = fmtTempo(p.last_lap);
+        tr.appendChild(tdLL);
+
+        // Speed
+        const tdSpd = document.createElement("td");
+        tdSpd.className = "speed-cell";
+        tdSpd.textContent = p.speed ? p.speed + " km/h" : "—";
+        tr.appendChild(tdSpd);
+
+        // Tyre
+        const tdT = document.createElement("td");
+        tdT.className = "tyre-cell";
+        tdT.innerHTML = `<span class="tyre-badge ${tyreClass(p.tyre)}"></span>${p.tyre_age ?? 0}L`;
+        tr.appendChild(tdT);
+
+        tbody.appendChild(tr);
+      } catch (e) {
+        console.error("Erro no piloto", p?.nome, e, p);
+      }
+    });
+
+    /* líderes de setor */
+    ["s1", "s2", "s3"].forEach((k, i) => {
+      const el = document.getElementById(`sector${i+1}Content`);
+      const L = lideres[k];
+      if (!L) {
+        el.innerHTML = `<span class="sector-pos" style="border-left-color:#888">—</span>
+                        <span class="sector-name">—</span>
+                        <span class="sector-time">—</span>`;
+        return;
+      }
+      el.innerHTML = `
+        <span class="sector-pos" style="border-left-color:${L.team_color || '#888'}">${L.pos ?? "—"}</span>
+        <span class="sector-name">${shortCode(L.nome)}</span>
+        <span class="sector-time">${fmtTempo(L.tempo)}</span>`;
+    });
+
+  } catch (err) {
+    console.error("Erro no timing:", err);
+  }
+}
+
+setInterval(atualizar, 1000);
+atualizar();
+</script>
+
 </body>
 </html>

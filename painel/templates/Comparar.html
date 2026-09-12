@@ -373,6 +373,7 @@ const App = () => {
   const [posData,  setPosData]    = useState({}); // grid → final: {nome:{grid, final}}
   const [liderancaData, setLiderancaData] = useState({}); // {nome:true/false} — nunca perdeu o P1 (p/ Grand Chelem)
   const [voltasAfetadas, setVoltasAfetadas] = useState(new Set()); // 🆕 voltas sob SC/VSC/bandeira amarela/vermelha
+    const [deltaLider, setDeltaLider] = useState(null);           // 🆕 margem final P1→P2
 
   useEffect(() => {
     fetch('/historico_sessoes')
@@ -388,6 +389,7 @@ const App = () => {
     if (!sessId) return;
     setLoading(true); setPilotos([]); setSessao({});
     setPitData({}); setDanoData({}); setDanoHist({}); setPosData({}); setLiderancaData({}); setVoltasAfetadas(new Set());
+    setDeltaLider(null);
 
     Promise.all([
       fetch(`/dados_voltas/${sessId}`).then(r => r.json()),
@@ -396,12 +398,12 @@ const App = () => {
       fetch(`/api/danos_por_volta/${sessId}`).then(r => r.json()).catch(() => ({ pilotos: [] })),
       fetch(`/api/race_positions/${sessId}`).then(r => r.json()).catch(() => ({ pilotos: [] })),
       fetch(`/api/bandeiras/${sessId}`).then(r => r.json()).catch(() => ({ bandeiras: [] })),
-    
     ]).then(([raw, pits, danos, danosPV, racePos, bandeiras]) => {
       console.log('📊 dados_voltas:', raw);
       const transformed = transformDadosVoltas(raw);
       setPilotos(transformed);
       setSessao(raw.sessao || {});
+      setDeltaLider(raw.sessao?.delta_lider ?? null);
       setRefIdx(0);
       setCmpIdx(transformed.length > 1 ? 1 : 0);
 
@@ -413,7 +415,6 @@ const App = () => {
       (danos.pilotos || []).forEach(p => { danoMap[p.nome] = p.danos || {}; });
       setDanoData(danoMap);
 
-      // histórico real: { nomePiloto: { numero_volta: { asa_esquerda,... } } }
       const histMap = {};
       (danosPV.pilotos || []).forEach(p => {
         histMap[p.nome] = {};
@@ -421,10 +422,6 @@ const App = () => {
       });
       setDanoHist(histMap);
 
-      // posição de largada (grid) vs posição final: { nome: { grid, final } }
-      // + liderança volta-a-volta calculada localmente a partir do mesmo
-      // campo "posicoes" ({volta: posição}) que já vem em /api/race_positions
-      // e alimenta o gráfico do race_positions.html — não depende de rota extra.
       const posMap = {};
       const liderancaMap = {};
       (racePos.pilotos || []).forEach(p => {
@@ -433,10 +430,6 @@ const App = () => {
           final: p.pos_final     || null,
           posicoes: p.posicoes || {},
         };
-
-        // liderancaMap[nome] = true  → ficou em P1 em TODAS as voltas
-        // registradas (requisito de "ponta a ponta" do Grand Chelem).
-        // Ignora a volta 0 (marcador de grid, não é volta de corrida de fato).
         const posicoes   = p.posicoes || {};
         const voltasNums = Object.keys(posicoes).map(Number).filter(v => v > 0);
         liderancaMap[p.nome] = voltasNums.length > 0 &&
@@ -445,15 +438,12 @@ const App = () => {
       setPosData(posMap);
       setLiderancaData(liderancaMap);
 
-      // 🆕 voltas sob Amarela/Vermelha/Safety Car/VSC (tudo que não é "normal")
-      // são marcadas aqui pra não distorcer o ritmo médio dos pilotos —
-      // ver PerformanceView → calcMedia.
-      const NORMAIS = new Set(['Verde', 'Nenhum', 'Azul']); // Azul é só aviso de trânsito, não afeta ritmo geral
+      const NORMAIS = new Set(['Verde', 'Nenhum', 'Azul']);
       const afetadas = new Set();
       (bandeiras.bandeiras || []).forEach(b => {
         if (NORMAIS.has(b.tipo)) return;
         const ini = b.volta_inicio || 0;
-        const fim = b.volta_fim || ini; // se ainda "aberto" (sem volta_fim), assume só a volta de início
+        const fim = b.volta_fim || ini;
         for (let v = ini; v <= fim; v++) afetadas.add(v);
       });
       setVoltasAfetadas(afetadas);
@@ -523,7 +513,7 @@ const App = () => {
           {tab === 'compare' && ref && comp && <CompareView ref_={ref} comp={comp} />}
           {tab === 'individual' && <IndividualView pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} pitData={pitData} danoData={danoData} danoHist={danoHist} />}
           {tab === 'delta' && <DeltaChart pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} />}
-          {tab === 'performance' && <PerformanceView pilotos={pilotos} tipoSessao={sessInfo.tipo_sessao} danoData={danoData} danoHist={danoHist} posData={posData} liderancaData={liderancaData} voltasAfetadas={voltasAfetadas} />}
+          {tab === 'performance' && <PerformanceView pilotos={pilotos} tipoSessao={sessInfo.tipo_sessao} danoData={danoData} danoHist={danoHist} posData={posData} liderancaData={liderancaData} voltasAfetadas={voltasAfetadas} deltaLider={deltaLider} />}
         </>
       )}
     </div>
@@ -1602,7 +1592,7 @@ const DeltaChart = ({ pilotos, refIdx, cmpIdx }) => {
 // Em sessões de corrida, só entra quem completou o mesmo nº de voltas do líder (sem folga).
 // Quanto menor o tempo médio num setor vs o melhor do grid = score mais alto.
 // ─────────────────────────────────────────────────────────────────────────────
-const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, liderancaData, voltasAfetadas }) => {
+const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, liderancaData, voltasAfetadas, deltaLider }) => {
   if (!pilotos.length) return <div style={{color:'var(--muted)',padding:'40px',textAlign:'center'}}>Sem dados</div>;
 
   // ── Calcula média de setor filtrando outliers (voltas lentas E rápidas demais) ──
@@ -1729,7 +1719,7 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
   // ── Bônus de Hat-trick e Grand Chelem ────────────────────────────────────
   // Hat-trick:    Pole Position + Volta Mais Rápida + Vitória           → +2
   // Grand Chelem: tudo isso + liderou a corrida do início ao fim, sem
-  //               perder o 1º lugar em NENHUMA volta                   → +3
+  //               perder o 1º lugar em NENHUMA volta                   → +7
   //               (substitui o Hat-trick nesse piloto, não soma aos dois)
 
   // OBS: Pole/Volta Mais Rápida/Vitória saem direto dos dados que já temos
@@ -1786,6 +1776,8 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
   const GRID_GOD_TIER          = 3.0;
   const GRID_OUTRO_NIVEL       = 5.0;  // 
   const GRID_BONUS_FATOR_POS   = { 1: 1.0, 2: 0.8, 3: 0.6, 4: 0.4, 5: 0.2 };
+  const MIN_PILOTOS_PARA_BONUS_GRID = 10;
+  const temGridSuficiente = pilotsData.length >= MIN_PILOTOS_PARA_BONUS_GRID;
 
   const scoreSemGrid = (p) => {
     const base = scorePuro(p.tot, best.tot);
@@ -1801,23 +1793,26 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
   const notasTop10 = top10.map(scoreSemGrid).filter(n => n !== null);
   const maioria   = Math.ceil(notasTop5.length / 2);
   const maioria10 = Math.ceil(notasTop10.length / 2);
+
   let gridBonusBase = 0;
   let gridBonusLabel = null;
-  if (maioria10 > 0 && notasTop10.filter(n => n >= 10.0).length >= maioria) {
-       gridBonusBase = GRID_OUTRO_NIVEL; gridBonusLabel = 'Grid Outro Nível';
-  }else if (maioria > 0 && notasTop5.filter(n => n >= 12.0).length >= maioria) {
-    gridBonusBase = GRID_GOD_TIER; gridBonusLabel = 'Grid de Deus';
-  } else if (maioria > 0 && notasTop5.filter(n => n >= 10.0).length >= maioria) {
-    gridBonusBase = GRID_BONUS_FORTISSIMO; gridBonusLabel = 'Grid Fortíssimo';
-  } else if (maioria > 0 && notasTop5.filter(n => n >= 9.0).length >= maioria) {
-    gridBonusBase = GRID_BONUS_MUITO_FORTE; gridBonusLabel = 'Grid Muito Forte';
-  } else if (maioria > 0 && notasTop5.filter(n => n >= 7.5).length >= maioria) {
-    gridBonusBase = GRID_BONUS_FORTE; gridBonusLabel = 'Grid Forte';
+ if (isRace && temGridSuficiente) {
+    if (maioria10 > 0 && notasTop10.filter(n => n >= 10.0).length >= maioria10) {
+      gridBonusBase = GRID_OUTRO_NIVEL;        gridBonusLabel = 'Grid Outro Nível';
+    } else if (maioria > 0 && notasTop5.filter(n => n >= 12.0).length >= maioria) {
+      gridBonusBase = GRID_GOD_TIER;           gridBonusLabel = 'Grid de Deus';
+    } else if (maioria > 0 && notasTop5.filter(n => n >= 10.0).length >= maioria) {
+      gridBonusBase = GRID_BONUS_FORTISSIMO;   gridBonusLabel = 'Grid Fortíssimo';
+    } else if (maioria > 0 && notasTop5.filter(n => n >= 9.0).length >= maioria) {
+      gridBonusBase = GRID_BONUS_MUITO_FORTE;  gridBonusLabel = 'Grid Muito Forte';
+    } else if (maioria > 0 && notasTop5.filter(n => n >= 7.5).length >= maioria) {
+      gridBonusBase = GRID_BONUS_FORTE;        gridBonusLabel = 'Grid Forte';
+    }
   }
-
   const gridBonusMap = {};
+  if (gridBonusBase > 0){
   top5.forEach(p => { gridBonusMap[p.nome] = gridBonusBase * (GRID_BONUS_FATOR_POS[p.posicao] || 0); });
-
+}
   const rankBy = (field) => {
     const sorted = [...pilotsData].filter(p=>p[field]).sort((a,b)=>a[field]-b[field]);
     const ranks = {};
@@ -1894,7 +1889,32 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
     return Math.min(3.5, 1.5 * (p.grid - 20 )*1.0);
   };
   // O projeto ainda não possui um gap final P1-P2 confiável.
-  const calcBonusMargemVitoria = () => 0;
+    // ── Bônus de Margem de Vitória (P1 → P2) ────────────────
+  // Só em corrida/sprint, e só pro vencedor.
+  //   • gap < 10s                  → 0
+  //   • gap == 10s                 → +1.0
+  //   • 10s < gap ≤ 35s            → +0.5 a cada 5s extras
+  //   • gap > 35s                  → +1.0 a cada 5s extras
+  const calcBonusMargemVitoria = (p) => {
+    if (!isRace) return 0;
+    if (p.posFinal !== 1) return 0;
+    const gap = deltaLider;
+    if (!Number.isFinite(gap) || gap < 10) return 0;
+
+    let bonus = 1.0;
+
+    if (gap > 10) {
+      const intervalosAte35 = Math.min(Math.floor((gap - 10) / 5), 5);
+      bonus += intervalosAte35 * 0.5;
+    }
+
+    if (gap > 35) {
+      const intervalosApos35 = Math.floor((gap - 35) / 5);
+      bonus += intervalosApos35 * 1.0;
+    }
+
+    return bonus;
+  };
 
   const calcBonusResiliencia = (p) => {
     if (!isRace) return 0;
@@ -1947,6 +1967,7 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
     const bonusForaTop10   = calcBonusVitoriaForaTop10(p);
     const bonusForaTop20   = calcBonusVitoriaForaTop20(p);
     const bonusResiliencia = calcBonusResiliencia(p);
+    const bonusMargemVitoria = calcBonusMargemVitoria(p);
 
     return {
       melhorS1, melhorS2, melhorS3, melhorVolta,
@@ -1957,6 +1978,7 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
       bonusForaTop20,
       bonusForaTop10,
       bonusResiliencia,
+      bonusMargem:bonusMargemVitoria,
     };
   };
 
@@ -2201,6 +2223,8 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
                     {extras.bonusForaTop10 > 0 && <FeitoBadge emoji="🌟" label="FORA DO TOP10" color="#ff1493" title={`Venceu largando de P${p.grid} (+${extras.bonusForaTop10.toFixed(1)})`}/>}
                     {extras.bonusVitoriaForaTop20 > 0 && <FeitoBadge emoji="🏆" label="FORA DO TOP20" color="#fc1fff" title={`Venceu largando de P${p.grid} (+${extras.bonusVitoriaForaTop20.toFixed(1)})`}/>}
                     {extras.bonusResiliencia > 0 && <FeitoBadge emoji="🛡️" label="RESILIENTE" color="#00e87a" title={`Manteve o ritmo mesmo danificado (+${extras.bonusResiliencia.toFixed(1)})`}/>}
+                                  />
+                        )}
                   </div>
                 </td>
                 {/* Scores por setor */}
@@ -2290,7 +2314,7 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
   </span>
 
   <span>
-    🏁 Margem de Vitória = +0.5 a cada 5s até 25s · depois +1.0 a cada 5s
+    🏁 Margem de Vitória = +0.5 a cada 5s até 35s · depois +1.0 a cada 5s
   </span>
 
   <span>
