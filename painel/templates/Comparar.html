@@ -2160,9 +2160,9 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
               const bonusRitmo  = calcBonusRitmo(p);
               const feitos      = calcBonusFeitos(p);
               const bonusFeitos = feitos.valor;
-              const bonusExtras = Math.min(8.0, calcBonusMelhores(p) + calcBonusConsistencia(p.consistencia) +
+              const bonusExtras = Math.min(12.8, calcBonusMelhores(p) + calcBonusConsistencia(p.consistencia) +
                 calcBonusGanhoVolta2(p) + calcBonusPodioVsRitmo(p) + calcBonusLideranca(p) +
-                calcBonusVitoriaForaTop10(p) + calcBonusMargemVitoria(p) + calcBonusResiliencia(p));
+                calcBonusVitoriaForaTop10(p) + calcBonusVitoriaForaTop20(p) + calcBonusMargemVitoria(p) + calcBonusResiliencia(p));
               const extras = detectaExtras(p);
               const dano   = (danoData||{})[p.nome];
               const temDano = dano && dano.total >= 1;
@@ -2221,10 +2221,11 @@ const PerformanceView = ({ pilotos, tipoSessao, danoData, danoHist, posData, lid
                     {extras.bonusPodio > 0 && <FeitoBadge emoji="🏅" label="PÓDIO SURPRESA" color="#ffd700" title={`Terminou no pódio sendo o ${extras.rankRitmo}º mais rápido em ritmo (+${extras.bonusPodio.toFixed(1)})`}/>}
                     {extras.bonusLideranca > 0 && <FeitoBadge emoji="👑" label={`LIDEROU ${extras.pctLideradas}%`} color="#ff8c00" title={`Liderou ${extras.pctLideradas}% das voltas (+${extras.bonusLideranca.toFixed(1)})`}/>}
                     {extras.bonusForaTop10 > 0 && <FeitoBadge emoji="🌟" label="FORA DO TOP10" color="#ff1493" title={`Venceu largando de P${p.grid} (+${extras.bonusForaTop10.toFixed(1)})`}/>}
-                    {extras.bonusVitoriaForaTop20 > 0 && <FeitoBadge emoji="🏆" label="FORA DO TOP20" color="#fc1fff" title={`Venceu largando de P${p.grid} (+${extras.bonusVitoriaForaTop20.toFixed(1)})`}/>}
+                    {extras.bonusForaTop20 > 0 && <FeitoBadge 
+                    emoji="🏆" label="FORA DO TOP20" color="#fc1fff" 
+                    title={`Venceu largando de P${p.grid} (+${extras.bonusForaTop20.toFixed(1)})`} />}
                     {extras.bonusResiliencia > 0 && <FeitoBadge emoji="🛡️" label="RESILIENTE" color="#00e87a" title={`Manteve o ritmo mesmo danificado (+${extras.bonusResiliencia.toFixed(1)})`}/>}
-                                  />
-                        )}
+                    {extras.bonusMargem > 0 && <FeitoBadge emoji="🏁" label="MARGEM DE VITÓRIA" color="#00d4ff" title={`Bônus por vencer com margem de ${deltaLider.toFixed(1)}s (+${extras.bonusMargem.toFixed(1)})`}/>}
                   </div>
                 </td>
                 {/* Scores por setor */}

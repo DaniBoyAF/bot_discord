@@ -6,174 +6,289 @@
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  html, body {
-    height:100%; overflow:hidden;
-    font-family:'Titillium Web','Segoe UI',Tahoma,sans-serif;
-    background:#0a0a0a; color:#fff;
-  }
-  .app { display:grid; grid-template-columns: 300px 1fr; height:100vh; }
+  html, body { height:100%; overflow:hidden; font-family:'Titillium Web','Segoe UI',Tahoma,sans-serif; background:#0a0a0a; color:#fff; }
+  .app { display:grid; grid-template-columns: 320px 1fr; height:100vh; }
   .app.sem-lb { grid-template-columns: 0 1fr; }
-
-  /* ═══ SIDEBAR ═══ */
-  .lb {
-    background:#050505; border-right:1px solid #1a1a1a;
-    display:flex; flex-direction:column; overflow:hidden;
-  }
-  .lb-header {
-    background:#000; border-bottom:1px solid #1a1a1a;
-    padding:10px 14px 8px; text-align:center;
-  }
-  .lb-header .f1 {
-    color:#e10600; font-weight:900; letter-spacing:2px;
-    font-size:16px; font-style:italic;
-  }
+  .lb { background:#050505; border-right:1px solid #1a1a1a; display:flex; flex-direction:column; overflow:hidden; }
+  .lb-header { background:#000; border-bottom:1px solid #1a1a1a; padding:10px 14px 8px; text-align:center; }
+  .lb-header .f1 { color:#e10600; font-weight:900; letter-spacing:2px; font-size:16px; font-style:italic; }
   .lb-header .f1 span { color:#fff; }
-  .lb-lap {
-    background:#111; color:#ffd400; margin:6px -14px -8px;
-    padding:5px 14px; font-size:11px; font-weight:800;
-    letter-spacing:1px; text-transform:uppercase;
-    font-variant-numeric: tabular-nums;
-  }
+  .lb-lap { background:#111; color:#ffd400; margin:6px -14px -8px; padding:5px 14px; font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; font-variant-numeric: tabular-nums; }
   .lb-mode { display:flex; gap:0; border-bottom:1px solid #1a1a1a; }
-  .lb-mode button {
-    flex:1; background:#0a0a0a; color:#888;
-    border:none; padding:7px 0;
-    font-family:inherit; font-size:10px; font-weight:700;
-    letter-spacing:.8px; text-transform:uppercase;
-    cursor:pointer; border-right:1px solid #1a1a1a;
-    transition: all .15s;
-  }
+  .lb-mode button { flex:1; background:#0a0a0a; color:#888; border:none; padding:7px 0; font-family:inherit; font-size:10px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; cursor:pointer; border-right:1px solid #1a1a1a; transition: all .15s; }
   .lb-mode button:last-child { border-right:none; }
   .lb-mode button:hover { background:#141414; color:#ccc; }
   .lb-mode button.on { background:#e10600; color:#fff; }
-
   .lb-body { flex:1; overflow-y:auto; padding:4px 0; }
-  .lb-row {
-    display:grid;
-    grid-template-columns: 26px 22px 1fr auto 22px;
-    align-items:center; height:26px;
-    padding:0 10px 0 6px;
-    border-left:3px solid transparent;
-    font-size:12px;
-    font-variant-numeric: tabular-nums;
-    transition: background .15s;
-  }
+  .lb-row { display:grid; grid-template-columns: 26px 22px 1fr auto 22px 16px; align-items:center; height:26px; padding:0 8px 0 6px; border-left:3px solid transparent; font-size:12px; font-variant-numeric: tabular-nums; transition: background .15s; cursor:pointer; }
   .lb-row:nth-child(even) { background:#0a0a0a; }
   .lb-row:hover { background:#141414; }
   .lb-row.pit { background:rgba(255,215,0,.06); }
-
+  .lb-row.selected { background:rgba(0,157,69,0.18); box-shadow: inset 3px 0 0 #009d45; }
   .lb-pos { text-align:center; font-weight:800; color:#fff; font-size:11px; }
   .lb-bar { width:14px; height:14px; border-radius:2px; justify-self:center; }
   .lb-code { font-weight:900; letter-spacing:.6px; font-size:12px; padding-left:4px; white-space:nowrap; }
-  .lb-val {
-    text-align:right; color:#ddd; padding-right:6px; font-size:11px; white-space:nowrap;
-  }
+  .lb-val { text-align:right; color:#ddd; padding-right:6px; font-size:11px; white-space:nowrap; }
   .lb-val.purple { color:#c04cff; font-weight:800; }
   .lb-val.green  { color:#23e07a; font-weight:700; }
   .lb-val.yellow { color:#ffd400; font-weight:800; }
   .lb-val.dim    { color:#666; }
-
-  .lb-tyre {
-    width:18px; height:18px; border-radius:50%;
-    text-align:center; line-height:16px;
-    font-size:10px; font-weight:900; color:#000;
-    justify-self:center; border:2px solid #222;
-  }
+  .lb-tyre { width:18px; height:18px; border-radius:50%; text-align:center; line-height:16px; font-size:10px; font-weight:900; color:#000; justify-self:center; border:2px solid #222; }
   .lb-tyre.S  { background:#ff0000; color:#fff; }
   .lb-tyre.M  { background:#ffd400; }
   .lb-tyre.H  { background:#eeeeee; }
   .lb-tyre.I  { background:#1de21d; }
   .lb-tyre.W  { background:#0080ff; color:#fff; }
   .lb-tyre.SS { background:#c04cff; color:#fff; }
+  .lb-warn { width:16px; height:16px; border-radius:50%; text-align:center; line-height:16px; font-size:10px; font-weight:900; justify-self:center; }
+  .lb-warn.on  { background:#ef4444; color:#fff; box-shadow:0 0 6px rgba(239,68,68,.7); }
+  .lb-warn.off { background:transparent; color:transparent; }
 
-  /* ═══ MAPA ═══ */
-  .map-container { position:relative; overflow:hidden; }
-  canvas { display:block; width:100%; height:100%; cursor:grab; }
+  .session-bar { display:flex; align-items:stretch; height:42px; background:#000; border-bottom:1px solid #1a1a1a; font-size:12px; user-select:none; font-variant-numeric: tabular-nums; }
+  .session-bar .blk { display:flex; align-items:center; gap:8px; padding:0 14px; border-right:1px solid #1a1a1a; white-space:nowrap; }
+  .session-bar .blk.big { font-size:20px; font-weight:800; color:#fff; letter-spacing:.5px; padding:0 18px; }
+  .session-bar .blk .lbl { color:#888; font-size:9px; text-transform:uppercase; letter-spacing:.6px; }
+  .session-bar .blk .val { font-weight:800; color:#fff; }
+  .session-bar .blk.nome { background:#009d45; color:#fff; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:0 14px; }
+  .session-bar .blk.lap { background:#ffd400; color:#000; font-weight:900; letter-spacing:.5px; padding:0 14px; }
+  .session-bar .blk.flag { background:#111; color:#fff; font-weight:700; letter-spacing:.5px; text-transform:uppercase; padding:0 14px; }
+  .session-bar .blk.flag.red    { background:#c40000; }
+  .session-bar .blk.flag.yellow { background:#c4a400; color:#000; }
+  .session-bar .blk.formula { background:#e10600; color:#fff; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; padding:0 14px; font-size:14px; }
+  .session-bar .spacer { flex:1; }
+  .session-bar .w-icon { font-size:16px; line-height:1; }
+  .session-bar .w-temp { font-size:14px; font-weight:800; color:#fff; }
+
+  .map-container { position:relative; overflow:hidden; display:flex; flex-direction:column; }
+  canvas { display:block; width:100%; flex:1; cursor:grab; min-height:0; }
   canvas.arrastando { cursor:grabbing; }
 
-  .bar {
-    position:absolute; top:12px; left:12px; right:12px;
-    display:flex; gap:10px; align-items:center;
-    padding:8px 12px; border-radius:10px;
-    background:rgba(10,10,10,.75); backdrop-filter:blur(8px);
-    border:1px solid rgba(255,255,255,.08);
-    font-size:12px; z-index:10; flex-wrap:wrap;
-  }
-  .bar label {
-    display:flex; align-items:center; gap:6px;
-    text-transform:uppercase; letter-spacing:.6px;
-    font-size:10px; color:#aaa;
-  }
-  .bar select, .bar button {
-    background:#111; color:#fff; border:1px solid #333;
-    padding:5px 10px; border-radius:6px;
-    font-family:inherit; font-size:11px;
-    cursor:pointer; outline:none;
-  }
+  .bar { position:absolute; top:54px; left:12px; right:12px; display:flex; gap:10px; align-items:center; padding:8px 12px; border-radius:10px; background:rgba(10,10,10,.75); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.08); font-size:12px; z-index:10; flex-wrap:wrap; }
+  .bar label { display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:.6px; font-size:10px; color:#aaa; }
+  .bar select, .bar button { background:#111; color:#fff; border:1px solid #333; padding:5px 10px; border-radius:6px; font-family:inherit; font-size:11px; cursor:pointer; outline:none; }
   .bar select:hover, .bar button:hover { background:#1a1a1a; }
-  .bar .pill {
-    background:#009d45; padding:4px 10px; border-radius:6px;
-    font-weight:700; font-size:11px;
-    letter-spacing:.5px; text-transform:uppercase;
-  }
+  .bar .pill { background:#009d45; padding:4px 10px; border-radius:6px; font-weight:700; font-size:11px; letter-spacing:.5px; text-transform:uppercase; }
   .bar .info { margin-left:auto; color:#888; font-size:10px; }
-  .toggle-lb {
-    position:absolute; top:12px; left:12px; z-index:20;
-    background:#111; color:#fff; border:1px solid #333;
-    padding:5px 10px; border-radius:6px; cursor:pointer;
-    font-size:11px; display:none;
-  }
+  .toggle-lb { position:absolute; top:54px; left:12px; z-index:20; background:#111; color:#fff; border:1px solid #333; padding:5px 10px; border-radius:6px; cursor:pointer; font-size:11px; display:none; }
   .app.sem-lb .toggle-lb { display:block; }
 
-  .legenda {
-    position:absolute; bottom:16px; right:16px;
-    padding:10px 14px;
-    background:rgba(10,10,10,.75); backdrop-filter:blur(8px);
-    border:1px solid rgba(255,255,255,.08); border-radius:10px;
-    font-size:10px; letter-spacing:.5px;
-    z-index:10; display:none;
-  }
+  .legenda { position:absolute; bottom:16px; right:16px; padding:10px 14px; background:rgba(10,10,10,.75); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.08); border-radius:10px; font-size:10px; letter-spacing:.5px; z-index:10; display:none; }
   .legenda.on { display:block; }
-  .grad {
-    height:10px; width:180px; margin-top:6px; border-radius:4px;
-    background:linear-gradient(90deg,
-      #001a66 0%, #00c8ff 25%, #00ff41 50%,
-      #ffd400 75%, #ff2020 100%);
-  }
+  .grad { height:10px; width:180px; margin-top:6px; border-radius:4px; background:linear-gradient(90deg, #001a66 0%, #00c8ff 25%, #00ff41 50%, #ffd400 75%, #ff2020 100%); }
   .grad-lbl { display:flex; justify-content:space-between; margin-top:2px; color:#888; }
+
+  .toast { position:fixed; top:54px; right:16px; z-index:100; display:none; flex-direction:column; gap:4px; padding:10px 14px; border-radius:8px; background:rgba(20,10,10,.95); backdrop-filter:blur(8px); border:1px solid rgba(239,68,68,.5); font-size:11px; min-width:220px; max-width:320px; box-shadow:0 8px 24px rgba(0,0,0,.6); }
+  .toast.on { display:flex; }
+  .toast .title { color:#ef4444; font-weight:800; letter-spacing:.5px; font-size:10px; text-transform:uppercase; padding-bottom:5px; border-bottom:1px solid rgba(239,68,68,.25); margin-bottom:3px; }
+  .toast .item { display:flex; justify-content:space-between; gap:12px; color:#eee; }
+  .toast .item .nome { font-weight:700; letter-spacing:.3px; }
+  .toast .item .val { color:#f97316; font-weight:800; font-variant-numeric: tabular-nums; }
+
+  .compare-panel { position:absolute; top:58px; right:210px; z-index:14; width:236px; display:none; flex-direction:column; border-radius:4px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.8); font-family:'Titillium Web','Segoe UI',sans-serif; animation:pitIn .25s ease both; background:#0a0a0a; }
+  .compare-panel.on { display:flex; }
+  .cmp-header { display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; background:#111; padding:6px 10px; border-bottom:1px solid #1a1a1a; gap:6px; }
+  .cmp-driver { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:900; letter-spacing:1px; color:#fff; white-space:nowrap; }
+  .cmp-driver.right { justify-content:flex-end; }
+  .cmp-bar { width:4px; height:18px; border-radius:1px; }
+  .cmp-vs { font-size:9px; font-weight:900; letter-spacing:1px; color:#666; padding:1px 5px; border:1px solid #2a2a2a; border-radius:3px; background:#0a0a0a; }
+  .cmp-rows { display:flex; flex-direction:column; background:#0a0a0a; }
+  .cmp-row { display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; padding:5px 10px; border-bottom:1px solid #0e0e0e; font-size:12px; font-variant-numeric: tabular-nums; }
+  .cmp-row:last-child { border-bottom:none; }
+  .cmp-row:hover { background:#111; }
+  .cmp-val { font-family:'Orbitron','Titillium Web',monospace; font-weight:800; letter-spacing:.3px; }
+  .cmp-val.left  { text-align:left; }
+  .cmp-val.right { text-align:right; }
+  .cmp-lbl { font-size:9px; color:#888; text-transform:uppercase; letter-spacing:.8px; padding:0 6px; text-align:center; min-width:62px; }
+  .cmp-val.win  { color:#23e07a; }
+  .cmp-val.lose { color:#888; }
+  .cmp-val.mid  { color:#e8eaf6; }
+  .cmp-val.warn { color:#ffd400; font-weight:900; }
+
+  .modal-bg { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.8); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; padding:20px; }
+  .modal-bg.on { display:flex; }
+  .f1-modal { width:100%; max-width:1000px; max-height:92vh; background:linear-gradient(160deg, #1a1e2e 0%, #0f1220 100%); border-radius:8px; overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.06); display:flex; flex-direction:column; }
+  .f1-modal .hdr { display:flex; align-items:center; gap:14px; background:#0a0d15; padding:10px 16px; border-bottom:1px solid #232838; position:relative; }
+  .f1-modal .hdr .num { font-size:26px; font-weight:900; color:#fff; padding:0 14px; border-right:1px solid #232838; font-variant-numeric: tabular-nums; letter-spacing:-1px; }
+  .f1-modal .hdr .nome { font-size:22px; font-weight:900; color:#fff; letter-spacing:1.5px; text-transform:uppercase; }
+  .f1-modal .hdr .tag { background:#e10600; color:#fff; padding:3px 10px; font-size:9px; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; border-radius:2px; }
+  .f1-modal .hdr .lap { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .f1-modal .hdr .lap .lbl { color:#888; font-size:10px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; }
+  .f1-modal .hdr .lap .val { font-size:22px; font-weight:900; color:#fff; font-variant-numeric: tabular-nums; }
+  .f1-modal .hdr .close { width:34px; height:34px; background:#1a1e2e; border:1px solid #2a3040; border-radius:4px; color:#ccc; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; margin-left:14px; }
+  .f1-modal .hdr .close:hover { background:#232838; color:#fff; }
+  .f1-modal .body { display:grid; grid-template-columns: 70px 1fr; flex:1; overflow:hidden; min-height:0; }
+  .f1-sidebar { background:#0a0d15; border-right:1px solid #232838; display:flex; flex-direction:column; padding:10px 0; }
+  .f1-tab { width:100%; background:transparent; border:none; padding:14px 0; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#666; transition: all .15s; position:relative; border-left:3px solid transparent; }
+  .f1-tab:hover { background:#12161f; color:#aaa; }
+  .f1-tab.on { color:#fff; background:#1a1e2e; border-left-color:#e10600; }
+  .f1-tab svg { width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.6; }
+  .f1-tab .lbl { position:absolute; left:80px; top:50%; transform:translateY(-50%); background:#0a0d15; color:#fff; padding:5px 10px; border-radius:4px; font-size:11px; font-weight:700; white-space:nowrap; opacity:0; pointer-events:none; transition: opacity .15s; border:1px solid #232838; z-index:5; }
+  .f1-tab:hover .lbl { opacity:1; }
+  .f1-content { overflow-y:auto; padding:20px; background:linear-gradient(180deg, #14192a 0%, #0d1019 100%); }
+
+  .tyres-layout { display:grid; grid-template-columns: 1fr 1fr; gap:14px; max-width:800px; margin:0 auto; }
+  .tyre-card { background:#0a0d15; border:1px solid #232838; border-radius:6px; padding:14px 16px; position:relative; }
+  .tyre-card .corner { position:absolute; top:10px; left:14px; font-size:10px; font-weight:800; color:#666; letter-spacing:1px; }
+  .tyre-card .cond { font-size:12px; color:#888; margin-bottom:6px; text-transform:uppercase; letter-spacing:1px; text-align:center; }
+  .tyre-card .cond .pct { font-size:32px; font-weight:900; color:#fff; font-variant-numeric: tabular-nums; display:block; margin-top:4px; letter-spacing:-1px; }
+  .tyre-card .temp-block { display:flex; justify-content:space-around; margin-top:10px; padding-top:10px; border-top:1px solid #1a1f2e; }
+  .tyre-card .temp-item { text-align:center; }
+  .tyre-card .temp-item .lbl { font-size:9px; color:#888; letter-spacing:1px; text-transform:uppercase; }
+  .tyre-card .temp-item .val { font-size:16px; font-weight:900; margin-top:2px; font-variant-numeric: tabular-nums; }
+  .tyre-card .temp-item .val.surf  { color:#22c55e; }
+  .tyre-card .temp-item .val.inner { color:#f59e0b; }
+  .tyre-card .temp-item .val.brake { color:#ef4444; }
+  .tyres-total { grid-column: 1 / -1; padding:12px 16px; background:#0a0d15; border:1px solid #232838; border-radius:6px; display:flex; align-items:center; justify-content:space-between; margin-top:4px; }
+  .tyres-total .lbl { color:#888; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; font-weight:700; }
+  .tyres-total .val { font-size:24px; font-weight:900; font-variant-numeric: tabular-nums; }
+
+  .comp-list { max-width:800px; margin:0 auto; }
+  .comp-row { display:grid; grid-template-columns: 1fr 200px 70px; gap:14px; align-items:center; padding:12px 16px; background:#0a0d15; border:1px solid #232838; border-radius:6px; margin-bottom:8px; }
+  .comp-row .nm { font-size:13px; font-weight:700; color:#e8eaf6; letter-spacing:.4px; }
+  .comp-row .nm small { display:block; color:#666; font-size:10px; font-weight:500; letter-spacing:.5px; margin-top:2px; }
+  .comp-bar { height:8px; background:#1a1f2e; border-radius:4px; overflow:hidden; position:relative; }
+  .comp-fill { height:100%; border-radius:4px; transition: width .4s; }
+  .comp-pct { font-size:14px; font-weight:900; text-align:right; font-variant-numeric: tabular-nums; }
+  .comp-status { display:inline-block; padding:1px 6px; border-radius:3px; font-size:9px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; margin-left:6px; }
+
+  .f1-content::-webkit-scrollbar { width:6px; }
+  .f1-content::-webkit-scrollbar-track { background:#0a0d15; }
+  .f1-content::-webkit-scrollbar-thumb { background:#232838; border-radius:3px; }
+
+  .sc-banner { position:absolute; top:58px; left:50%; transform:translateX(-50%); z-index:15; display:none; align-items:stretch; height:56px; border-radius:4px; overflow:hidden; box-shadow:0 8px 28px rgba(0,0,0,.75); font-family:'Titillium Web','Segoe UI',sans-serif; animation:scPulse 1.4s ease-in-out infinite; pointer-events:none; }
+  .sc-banner.on { display:flex; }
+  .sc-banner .sc-icon { background:#ffd400; display:flex; align-items:center; justify-content:center; padding:0 16px; }
+  .sc-banner .sc-icon svg { width:48px; height:26px; fill:#000; }
+  .sc-banner .sc-fia { background:#0a0a0a; display:flex; align-items:center; padding:0 12px; border-left:3px solid #ffd400; }
+  .sc-banner .sc-fia .logo { color:#fff; font-weight:900; font-size:15px; letter-spacing:-0.5px; font-style:italic; border:2px solid #fff; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; line-height:1; }
+  .sc-banner .sc-text { background:#0a0a0a; display:flex; flex-direction:column; justify-content:center; padding:0 22px 0 16px; border-left:3px solid #ffd400; min-width:280px; }
+  .sc-banner .sc-text .l1 { color:#ffd400; font-size:15px; font-weight:900; letter-spacing:1.6px; text-transform:uppercase; line-height:1.1; white-space:nowrap; }
+  .sc-banner .sc-text .l2 { color:#fff; font-size:11px; font-weight:600; letter-spacing:.8px; margin-top:3px; white-space:nowrap; }
+  @keyframes scPulse { 0%,100% { box-shadow: 0 8px 28px rgba(0,0,0,.75), 0 0 0 0 rgba(255,212,0,.65); } 50% { box-shadow: 0 8px 28px rgba(0,0,0,.75), 0 0 0 10px rgba(255,212,0,0); } }
+  .sc-banner.vsc .sc-icon           { background: #c4a400; }
+  .sc-banner.vsc .sc-text .l1       { color: #c4a400; }
+  .sc-banner.vsc .sc-text,
+  .sc-banner.vsc .sc-fia            { border-left-color: #c4a400; }
+  .sc-banner.formation .sc-icon     { background: #22c55e; }
+  .sc-banner.formation .sc-text .l1 { color: #22c55e; }
+  .sc-banner.formation .sc-text,
+  .sc-banner.formation .sc-fia      { border-left-color: #22c55e; }
+  .sc-banner.formation              { animation: none; }
+
+  .pit-window { position:absolute; top:58px; right:16px; z-index:14; width:178px; display:none; flex-direction:column; border-radius:4px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.8); font-family:'Titillium Web','Segoe UI',sans-serif; animation:pitIn .25s ease both; }
+  .pit-window.on { display:flex; }
+  @keyframes pitIn { from { opacity:0; transform: translateY(-6px); } to { opacity:1; transform: translateY(0); } }
+  .pit-window .pw-hdr { background:#e10600; color:#fff; text-align:center; font-size:10px; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; padding:5px 0 4px; }
+  .pit-window .pw-main { background:#0a0a0a; color:#fff; text-align:center; font-size:26px; font-weight:900; letter-spacing:1px; padding:10px 0 8px; line-height:1; }
+  .pit-window .pw-main.open    { color:#fff; }
+  .pit-window .pw-main.soon    { color:#ffd400; }
+  .pit-window .pw-main.closed  { color:#666; font-size:20px; }
+  .pit-window .pw-body { background:#0a0a0a; padding:8px 12px 10px; border-top:1px solid #1a1a1a; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .pit-window .pw-laps { display:inline-flex; align-items:center; gap:8px; padding:3px 14px; border:1.5px solid #e10600; border-radius:999px; color:#e10600; font-size:11px; font-weight:900; letter-spacing:2px; text-transform:uppercase; }
+  .pit-window .pw-tyre { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:900; letter-spacing:1px; color:#fff; }
+  .pit-window .pw-tyre .dot { width:16px; height:16px; border-radius:50%; border:2px solid #222; display:inline-flex; align-items:center; justify-content:center; font-size:9px; color:#000; font-weight:900; }
+  .pit-window .pw-foot { background:#0a0a0a; border-top:1px solid #1a1a1a; padding:5px 10px 7px; text-align:center; font-size:8px; letter-spacing:1.5px; text-transform:uppercase; color:#888; }
+  .pit-window .pw-foot .aws { display:block; margin-top:3px; font-size:9px; letter-spacing:.5px; color:#555; font-weight:700; }
+  .pit-window .pw-foot .aws b { color:#aaa; font-style:italic; }
+  .pit-window.closed .pw-hdr { background:#444; }
+  .pit-window.closed .pw-laps { border-color:#444; color:#888; }
 </style>
 </head>
 <body>
 
-<div class="app" id="app">
+<div class="toast" id="toast">
+  <div class="title" id="toastTitle">⚠️ Pneus gastos</div>
+  <div id="toastBody"></div>
+</div>
 
+<div class="modal-bg" id="modalBg" onclick="closeModal(event)">
+  <div class="f1-modal" onclick="event.stopPropagation()" id="modalContent"></div>
+</div>
+
+<div class="app" id="app">
   <aside class="lb">
     <div class="lb-header">
-      <div class="f1">F1<span> RACE</span></div>
+      <div class="f1" id="lbF1">F1<span> RACE</span></div>
       <div class="lb-lap" id="lbLap">LAP —/—</div>
     </div>
-
     <div class="lb-mode" id="lbMode">
-      <button data-mode="gap"      class="on">GAP</button>
+      <button data-mode="gap" class="on">GAP</button>
       <button data-mode="last">LAST</button>
       <button data-mode="best">BEST</button>
       <button data-mode="interval">INT</button>
     </div>
-
     <div class="lb-body" id="lbBody">
-      <div style="text-align:center;padding:30px 10px;color:#666;font-size:11px">
-        Aguardando sessão...
-      </div>
+      <div style="text-align:center;padding:30px 10px;color:#666;font-size:11px">Aguardando sessão...</div>
     </div>
   </aside>
 
   <main class="map-container">
+    <div class="session-bar">
+      <div class="blk nome" id="sNome">—</div>
+      <div class="blk lap"  id="sLap">LAP —/—</div>
+      <div class="blk flag" id="sFlag">—</div>
+      <div class="blk formula" id="sFormula">F1</div>
+      <div class="blk big" id="sTime">--:--:--</div>
+      <div class="blk"><span class="w-icon" id="sWeatherIcon">☀️</span><span class="w-temp" id="sTempA">—°C</span></div>
+      <div class="blk"><span class="lbl">Restante</span><span class="val" id="sTimeLeft">—</span></div>
+      <div class="blk"><span class="w-icon">💧</span><span class="val" id="sRain">—%</span></div>
+      <div class="spacer"></div>
+      <div class="blk"><span class="lbl">TRACK</span><span class="val" id="sTempP">—°C</span></div>
+    </div>
+
+    <div class="sc-banner" id="scBanner">
+      <div class="sc-icon">
+        <svg viewBox="0 0 60 28" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 21 L6 13 L13 11 L19 6 L41 6 L47 11 L54 13 L58 21 Z"/>
+          <rect x="6"  y="21" width="11" height="6" rx="2"/>
+          <rect x="43" y="21" width="11" height="6" rx="2"/>
+          <rect x="17" y="10" width="6" height="4"/>
+          <rect x="37" y="10" width="6" height="4"/>
+        </svg>
+      </div>
+      <div class="sc-fia"><span class="logo">FIA</span></div>
+      <div class="sc-text">
+        <div class="l1" id="scText1">CATCH SAFETY CAR QUEUE</div>
+        <div class="l2" id="scText2">Do not exceed delta pace</div>
+      </div>
+    </div>
+
+    <div class="pit-window" id="pitWindow">
+      <div class="pw-hdr">PIT WINDOW</div>
+      <div class="pw-main" id="pwMain">OPEN</div>
+      <div class="pw-body">
+        <span class="pw-laps" id="pwLaps">LAPS</span>
+        <div class="pw-tyre" id="pwTyre">
+          <span class="dot" id="pwTyreDot">M</span>
+          <span id="pwTyreName">MEDIUM</span>
+        </div>
+      </div>
+      <div class="pw-foot">
+        POSSIBLE RACE STRATEGIES
+        <span class="aws">powered by <b>aws</b></span>
+      </div>
+    </div>
+
+    <div class="compare-panel" id="comparePanel">
+      <div class="cmp-header">
+        <span class="cmp-driver" id="cmpA">
+          <span class="cmp-bar" id="cmpABar"></span>
+          <span id="cmpACode">---</span>
+        </span>
+        <span class="cmp-vs">VS</span>
+        <span class="cmp-driver right" id="cmpB">
+          <span id="cmpBCode">---</span>
+          <span class="cmp-bar" id="cmpBBar"></span>
+        </span>
+      </div>
+      <div class="cmp-rows" id="cmpRows"></div>
+    </div>
+
     <button class="toggle-lb" id="btnToggleLb">Mostrar tower</button>
     <canvas id="mapa"></canvas>
 
     <div class="bar">
       <span class="pill" id="pistaNome">—</span>
-
       <label>Tema
         <select id="selTema">
           <option value="broadcast">Broadcast</option>
@@ -182,7 +297,6 @@
           <option value="retro">Retrô</option>
         </select>
       </label>
-
       <label>Modo
         <select id="selModo">
           <option value="tracado">Traçado</option>
@@ -190,11 +304,9 @@
           <option value="heatmap">Heatmap</option>
         </select>
       </label>
-
       <button id="btnReset">Reset</button>
       <button id="btnLimpar">Limpar</button>
       <button id="btnOcultar">Ocultar tower</button>
-
       <span class="info" id="infoRodape">aguardando…</span>
     </div>
 
@@ -207,55 +319,41 @@
 </div>
 
 <script>
-/* ═══════════════════════════════════════════════════════════════
-   ESTADO
-   ═══════════════════════════════════════════════════════════════ */
 const canvas = document.getElementById('mapa');
 const ctx    = canvas.getContext('2d');
 
 const state = {
-  tema:      'broadcast',
-  modo:      'tracado',
-  lbMode:    'gap',
-  escala:    1,
-  offsetX:   0,
-  offsetY:   0,
-  pista:     null,
-  tracado:   [],   // array de segmentos: [ [{x,z,speed},...], [...] ]
-  ultimoLid: null,
-  pilotos:   [],
-  sessao:    {},
+  tema: 'broadcast', modo: 'tracado', lbMode: 'gap',
+  escala: 1, offsetX: 0, offsetY: 0,
+  pista: null, pistaKey: null,
+  tracado: [], ultimoLid: null,
+  pilotos: [], sessao: {},
+  selectedDriver: null, compareDriver: null,
+  activeTab: 'tyres', formula: 'F1',
+  // 🆕 rastreia delta por volta entre os 2 pilotos comparados
+  deltaTrend: { lastLapRef: 0, prevDelta: null, currentDelta: null },
 };
 
-/* filtros do rastro */
-const RASTRO_MIN = 0.5;       // metros — menor ignora
-const RASTRO_MAX = 40;        // metros — maior = salto/teleport
+const RASTRO_MIN = 0.5;
+const RASTRO_MAX = 40;
 const PONTOS_POR_SEGMENTO = 5000;
 const LS_KEY = "f1_track_layouts_v1";
 
-/* ═══════════════════════════════════════════════════════════════
-   TEMAS
-   ═══════════════════════════════════════════════════════════════ */
+const CLICK_THRESHOLD  = 8;
+const CLICK_DURACAO_MAX = 500;
+
 const TEMAS = {
-  broadcast: { bg:'#0a0a0a', rastro:'rgba(255,255,255,.15)', linha:'#ff6b00',
-               carroBorda:'#000', grade:'rgba(255,255,255,.03)' },
-  neon:      { bg:'#0a001a', rastro:'rgba(0,255,240,.12)',  linha:'#00fff0',
-               carroBorda:'#ff00e6', grade:'rgba(0,255,240,.04)' },
-  clean:     { bg:'#f5f5f5', rastro:'rgba(0,0,0,.08)',      linha:'#333',
-               carroBorda:'#fff', grade:'rgba(0,0,0,.03)' },
-  retro:     { bg:'#001a00', rastro:'rgba(0,255,65,.2)',    linha:'#00ff41',
-               carroBorda:'#000', grade:'rgba(0,255,65,.05)' },
+  broadcast: { bg:'#0a0a0a', rastro:'rgba(255,255,255,.15)', linha:'#ff6b00', carroBorda:'#000', grade:'rgba(255,255,255,.03)' },
+  neon:      { bg:'#0a001a', rastro:'rgba(0,255,240,.12)',  linha:'#00fff0', carroBorda:'#ff00e6', grade:'rgba(0,255,240,.04)' },
+  clean:     { bg:'#f5f5f5', rastro:'rgba(0,0,0,.08)',      linha:'#333',    carroBorda:'#fff', grade:'rgba(0,0,0,.03)' },
+  retro:     { bg:'#001a00', rastro:'rgba(0,255,65,.2)',    linha:'#00ff41', carroBorda:'#000', grade:'rgba(0,255,65,.05)' },
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   HELPERS
-   ═══════════════════════════════════════════════════════════════ */
 const TEAM_FALLBACK = {
   'mercedes':'#27F4D2','ferrari':'#E8002D','red bull':'#3671C6',
   'mclaren':'#FF8000','aston martin':'#229971','alpine':'#FF87BC',
   'williams':'#64C4FF','rb':'#6692FF','racing bulls':'#6692FF',
-  'sauber':'#52E252','haas':'#B6BABD','alphatauri':'#6692FF',
-  'alfa romeo':'#C92D4B',
+  'sauber':'#52E252','haas':'#B6BABD','alphatauri':'#6692FF','alfa romeo':'#C92D4B',
 };
 function teamColor(nome, corApi) {
   if (corApi && corApi !== '#FFFFFF' && corApi !== '#666666') return corApi;
@@ -272,8 +370,7 @@ function shortCode(nome) {
   return base.substring(0, 3).toUpperCase();
 }
 function tyreLetter(tyre) {
-  const n = String(tyre || "")
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  const n = String(tyre || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
   if (n.includes("SUPER")) return 'SS';
   if (n.includes("MACIO") || n.includes("SOFT")) return 'S';
   if (n.includes("MEDIO") || n.includes("MEDIUM")) return 'M';
@@ -282,7 +379,13 @@ function tyreLetter(tyre) {
   if (n.includes("MOLH") || n.includes("WET") || n.includes("CHUVA")) return 'W';
   return 'M';
 }
-/* formata tempo: <60s → "0.563", ≥60s → "1:23.456" */
+function tyreBg(letra) {
+  switch (letra) {
+    case 'S': return '#ff0000'; case 'M': return '#ffd400'; case 'H': return '#eeeeee';
+    case 'I': return '#1de21d'; case 'W': return '#0080ff'; case 'SS': return '#c04cff';
+    default: return '#888';
+  }
+}
 function fmtTempo(t) {
   if (t == null || t === 0) return "—";
   const n = Number(t);
@@ -292,41 +395,49 @@ function fmtTempo(t) {
   const sec = n - min * 60;
   return min + ":" + sec.toFixed(3).padStart(6, "0");
 }
-function fmtGap(g) {
-  if (g == null) return "—";
-  if (g === 0)   return "Leader";
-  return "+" + fmtTempo(g);
+function flagName(raw) {
+  if (!raw) return "Verde";
+  const s = String(raw);
+  if (!s.startsWith("#")) {
+    return s === "Nenhuma" ? "Verde" : s;
+  }
+  const map = { "#FFFFFF": "Verde", "#00FF00": "Verde", "#0000FF": "Azul", "#FFD700": "Amarela", "#FF0000": "Vermelha" };
+  return map[s.toUpperCase()] || "Verde";
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   LOCALSTORAGE — layouts de pista
-   ═══════════════════════════════════════════════════════════════ */
+function wearColor(v) {
+  if (v == null) return "#22c55e";
+  if (v >= 75) return "#ef4444";
+  if (v >= 50) return "#f97316";
+  if (v >= 25) return "#eab308";
+  return "#22c55e";
+}
+function damageColor(v) {
+  if (v == null || v < 1) return "#22c55e";
+  if (v >= 67) return "#ef4444";
+  if (v >= 34) return "#f59e0b";
+  return "#eab308";
+}
+function normalizeTrackKey(t) {
+  return String(t || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
+}
 function ls_load(track) {
   if (!track) return [];
   try {
     const all = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
     const t = all[track];
     if (!Array.isArray(t)) return [];
-    // garante formato: array de arrays de {x,z,speed}
     return t.filter(seg => Array.isArray(seg) && seg.length > 0);
-  } catch (e) {
-    console.warn("ls_load falhou:", e);
-    return [];
-  }
+  } catch (e) { return []; }
 }
 function ls_save(track, segmentos) {
   if (!track) return;
   try {
-    // se ficou muito grande, mantém só os 2 últimos segmentos
-    const total = segmentos.reduce((a, s) => a + s.length, 0);
-    let dados = segmentos;
-    if (total > 20000) dados = segmentos.slice(-2);
+    let dados = segmentos.filter(seg => Array.isArray(seg) && seg.length > 0);
+    if (dados.length > 20) dados = dados.slice(-20);
     const all = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
     all[track] = dados;
     localStorage.setItem(LS_KEY, JSON.stringify(all));
-  } catch (e) {
-    console.warn("ls_save falhou (localStorage cheio?):", e);
-  }
+  } catch (e) { console.error('ls_save erro:', e); }
 }
 function ls_clear(track) {
   if (!track) return;
@@ -336,39 +447,24 @@ function ls_clear(track) {
     localStorage.setItem(LS_KEY, JSON.stringify(all));
   } catch {}
 }
-
-/* adiciona um ponto ao rastro, criando segmento novo se der salto */
 function push_ponto(x, z, speed) {
   const segs = state.tracado;
   if (!segs.length) segs.push([]);
   const seg = segs[segs.length - 1];
-
-  if (seg.length === 0) {
-    seg.push({ x, z, speed });
-    return;
-  }
-
+  if (seg.length === 0) { seg.push({ x, z, speed }); return; }
   const last = seg[seg.length - 1];
   const d = Math.hypot(x - last.x, z - last.z);
-
-  if (d < RASTRO_MIN) return;             // movimento residual → ignora
-  if (d > RASTRO_MAX) {                   // salto → novo segmento
-    if (segs.length >= 2 && seg.length < 5) {
-      segs.pop();                          // descarta segmento curto (outlier)
-    }
+  if (d < RASTRO_MIN) return;
+  if (d > RASTRO_MAX) {
+    if (segs.length >= 2 && seg.length < 5) segs.pop();
     segs.push([{ x, z, speed }]);
   } else {
     seg.push({ x, z, speed });
-    if (seg.length > PONTOS_POR_SEGMENTO) {
-      segs.push(seg.slice(-1000));         // corta e começa novo
-    }
+    if (seg.length > PONTOS_POR_SEGMENTO) segs.push(seg.slice(-1000));
   }
-  if (segs.length > 10) segs.shift();      // não deixa lixo infinito
+  if (segs.length > 10) segs.shift();
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   RESIZE
-   ═══════════════════════════════════════════════════════════════ */
 function resize() {
   const dpr = window.devicePixelRatio || 1;
   const r = canvas.getBoundingClientRect();
@@ -379,9 +475,6 @@ function resize() {
 addEventListener('resize', resize);
 window.addEventListener('load', resize);
 
-/* ═══════════════════════════════════════════════════════════════
-   TRANSFORMAÇÃO MUNDO → TELA
-   ═══════════════════════════════════════════════════════════════ */
 function allTrailPoints() {
   const out = [];
   for (const seg of state.tracado) for (const p of seg) out.push(p);
@@ -405,56 +498,56 @@ function worldToScreen(x, z, b, margin = 80) {
   const sy = (z - b.minZ) / spanZ;
   const baseX = margin + sx * (W - 2*margin);
   const baseY = margin + sy * (H - 2*margin);
-  return [ state.offsetX + baseX * state.escala,
-           state.offsetY + baseY * state.escala ];
+  return [ state.offsetX + baseX * state.escala, state.offsetY + baseY * state.escala ];
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   HEATMAP
-   ═══════════════════════════════════════════════════════════════ */
+function raioClique() {
+  return Math.min(60, Math.max(28, 28 * state.escala));
+}
+function pilotoNaPosicao(mx, my, raio = null) {
+  const r = raio == null ? raioClique() : raio;
+  const pilotosComPos = state.pilotos.filter(p => p.has_pos);
+  if (!pilotosComPos.length) return null;
+  const trail = allTrailPoints();
+  if (!trail.length) return null;
+  const b = calcBounds([...trail, ...pilotosComPos]);
+  let melhor = null, melhorDist = r;
+  for (const p of pilotosComPos) {
+    const [sx, sy] = worldToScreen(p.x, p.z, b);
+    const d = Math.hypot(mx - sx, my - sy);
+    if (d < melhorDist) { melhorDist = d; melhor = p; }
+  }
+  return melhor;
+}
 function corVelocidade(v) {
   const t = Math.min(1, Math.max(0, v / 350));
   const stops = [
-    [0.00, [  0,  26, 102]], [0.25, [  0, 200, 255]],
-    [0.50, [  0, 255,  65]], [0.75, [255, 212,   0]],
-    [1.00, [255,  32,  32]],
+    [0.00, [0, 26, 102]], [0.25, [0, 200, 255]], [0.50, [0, 255, 65]], [0.75, [255, 212, 0]], [1.00, [255, 32, 32]],
   ];
   for (let i = 0; i < stops.length - 1; i++) {
-    const [t0,c0] = stops[i];
-    const [t1,c1] = stops[i+1];
+    const [t0,c0] = stops[i]; const [t1,c1] = stops[i+1];
     if (t >= t0 && t <= t1) {
       const k = (t - t0) / (t1 - t0);
-      return `rgb(${Math.round(c0[0]+(c1[0]-c0[0])*k)},`+
-             `${Math.round(c0[1]+(c1[1]-c0[1])*k)},`+
-             `${Math.round(c0[2]+(c1[2]-c0[2])*k)})`;
+      return `rgb(${Math.round(c0[0]+(c1[0]-c0[0])*k)},${Math.round(c0[1]+(c1[1]-c0[1])*k)},${Math.round(c0[2]+(c1[2]-c0[2])*k)})`;
     }
   }
   return '#fff';
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   DESENHO
-   ═══════════════════════════════════════════════════════════════ */
 function draw() {
   const t = TEMAS[state.tema];
   const W = canvas.clientWidth, H = canvas.clientHeight;
-
   ctx.fillStyle = t.bg;
   ctx.fillRect(0, 0, W, H);
-
-  // grade
   ctx.strokeStyle = t.grade; ctx.lineWidth = 1;
   for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
+  const pilotosComPos = state.pilotos.filter(p => p.has_pos);
   const trail = allTrailPoints();
-  if (!state.pilotos.length && !trail.length) return;
+  if (!pilotosComPos.length && !trail.length) return;
+  const b = calcBounds([...trail, ...pilotosComPos]);
 
-  const b = calcBounds([...trail, ...state.pilotos]);
-
-  // ── MODO TRAÇADO ────────────────────────────────────────
   if (state.modo === 'tracado') {
-    // asfalto (cinza grosso)
     ctx.strokeStyle = t.rastro;
     ctx.lineWidth = 16 * state.escala;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -467,7 +560,6 @@ function draw() {
       });
       ctx.stroke();
     }
-    // linha central
     ctx.strokeStyle = t.linha;
     ctx.lineWidth = 2 * state.escala;
     for (const seg of state.tracado) {
@@ -481,7 +573,6 @@ function draw() {
     }
   }
 
-  // ── MODO HEATMAP ────────────────────────────────────────
   if (state.modo === 'heatmap') {
     ctx.lineWidth = 14 * state.escala;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -497,12 +588,11 @@ function draw() {
     }
   }
 
-  // ── PILOTOS ─────────────────────────────────────────────
-  for (const p of state.pilotos) {
+  for (const p of pilotosComPos) {
     const [sx, sy] = worldToScreen(p.x, p.z, b);
-    const corCarro = state.modo === 'heatmap'
-      ? corVelocidade(p.speed || 0)
-      : teamColor(p.equipe, p.cor);
+    const corCarro = state.modo === 'heatmap' ? corVelocidade(p.speed || 0) : teamColor(p.equipe, p.cor);
+    const isSel = state.selectedDriver === p.nome;
+    const isCmp = state.compareDriver  === p.nome;
 
     ctx.beginPath();
     ctx.fillStyle = 'rgba(0,0,0,.35)';
@@ -522,82 +612,482 @@ function draw() {
       ctx.stroke();
     }
 
+    if (isSel) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#00e87a'; ctx.lineWidth = 3;
+      ctx.arc(sx, sy, 16 * Math.min(2, state.escala), 0, Math.PI*2);
+      ctx.stroke();
+    }
+    if (isCmp) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#00c8ff'; ctx.lineWidth = 3;
+      ctx.arc(sx, sy, 19 * Math.min(2, state.escala), 0, Math.PI*2);
+      ctx.stroke();
+    }
+
     if (state.modo !== 'radar') {
       ctx.fillStyle = '#fff';
       ctx.font = `bold ${Math.round(10 * Math.min(2, state.escala))}px 'Segoe UI'`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(p.numero ?? '', sx, sy);
     }
+
+    const escala  = Math.min(2, state.escala);
+    const r       = 9 * escala;
+    const padX    = 5 * escala;
+    const padY    = 3 * escala;
+    const boxH    = 14 * escala + padY;
+    const boxY    = sy - boxH / 2;
+    const gap     = 4 * escala;
+    let   cursorX = sx + r + gap;
+
+    const emPit = p.is_pit === true || p.pit === true;
+    if (emPit) {
+      const txt = 'PIT';
+      ctx.font = `bold ${Math.round(9 * escala + 2)}px 'Segoe UI'`;
+      const tw   = ctx.measureText(txt).width;
+      const boxW = tw + padX * 2;
+      const blink = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 350));
+      ctx.globalAlpha = blink;
+      ctx.fillStyle = '#ffd400';
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') ctx.roundRect(cursorX, boxY, boxW, boxH, 3 * escala);
+      else ctx.rect(cursorX, boxY, boxW, boxH);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#000';
+      ctx.font = `bold ${Math.round(9 * escala + 2)}px 'Segoe UI'`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, cursorX + padX, sy);
+      cursorX += boxW + gap;
+    }
+
+    const tw_wear = Array.isArray(p.tyre_wear) ? p.tyre_wear : [0,0,0,0];
+    const avgWear = tw_wear.length ? tw_wear.reduce((acc, b) => acc + (Number(b) || 0), 0) / tw_wear.length : 0;
+
+    if (avgWear >= 50) {
+      const txt = `🛞${Math.round(avgWear)}%`;
+      ctx.font = `bold ${Math.round(9 * escala + 2)}px 'Segoe UI'`;
+      const tw   = ctx.measureText(txt).width;
+      const boxW = tw + padX * 2;
+      const blink = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 400));
+      ctx.globalAlpha = blink;
+      ctx.fillStyle = '#e10600';
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') ctx.roundRect(cursorX, boxY, boxW, boxH, 3 * escala);
+      else ctx.rect(cursorX, boxY, boxW, boxH);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${Math.round(9 * escala + 2)}px 'Segoe UI'`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, cursorX + padX, sy);
+    }
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   LEADERBOARD
-   ═══════════════════════════════════════════════════════════════ */
-function renderLeaderboard(pilotos, sessao) {
-  const body = document.getElementById('lbBody');
-  const lapEl = document.getElementById('lbLap');
+/* ═══ Rastreia o delta de volta entre 2 pilotos, com trend ═══ */
+function getDeltaTrend(a, b) {
+  const lapRef = Math.min(a.current_lap || 0, b.current_lap || 0);
+  const lastA  = Number(a.last_lap) || 0;
+  const lastB  = Number(b.last_lap) || 0;
 
-  const total = sessao.total_voltas || 0;
-  const atual = sessao.volta_atual || 0;
-  lapEl.textContent = (total || atual) ? `LAP ${atual} / ${total || '?'}` : 'LIVE';
+  if (lastA <= 0 || lastB <= 0 || lapRef <= 0) return null;
 
-  if (!pilotos.length) {
-    body.innerHTML = `<div style="text-align:center;padding:30px 10px;color:#666;font-size:11px">
-      Aguardando sessão...
-    </div>`;
-    return;
+  if (state.deltaTrend.lastLapRef === lapRef &&
+      state.deltaTrend.currentDelta != null) {
+    return state.deltaTrend;
   }
 
-  const ordered = [...pilotos].sort((a, b) =>
-    (a.posicao ?? 999) - (b.posicao ?? 999));
+  const newDelta  = lastA - lastB;
+  const prevDelta = state.deltaTrend.currentDelta;
 
-  function renderValor(p, idx) {
-    switch (state.lbMode) {
-      case 'last': {
-        const v = fmtTempo(p.last_lap);
-        return { txt: v, cls: v === '—' ? 'dim' : '' };
-      }
-      case 'best': {
-        const v = fmtTempo(p.best_lap);
-        const isSB = idx === 0 && p.best_lap;
-        return { txt: v, cls: isSB ? 'purple' : (v === '—' ? 'dim' : '') };
-      }
-      case 'interval': {
-        if (idx === 0) return { txt: '—', cls: 'dim' };
-        const v = p.interval;
-        return { txt: v != null ? '+' + fmtTempo(v) : '—', cls: v == null ? 'dim' : '' };
-      }
-      case 'gap':
-      default: {
-        if (p.gap === 0)  return { txt: 'Leader', cls: 'yellow' };
-        if (p.gap != null) return { txt: '+' + fmtTempo(p.gap), cls: '' };
-        return { txt: '—', cls: 'dim' };
-      }
+  state.deltaTrend = {
+    lastLapRef:   lapRef,
+    prevDelta:    prevDelta,
+    currentDelta: newDelta,
+  };
+  return state.deltaTrend;
+}
+
+function renderComparePanel() {
+  const panel = document.getElementById('comparePanel');
+  if (!panel) return;
+  const a = state.pilotos.find(p => p.nome === state.selectedDriver);
+  const b = state.pilotos.find(p => p.nome === state.compareDriver);
+  if (!a || !b) { panel.classList.remove('on'); return; }
+  panel.classList.add('on');
+
+  const corA = teamColor(a.equipe, a.cor);
+  const corB = teamColor(b.equipe, b.cor);
+  document.getElementById('cmpACode').textContent = shortCode(a.nome);
+  document.getElementById('cmpBCode').textContent = shortCode(b.nome);
+  document.getElementById('cmpABar').style.background = corA;
+  document.getElementById('cmpBBar').style.background = corB;
+
+  const avgWear = (p) => {
+    const tw = Array.isArray(p.tyre_wear) ? p.tyre_wear : [0,0,0,0];
+    return tw.length ? tw.reduce((s,v)=>s+(Number(v)||0),0)/tw.length : 0;
+  };
+  const fmtPct = (v) => `${Math.round(v)}%`;
+  const fmtKg  = (v) => `${Number(v || 0).toFixed(0)}kg`;
+  const fmtLap = (v) => fmtTempo(v);
+  const betterHigher = (a_, b_) => a_ > b_ ? 'a' : a_ < b_ ? 'b' : 'tie';
+  const betterLower  = (a_, b_) => a_ < b_ ? 'a' : a_ > b_ ? 'b' : 'tie';
+
+  // 🆕 Trend do delta por volta
+  const trend     = getDeltaTrend(a, b);
+  const deltaLap  = trend ? trend.currentDelta : null;
+  const prevDelta = trend ? trend.prevDelta    : null;
+
+  let deltaTrendCls = 'mid';
+  if (deltaLap != null && prevDelta != null) {
+    const absNow  = Math.abs(deltaLap);
+    const absPrev = Math.abs(prevDelta);
+    if (absNow < absPrev - 0.001)      deltaTrendCls = 'win';   // verde: se aproximando
+    else if (absNow > absPrev + 0.001) deltaTrendCls = 'warn';  // amarelo: se afastando
+  }
+
+  const rows = [
+    { lbl: '🛞 Pneu', a: avgWear(a), b: avgWear(b), fmt: fmtPct, better: betterLower },
+    { lbl: '⚡ ERS',  a: Number(a.ers_pct||0), b: Number(b.ers_pct||0), fmt: fmtPct, better: betterHigher },
+    { lbl: '⛽ Fuel', a: Number(a.fuel||0), b: Number(b.fuel||0), fmt: fmtKg, better: betterHigher },
+    { lbl: '⏱️ Best', a: Number(a.best_lap||0), b: Number(b.best_lap||0), fmt: fmtLap, better: betterLower },
+    { lbl: '🏁 Last', a: Number(a.last_lap||0), b: Number(b.last_lap||0), fmt: fmtLap, better: betterLower },
+    // 🆕 Delta por volta com trend (mesmo valor nos dois lados)
+    deltaLap != null ? {
+      lbl: '🔄 Δ Volta',
+      a: deltaLap, b: deltaLap,
+      fmt: (v) => (v >= 0 ? '+' : '') + v.toFixed(3) + 's',
+      _forceCls: deltaTrendCls,
+    } : null,
+    { lbl: '📊 Gap',  a: Number(a.gap||0), b: Number(b.gap||0), fmt: (v) => v === 0 ? 'Leader' : '+' + fmtTempo(v), better: betterLower },
+    { lbl: '🎯 Pos',  a: Number(a.posicao||99), b: Number(b.posicao||99), fmt: (v) => `P${v}`, better: betterLower },
+  ].filter(Boolean);
+
+  document.getElementById('cmpRows').innerHTML = rows.map(r => {
+    let clsA, clsB;
+
+    if (r._forceCls) {
+      clsA = r._forceCls;
+      clsB = r._forceCls;
+    } else {
+      const winner = r.better(r.a, r.b);
+      clsA = winner === 'a' ? 'win' : winner === 'b' ? 'lose' : 'mid';
+      clsB = winner === 'b' ? 'win' : winner === 'a' ? 'lose' : 'mid';
     }
-  }
-
-  body.innerHTML = ordered.map((p, i) => {
-    const cor  = teamColor(p.equipe, p.cor);
-    const code = shortCode(p.nome);
-    const val  = renderValor(p, i);
-    const letra = tyreLetter(p.tyre);
 
     return `
-      <div class="lb-row${p.is_pit ? ' pit':''}"
-           style="border-left-color:${cor}">
-        <span class="lb-pos">${p.posicao ?? i+1}</span>
-        <span class="lb-bar" style="background:${cor}"></span>
-        <span class="lb-code">${code}</span>
-        <span class="lb-val ${val.cls}">${val.txt}</span>
-        <span class="lb-tyre ${letra}">${letra}</span>
+      <div class="cmp-row">
+        <span class="cmp-val left ${clsA}">${r.fmt(r.a)}</span>
+        <span class="cmp-lbl">${r.lbl}</span>
+        <span class="cmp-val right ${clsB}">${r.fmt(r.b)}</span>
       </div>`;
   }).join('');
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ZOOM / PAN
-   ═══════════════════════════════════════════════════════════════ */
+function renderLeaderboard(pilotos, sessao) {
+  const body = document.getElementById('lbBody');
+  const lapEl = document.getElementById('lbLap');
+  const total = sessao.total_voltas || 0;
+  const atual = sessao.volta_atual || 0;
+  lapEl.textContent = (total || atual) ? `LAP ${atual} / ${total || '?'}` : 'LIVE';
+  if (!pilotos.length) {
+    body.innerHTML = `<div style="text-align:center;padding:30px 10px;color:#666;font-size:11px">Aguardando sessão...</div>`;
+    return;
+  }
+  const ordered = [...pilotos].sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999));
+
+  function renderValor(p, idx) {
+    switch (state.lbMode) {
+      case 'last':     { const v = fmtTempo(p.last_lap); return { txt: v, cls: v === '—' ? 'dim' : '' }; }
+      case 'best':     { const v = fmtTempo(p.best_lap); const isSB = idx === 0 && p.best_lap;
+                         return { txt: v, cls: isSB ? 'purple' : (v === '—' ? 'dim' : '') }; }
+      case 'interval': { if (idx === 0) return { txt: '—', cls: 'dim' };
+                         const v = p.interval;
+                         return { txt: v != null ? '+' + fmtTempo(v) : '—', cls: v == null ? 'dim' : '' }; }
+      case 'gap':
+      default:         { if (p.gap === 0)  return { txt: 'Leader', cls: 'yellow' };
+                         if (p.gap != null) return { txt: '+' + fmtTempo(p.gap), cls: '' };
+                         return { txt: '—', cls: 'dim' }; }
+    }
+  }
+  function maxWear(p) {
+    const tw = Array.isArray(p.tyre_wear) ? p.tyre_wear : [0, 0, 0, 0];
+    return Math.max(...tw.map(x => Number(x) || 0));
+  }
+
+  body.innerHTML = ordered.map((p, i) => {
+    const cor   = teamColor(p.equipe, p.cor);
+    const code  = shortCode(p.nome);
+    const val   = renderValor(p, i);
+    const letra = tyreLetter(p.tyre);
+    const warn  = maxWear(p) >= 50;
+    const isSel = (state.selectedDriver === p.nome || state.compareDriver === p.nome) ? ' selected' : '';
+    const nomeSafe = (p.nome || '').replace(/'/g, "\\'");
+    const pitTag = p.is_pit
+      ? '<span style="background:#ffd400;color:#000;font-size:8px;font-weight:900;padding:0 4px;border-radius:2px;margin-right:3px;letter-spacing:.5px">PIT</span>'
+      : '';
+    const twArr = Array.isArray(p.tyre_wear) ? p.tyre_wear : [0,0,0,0];
+    const avgW  = twArr.length ? twArr.reduce((a,b) => a + (Number(b) || 0), 0) / twArr.length : 0;
+    const wearTag = avgW >= 50
+      ? `<span style="background:#e10600;color:#fff;font-size:8px;font-weight:900;padding:0 4px;border-radius:2px;margin-right:3px;letter-spacing:.5px">🛞${Math.round(avgW)}%</span>`
+      : '';
+    return `
+      <div class="lb-row${p.is_pit ? ' pit':''}${isSel}" style="border-left-color:${cor}" data-nome="${nomeSafe}">
+        <span class="lb-pos">${p.posicao ?? i+1}</span>
+        <span class="lb-bar" style="background:${cor}"></span>
+        <span class="lb-code">${pitTag}${wearTag}${code}</span>
+        <span class="lb-val ${val.cls}">${val.txt}</span>
+        <span class="lb-tyre ${letra}">${letra}</span>
+        <span class="lb-warn ${warn ? 'on' : 'off'}">${warn ? '!' : ''}</span>
+      </div>`;
+  }).join('');
+}
+
+let lastToastHash = '';
+function renderToast(pilotos) {
+  const alerts = pilotos
+    .map(p => {
+      const tw = Array.isArray(p.tyre_wear) ? p.tyre_wear : [0,0,0,0];
+      const mw = Math.max(...tw.map(x => Number(x) || 0));
+      return { nome: p.nome, code: shortCode(p.nome), cor: teamColor(p.equipe, p.cor), wear: mw };
+    })
+    .filter(x => x.wear >= 50).sort((a, b) => b.wear - a.wear);
+  const hash = alerts.map(a => `${a.code}:${Math.round(a.wear)}`).join('|');
+  if (hash === lastToastHash) return;
+  lastToastHash = hash;
+  const toast = document.getElementById('toast');
+  const titleEl = document.getElementById('toastTitle');
+  const bodyEl = document.getElementById('toastBody');
+  if (!alerts.length) { toast.classList.remove('on'); return; }
+  titleEl.textContent = `⚠️ ${alerts.length} piloto${alerts.length > 1 ? 's' : ''} com pneu >50%`;
+  bodyEl.innerHTML = alerts.slice(0, 8).map(a => `
+    <div class="item">
+      <span class="nome" style="color:${a.cor}">${a.code}</span>
+      <span class="val">${Math.round(a.wear)}%</span>
+    </div>`).join('');
+  toast.classList.add('on');
+}
+
+function handleDriverClick(nome) {
+  const sel = state.selectedDriver;
+  const cmp = state.compareDriver;
+
+  if (!sel) {
+    state.selectedDriver = nome;
+    state.compareDriver  = null;
+    renderLeaderboard(state.pilotos, state.sessao);
+    draw();
+    return;
+  }
+  if (nome === sel) {
+    if (cmp) {
+      state.selectedDriver = null;
+      state.compareDriver  = null;
+      state.deltaTrend = { lastLapRef: 0, prevDelta: null, currentDelta: null };
+      renderComparePanel();
+      renderLeaderboard(state.pilotos, state.sessao);
+      draw();
+    } else {
+      openModal(nome);
+    }
+    return;
+  }
+  if (!cmp) {
+    state.compareDriver = nome;
+    // reseta trend quando forma um novo par
+    state.deltaTrend = { lastLapRef: 0, prevDelta: null, currentDelta: null };
+  } else if (nome === cmp) {
+    state.selectedDriver = cmp;
+    state.compareDriver  = sel;
+    state.deltaTrend = { lastLapRef: 0, prevDelta: null, currentDelta: null };
+  } else {
+    state.compareDriver = nome;
+    state.deltaTrend = { lastLapRef: 0, prevDelta: null, currentDelta: null };
+  }
+  renderComparePanel();
+  renderLeaderboard(state.pilotos, state.sessao);
+  draw();
+}
+
+function openModal(nome) {
+  state.selectedDriver = nome;
+  state.activeTab = state.activeTab || 'tyres';
+  const p = state.pilotos.find(x => x.nome === nome);
+  if (!p) return;
+  const modal = document.getElementById('modalContent');
+  modal.innerHTML = `
+    ${renderModalHeader(p)}
+    <div class="body">
+      ${renderModalSidebar()}
+      <div class="f1-content" id="f1Content">${renderActiveTab(p)}</div>
+    </div>`;
+  document.getElementById('modalBg').classList.add('on');
+  renderLeaderboard(state.pilotos, state.sessao);
+  renderComparePanel();
+  renderPitWindow(state.sessao, state.pilotos);
+  draw();
+}
+
+function renderModalHeader(p) {
+  const teamCol = teamColor(p.equipe, p.cor);
+  const code = shortCode(p.nome).toUpperCase();
+  const lap = p.current_lap ?? '-';
+  const total = state.sessao.total_voltas ?? '-';
+  return `
+    <div class="hdr" style="border-top:3px solid ${teamCol}">
+      <span class="num">${p.numero ?? '-'}</span>
+      <span class="nome">${code}</span>
+      <span class="tag">DRIVER</span>
+      <div class="lap">
+        <span class="lbl">LAP</span>
+        <span class="val">${lap} / ${total}</span>
+      </div>
+      <button class="close" onclick="closeModal()">✕</button>
+    </div>`;
+}
+function renderModalSidebar() {
+  const tabs = [
+    { id:'tyres', label:'Tyres', icon:svgTyre() },
+    { id:'powertrain', label:'Powertrain', icon:svgEngine() },
+    { id:'aero', label:'Aerodynamics', icon:svgAero() },
+  ];
+  return `<div class="f1-sidebar">${tabs.map(t => `
+    <button class="f1-tab${state.activeTab === t.id ? ' on' : ''}" onclick="switchTab('${t.id}')">
+      ${t.icon}<span class="lbl">${t.label}</span>
+    </button>`).join('')}</div>`;
+}
+function switchTab(tab) {
+  state.activeTab = tab;
+  const p = state.pilotos.find(x => x.nome === state.selectedDriver);
+  if (!p) return;
+  document.querySelectorAll('.f1-tab').forEach((btn, i) => {
+    const ids = ['tyres', 'powertrain', 'aero'];
+    btn.classList.toggle('on', ids[i] === tab);
+  });
+  document.getElementById('f1Content').innerHTML = renderActiveTab(p);
+}
+function renderActiveTab(p) {
+  switch (state.activeTab) {
+    case 'powertrain': return renderPowertrain(p);
+    case 'aero':       return renderAero(p);
+    case 'tyres': default: return renderTyres(p);
+  }
+}
+
+function renderTyres(p) {
+  const tw = Array.isArray(p.tyre_wear) ? p.tyre_wear : [0,0,0,0];
+  const ti = Array.isArray(p.tyre_temp_inner)   ? p.tyre_temp_inner   : [0,0,0,0];
+  const ts = Array.isArray(p.tyre_temp_surface) ? p.tyre_temp_surface : [0,0,0,0];
+  const bt = Array.isArray(p.brakes_temp)       ? p.brakes_temp       : [0,0,0,0];
+  const pares = [
+    { letra:'FL', cond: tw[2], surf: ts[2], inner: ti[2], brake: bt[2] },
+    { letra:'FR', cond: tw[3], surf: ts[3], inner: ti[3], brake: bt[3] },
+    { letra:'RL', cond: tw[0], surf: ts[0], inner: ti[0], brake: bt[0] },
+    { letra:'RR', cond: tw[1], surf: ts[1], inner: ti[1], brake: bt[1] },
+  ];
+  const media = pares.reduce((s, x) => s + x.cond, 0) / 4;
+  const cardsHtml = pares.map(x => `
+    <div class="tyre-card">
+      <span class="corner">${x.letra}</span>
+      <div class="cond">Condition<span class="pct" style="color:${wearColor(x.cond)}">${Math.round(x.cond)}%</span></div>
+      <div class="temp-block">
+        <div class="temp-item"><div class="lbl">Surface</div><div class="val surf">${Math.round(x.surf)}°C</div></div>
+        <div class="temp-item"><div class="lbl">Inner</div><div class="val inner">${Math.round(x.inner)}°C</div></div>
+        <div class="temp-item"><div class="lbl">Brake</div><div class="val brake">${Math.round(x.brake)}°C</div></div>
+      </div>
+    </div>`).join('');
+  return `
+    <div class="tyres-layout">
+      ${cardsHtml}
+      <div class="tyres-total"><span class="lbl">Média geral</span><span class="val" style="color:${wearColor(media)}">${Math.round(media)}%</span></div>
+      <div class="tyres-total" style="grid-column:1/-1;margin-top:0"><span class="lbl">Pneu atual</span><span class="val">${p.tyre || '—'} · ${p.tyre_age ?? 0} voltas</span></div>
+    </div>`;
+}
+
+function renderPowertrain(p) {
+  const comps = [
+    { nm:'Motor de Combustão (ICE)', sub:'Internal Combustion Engine', val: p.engine_ice ?? 0 },
+    { nm:'MGU-K', sub:'Motor Generator Unit — Kinetic', val: p.engine_mguk ?? 0 },
+    { nm:'MGU-H', sub:'Motor Generator Unit — Heat', val: p.engine_mguh ?? 0 },
+    { nm:'Bateria (ES)', sub:'Energy Store', val: p.engine_es ?? 0 },
+    { nm:'Turbo (TC)', sub:'Turbocharger', val: p.engine_tc ?? 0 },
+    { nm:'Controlo Eletrónico (CE)', sub:'Control Electronics', val: p.engine_ce ?? 0 },
+    { nm:'Caixa de Velocidades', sub:'Gearbox', val: p.gearbox_damage ?? 0 },
+    { nm:'Motor (Geral)', sub:'Engine Damage', val: p.engine_damage ?? 0 },
+  ];
+  const rowsHtml = comps.map(c => {
+    const v = Number(c.val) || 0;
+    const cor = damageColor(v);
+    const status = v >= 67 ? 'CRÍTICO' : v >= 34 ? 'ATENÇÃO' : v >= 1 ? 'OK' : 'NOVO';
+    const statusBg = v >= 67 ? '#ef4444' : v >= 34 ? '#f59e0b' : v >= 1 ? '#22c55e33' : '#33333366';
+    const statusFg = v >= 67 ? '#fff' : v >= 34 ? '#000' : v >= 1 ? '#22c55e' : '#888';
+    return `
+      <div class="comp-row">
+        <div class="nm">${c.nm}<small>${c.sub}</small></div>
+        <div class="comp-bar"><div class="comp-fill" style="width:${Math.min(100, v)}%;background:${cor}"></div></div>
+        <div class="comp-pct" style="color:${cor}">${Math.round(v)}%<span class="comp-status" style="background:${statusBg};color:${statusFg}">${status}</span></div>
+      </div>`;
+  }).join('');
+  return `<div class="comp-list">${rowsHtml}</div>`;
+}
+
+function renderAero(p) {
+  const comps = [
+    { nm:'Asa Dianteira Esquerda', sub:'Front Left Wing', val: p.dano_asa_esquerda ?? 0 },
+    { nm:'Asa Dianteira Direita', sub:'Front Right Wing', val: p.dano_asa_direita ?? 0 },
+    { nm:'Asa Traseira', sub:'Rear Wing', val: p.dano_asa_traseira ?? 0 },
+    { nm:'Assoalho', sub:'Floor', val: p.dano_assoalho ?? 0 },
+    { nm:'Difusor', sub:'Diffuser', val: p.dano_difusor ?? 0 },
+    { nm:'Sidepods', sub:'Sidepods', val: p.dano_sidepods ?? 0 },
+    { nm:'DRS (falha)', sub:'DRS Fault', val: p.drs_fault ?? 0 },
+    { nm:'ERS (falha)', sub:'ERS Fault', val: p.ers_fault ?? 0 },
+  ];
+  const rowsHtml = comps.map(c => {
+    const v = Number(c.val) || 0;
+    const cor = damageColor(v);
+    const status = v >= 67 ? 'CRÍTICO' : v >= 34 ? 'ATENÇÃO' : v >= 1 ? 'OK' : 'NOVO';
+    const statusBg = v >= 67 ? '#ef4444' : v >= 34 ? '#f59e0b' : v >= 1 ? '#22c55e33' : '#33333366';
+    const statusFg = v >= 67 ? '#fff' : v >= 34 ? '#000' : v >= 1 ? '#22c55e' : '#888';
+    return `
+      <div class="comp-row">
+        <div class="nm">${c.nm}<small>${c.sub}</small></div>
+        <div class="comp-bar"><div class="comp-fill" style="width:${Math.min(100, v)}%;background:${cor}"></div></div>
+        <div class="comp-pct" style="color:${cor}">${Math.round(v)}%<span class="comp-status" style="background:${statusBg};color:${statusFg}">${status}</span></div>
+      </div>`;
+  }).join('');
+  return `<div class="comp-list">${rowsHtml}</div>`;
+}
+
+function svgTyre() { return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg>`; }
+function svgEngine() { return `<svg viewBox="0 0 24 24"><path d="M4 10h3V8h4v2h3l2-2h3v3h1v6h-2v3h-6v-2H7v-2H4z"/><circle cx="14" cy="13" r="1.5"/></svg>`; }
+function svgAero() { return `<svg viewBox="0 0 24 24"><path d="M3 14l4-4h10l4 4M7 14v4h10v-4M12 10V6"/><circle cx="12" cy="5" r="1"/></svg>`; }
+
+function closeModal(ev) {
+  if (ev && ev.target !== ev.currentTarget) return;
+  state.selectedDriver = null;
+  state.compareDriver  = null;
+  state.deltaTrend = { lastLapRef: 0, prevDelta: null, currentDelta: null };
+  document.getElementById('modalBg').classList.remove('on');
+  renderLeaderboard(state.pilotos, state.sessao);
+  renderPitWindow(state.sessao, state.pilotos);
+  renderComparePanel();
+  draw();
+}
+
+/* ═══ Listeners globais ═══ */
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+document.getElementById('lbBody').addEventListener('click', (ev) => {
+  const row = ev.target.closest('.lb-row');
+  if (!row) return;
+  const nome = row.dataset.nome;
+  if (!nome) return;
+  handleDriverClick(nome);
+});
+
+/* ═══ Zoom ═══ */
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
   const fator = e.deltaY < 0 ? 1.15 : 0.87;
@@ -611,31 +1101,69 @@ canvas.addEventListener('wheel', e => {
   draw();
 }, { passive:false });
 
-let arrastando = false, ultimoMouse = { x:0, y:0 };
+/* ═══ Pan / Clique ═══ */
+let arrastando = false;
+let ultimoMouse = { x:0, y:0 };
+let mouseInicio = { x:0, y:0 };
+let offsetInicio = { x:0, y:0 };
+let moveu = false;
+let tempoInicio = 0;
+
 canvas.addEventListener('mousedown', e => {
   arrastando = true;
-  ultimoMouse = { x:e.clientX, y:e.clientY };
+  moveu = false;
+  tempoInicio = Date.now();
+  offsetInicio = { x: state.offsetX, y: state.offsetY };
+  ultimoMouse = { x: e.clientX, y: e.clientY };
+  mouseInicio = { x: e.clientX, y: e.clientY };
   canvas.classList.add('arrastando');
 });
-addEventListener('mouseup', () => {
+
+addEventListener('mouseup', e => {
+  if (arrastando) {
+    const dx = e.clientX - mouseInicio.x;
+    const dy = e.clientY - mouseInicio.y;
+    const dist = Math.hypot(dx, dy);
+    const dur  = Date.now() - tempoInicio;
+
+    const ehClique = dist < CLICK_THRESHOLD || dur < CLICK_DURACAO_MAX;
+
+    if (ehClique) {
+      state.offsetX = offsetInicio.x;
+      state.offsetY = offsetInicio.y;
+      draw();
+
+      const r = canvas.getBoundingClientRect();
+      const p = pilotoNaPosicao(e.clientX - r.left, e.clientY - r.top);
+      if (p) handleDriverClick(p.nome);
+    }
+  }
   arrastando = false;
   canvas.classList.remove('arrastando');
 });
+
 addEventListener('mousemove', e => {
   if (!arrastando) return;
+  const dx = e.clientX - mouseInicio.x;
+  const dy = e.clientY - mouseInicio.y;
+  if (Math.abs(dx) > CLICK_THRESHOLD || Math.abs(dy) > CLICK_THRESHOLD) moveu = true;
+
   state.offsetX += e.clientX - ultimoMouse.x;
   state.offsetY += e.clientY - ultimoMouse.y;
   ultimoMouse = { x:e.clientX, y:e.clientY };
   draw();
 });
-canvas.addEventListener('dblclick', resetZoom);
-function resetZoom() {
-  state.escala = 1; state.offsetX = 0; state.offsetY = 0; draw();
-}
 
-/* ═══════════════════════════════════════════════════════════════
-   CONTROLES
-   ═══════════════════════════════════════════════════════════════ */
+canvas.addEventListener('mousemove', e => {
+  if (arrastando) return;
+  const r = canvas.getBoundingClientRect();
+  const p = pilotoNaPosicao(e.clientX - r.left, e.clientY - r.top);
+  canvas.style.cursor = p ? 'pointer' : 'grab';
+});
+
+canvas.addEventListener('dblclick', resetZoom);
+function resetZoom() { state.escala = 1; state.offsetX = 0; state.offsetY = 0; draw(); }
+
 document.querySelectorAll('#lbMode button').forEach(btn => {
   btn.onclick = () => {
     document.querySelectorAll('#lbMode button').forEach(b => b.classList.remove('on'));
@@ -655,7 +1183,7 @@ document.getElementById('btnReset').onclick  = resetZoom;
 document.getElementById('btnLimpar').onclick = () => {
   state.tracado = [];
   state.ultimoLid = null;
-  if (state.pista) ls_clear(state.pista);
+  if (state.pistaKey) ls_clear(state.pistaKey);
   draw();
 };
 document.getElementById('btnOcultar').onclick = () => {
@@ -667,10 +1195,138 @@ document.getElementById('btnToggleLb').onclick = () => {
   setTimeout(resize, 50);
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   LOOP
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ Top bar ═══ */
+function renderSessionBar(sessao) {
+  const pista = sessao.nome_pista || '—';
+  const tipo  = sessao.tipo_sessao || '—';
+  document.getElementById('sNome').textContent = `${pista} : ${tipo}`;
+
+  const total = sessao.total_voltas || 0;
+  const atual = sessao.volta_atual || 0;
+  document.getElementById('sLap').textContent = total ? `LAP ${atual}/${total}` : 'LIVE';
+
+  const flag = flagName(sessao.bandeira || '—');
+  const flagEl = document.getElementById('sFlag');
+  const sc = (sessao.sc_status && sessao.sc_status !== 'Nenhum') ? sessao.sc_status : flag;
+  flagEl.textContent = sc;
+  flagEl.classList.toggle('red',    /vermelh|red|Safety Car Completo/i.test(sc));
+  flagEl.classList.toggle('yellow', /amarel|yellow|Virtual|Formação/i.test(sc));
+
+  const formula = sessao.formula_name || 'F1';
+  state.formula = formula;
+  const fEl = document.getElementById('sFormula');
+  if (fEl) fEl.textContent = formula;
+  const lbF1 = document.getElementById('lbF1');
+  if (lbF1) lbF1.innerHTML = `${formula}<span> RACE</span>`;
+
+  const chuva = Number(sessao.chance_chuva);
+  document.getElementById('sRain').textContent = Number.isFinite(chuva) ? `${Math.round(chuva)}%` : '0%';
+
+  const tod = Number(sessao.time_of_day) || 0;
+  let timeStr;
+  if (tod > 0) {
+    const hh = String(Math.floor(tod / 3600) % 24).padStart(2, '0');
+    const mm = String(Math.floor((tod % 3600) / 60)).padStart(2, '0');
+    const ss = String(tod % 60).padStart(2, '0');
+    timeStr = `${hh}:${mm}:${ss}`;
+  } else {
+    const now = new Date();
+    timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  }
+  document.getElementById('sTime').textContent = timeStr;
+
+  const climaStr = String(sessao.clima || '').toLowerCase();
+  let icon = '☀️';
+  if (climaStr.includes('storm') || climaStr.includes('trovoada'))       icon = '⛈️';
+  else if (climaStr.includes('heavy') || climaStr.includes('pesada'))     icon = '🌧️';
+  else if (climaStr.includes('light rain') || climaStr.includes('leve'))  icon = '🌦️';
+  else if (climaStr.includes('overcast') || climaStr.includes('nublado')) icon = '☁️';
+  else if (climaStr.includes('cloud') || climaStr.includes('nuvem'))      icon = '🌥️';
+  document.getElementById('sWeatherIcon').textContent = icon;
+  document.getElementById('sTempA').textContent = (sessao.temp_ar ?? '—') + '°C';
+
+  const segLeft = sessao.session_time_left ?? null;
+  const elLeft = document.getElementById('sTimeLeft');
+  if (segLeft != null && segLeft > 0) {
+    const m = Math.floor(segLeft / 60);
+    const s = segLeft % 60;
+    elLeft.textContent = m > 0 ? `${m}m ${String(s).padStart(2,'0')}s` : `${s}s`;
+  } else elLeft.textContent = '—';
+
+  document.getElementById('sTempP').textContent = (sessao.temp_pista ?? '—') + '°C';
+  renderSCBanner(sessao);
+}
+
+function renderSCBanner(sessao) {
+  const el = document.getElementById('scBanner');
+  if (!el) return;
+  const sc = String(sessao.sc_status || '').trim();
+  const isSC     = /Safety Car Completo/i.test(sc);
+  const isVSC    = /Safety Car Virtual/i.test(sc);
+  const isFormat = /Forma[çc][ãa]o/i.test(sc);
+  if (!isSC && !isVSC && !isFormat) { el.classList.remove('on', 'vsc', 'formation'); return; }
+  el.classList.add('on');
+  el.classList.toggle('vsc', isVSC);
+  el.classList.toggle('formation', isFormat);
+  const l1 = document.getElementById('scText1');
+  const l2 = document.getElementById('scText2');
+  if (isVSC) { l1.textContent = 'VIRTUAL SAFETY CAR'; l2.textContent = 'Do not exceed delta pace'; }
+  else if (isFormat) { l1.textContent = 'FORMATION LAP'; l2.textContent = 'Prepare for race start'; }
+  else { l1.textContent = 'CATCH SAFETY CAR QUEUE'; l2.textContent = 'Do not exceed delta pace'; }
+}
+
+function renderPitWindow(sessao, pilotos) {
+  const el = document.getElementById('pitWindow');
+  if (!el) return;
+
+  const ideal   = Number(sessao.pit_ideal_lap)  || 0;
+  const latest  = Number(sessao.pit_latest_lap) || 0;
+  const rejoin  = Number(sessao.pit_rejoin_pos) || 0;
+  const lapNow  = Number(sessao.volta_atual)    || 0;
+
+  if (!ideal || !latest || !lapNow) { el.classList.remove('on'); return; }
+  el.classList.add('on');
+
+  const main  = document.getElementById('pwMain');
+  const laps  = document.getElementById('pwLaps');
+  const dot   = document.getElementById('pwTyreDot');
+  const tname = document.getElementById('pwTyreName');
+
+  main.classList.remove('open', 'soon', 'closed');
+  el.classList.remove('closed');
+
+  if (lapNow >= ideal && lapNow <= latest) {
+    main.textContent = 'OPEN'; main.classList.add('open');
+    laps.textContent = `LAPS ${ideal}-${latest}`;
+  } else if (lapNow < ideal) {
+    const faltam = ideal - lapNow;
+    main.textContent = `${faltam} LAP${faltam > 1 ? 'S' : ''}`; main.classList.add('soon');
+    laps.textContent = `OPENS LAP ${ideal}`;
+  } else {
+    main.textContent = 'CLOSED'; main.classList.add('closed');
+    el.classList.add('closed');
+    laps.textContent = `WAS ${ideal}-${latest}`;
+  }
+
+  let referencia = null;
+  if (state.selectedDriver) referencia = pilotos.find(p => p.nome === state.selectedDriver);
+  if (!referencia) referencia = pilotos.find(p => p.posicao === 1);
+  if (!referencia && pilotos.length) referencia = pilotos[0];
+
+  if (referencia) {
+    const letra = tyreLetter(referencia.tyre);
+    dot.textContent = letra;
+    dot.style.background = tyreBg(letra);
+    dot.style.color = (letra === 'M' || letra === 'H') ? '#000' : '#fff';
+    tname.textContent = (referencia.tyre || '—').toUpperCase();
+  }
+  el.title = rejoin > 0 ? `Rejoin previsto: P${rejoin}` : '';
+}
+
 let pontosDesdeSave = 0;
+window.addEventListener('beforeunload', () => {
+  if (state.pistaKey && state.tracado.length) ls_save(state.pistaKey, state.tracado);
+});
 
 async function tick() {
   try {
@@ -678,35 +1334,41 @@ async function tick() {
     if (!r.ok) return;
     const data = await r.json();
 
-    // trocou de pista → carrega traçado salvo
-    if (data.track !== state.pista) {
-      state.pista = data.track;
-      state.tracado = ls_load(data.track);
+    const novaKey = normalizeTrackKey(data.track);
+    if (novaKey && novaKey !== state.pistaKey) {
+      state.pistaKey = novaKey;
+      state.pista    = data.track;
+      state.tracado  = ls_load(novaKey);
       state.ultimoLid = null;
       pontosDesdeSave = 0;
-      document.getElementById('pistaNome').textContent =
-        (data.track || '—').toUpperCase();
-      const total = state.tracado.reduce((a, s) => a + s.length, 0);
-      console.log(`[mapa] pista "${data.track}" — ${total} pontos salvos carregados`);
+      document.getElementById('pistaNome').textContent = (data.track || '—').toUpperCase();
     }
 
     state.pilotos = data.pilotos || [];
     state.sessao  = data.sessao  || {};
-    renderLeaderboard(state.pilotos, state.sessao);
 
-    // ponto no rastro — só do líder e só se NÃO estiver no pit
-    const lider = state.pilotos.find(p => p.posicao === 1 && !p.is_pit);
+    renderSessionBar(state.sessao);
+    renderPitWindow(state.sessao, state.pilotos);
+    renderComparePanel();
+    renderLeaderboard(state.pilotos, state.sessao);
+    renderToast(state.pilotos);
+
+    if (state.selectedDriver) {
+      const ainda = state.pilotos.find(x => x.nome === state.selectedDriver);
+      if (ainda) {
+        const c = document.getElementById('f1Content');
+        if (c) c.innerHTML = renderActiveTab(ainda);
+      } else closeModal();
+    }
+
+    const lider = state.pilotos.find(p => p.posicao === 1 && !p.is_pit && p.has_pos);
     if (lider) {
       const antes = state.tracado.reduce((a, s) => a + s.length, 0);
       push_ponto(lider.x, lider.z, lider.speed || 0);
       const depois = state.tracado.reduce((a, s) => a + s.length, 0);
-
       if (depois > antes) {
         pontosDesdeSave += (depois - antes);
-        if (pontosDesdeSave >= 20) {           // salva a cada 20 pontos novos
-          ls_save(state.pista, state.tracado);
-          pontosDesdeSave = 0;
-        }
+        if (pontosDesdeSave >= 20) { ls_save(state.pistaKey, state.tracado); pontosDesdeSave = 0; }
       }
     }
 

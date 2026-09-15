@@ -995,7 +995,7 @@ def start_udp_listener():
 
         if header.m_packet_id == 1:  # PacketSessionData
             SESSION.atualizar(body)
-
+            atualizar_SessionData(body)  
         if header.m_packet_id == 4:  # PacketParticipantsData
             atualizar_participantes(body)
 
@@ -1037,7 +1037,7 @@ def atualizar_SessionData(pacote_session):
     SESSION.m_session_type = session_type
 
     SESSION.atualizar(pacote_session)
-
+    SESSION.m_time_of_day = getattr(pacote_session, 'm_time_of_day', 0)
     currentLap = getattr(pacote_session, "m_current_lap_num", 0)
     clima = getattr(pacote_session, "m_weather", 0)
     air_temperature = getattr(pacote_session, "m_air_temperature", 0.0)
@@ -1055,16 +1055,38 @@ def atualizar_SessionData(pacote_session):
         rain_percent = 0
     SESSION.rainPercentage = rain_percent
 
-    if pacote_session.m_num_marshal_zones > 0:
-        flag = pacote_session.m_marshal_zones[0].m_zone_flag
-        flag_nome = color_flag_dict.get(flag, "Verde")
+    # ── Bandeira: varre TODAS as zonas e pega a mais severa ──────
+    # Prioridade: 4=vermelha > 3=amarela > 2=azul > 1=verde > 0=nada > -1=inválida
+    n_zonas = int(getattr(pacote_session, "m_num_marshal_zones", 0) or 0)
+    if n_zonas > 0:
+        n_zonas = min(n_zonas, 21)  # o pacote tem no máx 21 zonas
+        flags = []
+        for i in range(n_zonas):
+            try:
+                flags.append(int(pacote_session.m_marshal_zones[i].m_zone_flag))
+            except (IndexError, AttributeError, TypeError):
+                pass
+
+        if 4 in flags:
+            flag_nome = "Vermelha"
+        elif 3 in flags:
+            flag_nome = "Amarela"
+        elif 2 in flags:
+            flag_nome = "Azul"
+        elif 1 in flags:
+            flag_nome = "Verde"
+        else:
+            flag_nome = "Verde"
     else:
         flag_nome = "Verde"
+
     SESSION.flag = flag_nome
 
+    # ── Safety Car ──────────────────────────────────────────────
     safety_status = getattr(pacote_session, "m_safety_car_status", 0)
     SESSION.SafetyCarStatus = safetyCarStatusDict.get(safety_status, "Nenhum")
 
+    # ── Session type / weather (redundância intencional — mantido) ──
     session_type = getattr(pacote_session, "m_session_type", 0)
     SESSION.Seance = session_dictionary.get(session_type, "Desconhecida")
 
@@ -1074,6 +1096,12 @@ def atualizar_SessionData(pacote_session):
     SESSION.m_air_temperature = air_temperature
     SESSION.m_track_temperature = track_temperature
     SESSION.m_total_laps = total_laps
+
+    # ── Pit stop window (do PacketSessionData) ──────────────────
+    SESSION.m_pit_stop_window_ideal_lap  = int(getattr(pacote_session, 'm_pit_stop_window_ideal_lap', 0) or 0)
+    SESSION.m_pit_stop_window_latest_lap = int(getattr(pacote_session, 'm_pit_stop_window_latest_lap', 0) or 0)
+    SESSION.m_pit_stop_rejoin_position   = int(getattr(pacote_session, 'm_pit_stop_rejoin_position', 0) or 0)
+
     print("foi atualizado o session data")
 
 
@@ -1083,16 +1111,25 @@ def atualizar_speed_trap(pacote_telemetry):
         if idx < len(JOGADORES):
             piloto = JOGADORES[idx]
             piloto.speed_trap = float(telemetry.m_speed)
-            piloto.throttle = float(telemetry.m_throttle)
-            piloto.brake = float(telemetry.m_brake)
-            piloto.gear = int(telemetry.m_gear)
+            piloto.throttle   = float(telemetry.m_throttle)
+            piloto.brake      = float(telemetry.m_brake)
+            piloto.gear       = int(telemetry.m_gear)
+            
+            # 🆕 DRS ATIVO (aberto agora) — vem do CarTelemetryData
+            piloto.drs = int(telemetry.m_drs)   # 0 = fechado, 1 = aberto
             if not hasattr(piloto, 'tyres_temp_inner'):
                 piloto.tyres_temp_inner = [0] * 4
             if not hasattr(piloto, 'tyres_temp_surface'):
                 piloto.tyres_temp_surface = [0] * 4
-            piloto.tyres_temp_inner[0:4] = [float(t) for t in telemetry.m_tyres_inner_temperature[0:4]]
+
+            piloto.tyres_temp_inner[0:4]   = [float(t) for t in telemetry.m_tyres_inner_temperature[0:4]]
             piloto.tyres_temp_surface[0:4] = [float(t) for t in telemetry.m_tyres_surface_temperature[0:4]]
 
+            # 🆕 Temperatura dos freios (array de 4: RL, RR, FL, FR)
+            piloto.brakes_temperature = [float(t) for t in telemetry.m_brakes_temperature[0:4]]
+
+            # 🆕 Pressão dos pneus (PSI)
+            piloto.tyres_pressure = [float(p) for p in telemetry.m_tyres_pressure[0:4]]
 
 def atualizar_CarSetupData(pacote_setup):
     from Bot.jogadores import JOGADORES
@@ -1218,7 +1255,7 @@ def atualizar_car_status(pacote_status):
 
         # ── DRS (faltava ler isso do pacote) ─────────────────────────────────
         piloto.drs_allowed = int(status.m_drs_allowed)
-
+        piloto.drs_activation_distance = int(status.m_drs_activation_distance)
         # ── ERS (faltava ler isso do pacote) ─────────────────────────────────
         piloto.ers_store_energy = float(status.m_ers_store_energy)
         piloto.ers_deploy_mode = int(status.m_ers_deploy_mode)
@@ -1244,7 +1281,7 @@ def atualizar_damage_data(pacote_danos):
     from Bot.jogadores import JOGADORES
     for idx, dano in enumerate(pacote_danos.m_car_damage_data):
         piloto = JOGADORES[idx]
-        piloto.tyre_wear = dano.m_tyres_wear
+      
         piloto.FrontLeftWingDamage = dano.m_front_left_wing_damage
         piloto.FrontRightWingDamage = dano.m_front_right_wing_damage
         piloto.rearWingDamage = dano.m_rear_wing_damage
@@ -1252,7 +1289,25 @@ def atualizar_damage_data(pacote_danos):
         piloto.diffuserDamage = dano.m_diffuser_damage
         piloto.sidepodDamage = dano.m_sidepod_damage
         # F1 25: bolhas nos pneus (novo campo)
+        piloto.tyre_wear     = list(dano.m_tyres_wear)   
         piloto.tyre_blisters = list(dano.m_tyre_blisters)
+        piloto.tyre_damage   = list(dano.m_tyres_damage)  
+        piloto.brakes_damage = list(dano.m_brakes_damage)      # desgaste dos freios  
+           # [RL, RR, FL, FR] %
+         # ── Falhas ──
+        piloto.drsFault = dano.m_drs_fault
+        piloto.ersFault = dano.m_ers_fault
+        # ── Powertrain ──
+        piloto.gearBoxDamage   = dano.m_gear_box_damage
+        piloto.engineDamage    = dano.m_engine_damage
+        piloto.engine_mguhwear = dano.m_engine_mguhwear
+        piloto.engine_eswear   = dano.m_engine_eswear
+        piloto.engine_cewear   = dano.m_engine_cewear
+        piloto.engine_icewear  = dano.m_engine_icewear
+        piloto.engine_mgukwear = dano.m_engine_mgukwear
+        piloto.engine_tcwear   = dano.m_engine_tcwear
+        piloto.engine_blown    = dano.m_engine_blown
+        piloto.engine_seized   = dano.m_engine_seized
 
 
 def atualizar_setores(pacote_setores_history):
@@ -1434,16 +1489,57 @@ def atualizar_pit_stop_served(pacote_pit_stop_served):
         }
 
 
+PENALTY_TYPES = {
+    0: "Drive Through", 1: "Stop Go",
+    2: "Stop Go (Unsafe Release)", 3: "Stop Go (Unsafe Release)",
+    6: "Stop Go (Blocking)",
+    7: "Stop Go (Ignoring Blue Flags)",
+    8: "Stop Go (Ignoring Yellow Flags)",
+    9: "Stop Go (Overtaking Under Yellow)",
+    10: "Stop Go (Overtaking Under Safety Car)",
+    12: "Stop Go (Exceeding Track Limits)",
+    13: "Stop Go (Too Many Track Limits)",
+    17: "Stop Go (Too Many Warnings)",
+    18: "Retired", 20: "Disqualified",
+    24: "This Lap Invalidated",
+    25: "This And Next Lap Invalidated",
+    26: "This Lap Invalidated (No Reason)",
+    27: "This And Next Lap Invalidated (No Reason)",
+    28: "This And Previous Lap Invalidated",
+    29: "This And Previous Lap Invalidated (No Reason)",
+}
+
+
 def atualizar_punicao(pacote_punicao):
     from Bot.jogadores import JOGADORES
-    # F1 25: punição vem em m_event_details.m_penalty
-    pen = getattr(getattr(pacote_punicao, "m_event_details", pacote_punicao), "m_penalty", pacote_punicao)
-    idx = pen.m_vehicle_idx
-    if idx < len(JOGADORES):
-        piloto = JOGADORES[idx]
-        piloto.punicao = True
-        piloto.punicao_time = getattr(pen, "m_time", 0)
-        piloto.punicao_type = pen.m_penalty_type
-        piloto.punicao_lap = pen.m_lap_num
-        piloto.punicao_points = getattr(pen, "m_places_gained", 0)
-        piloto.warnings = piloto.warnings + 1
+
+    try:
+        pen = pacote_punicao.m_event_details.m_penalty
+    except Exception as e:
+        print(f"⚠️ PENA: union inválida: {e}")
+        return
+
+    idx = int(pen.m_vehicle_idx)
+    if idx >= len(JOGADORES):
+        return
+
+    piloto = JOGADORES[idx]
+    tipo   = int(pen.m_penalty_type)
+
+    piloto.punicao           = True
+    piloto.punicao_type      = tipo
+    piloto.punicao_type_nome = PENALTY_TYPES.get(tipo, f"Tipo {tipo}")
+    piloto.punicao_infringe  = int(pen.m_infringement_type)
+    piloto.punicao_time      = int(pen.m_time)
+    piloto.punicao_lap       = int(pen.m_lap_num)
+    piloto.punicao_points    = int(pen.m_places_gained)
+
+    piloto.historico_punicoes.append({
+        'volta':        piloto.punicao_lap,
+        'tipo_codigo':  tipo,
+        'tipo_nome':    piloto.punicao_type_nome,
+        'infringement': piloto.punicao_infringe,
+        'tempo_s':      piloto.punicao_time,
+        'posicoes':     piloto.punicao_points,
+        'timestamp':    time.time(),
+    })

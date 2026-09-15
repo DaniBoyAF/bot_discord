@@ -29,7 +29,7 @@ class Session:
         self.m_session_type = 0
         self.m_track_id = -1
         self.m_track_name = "Desconhecida"
-        self.m_formula = 0
+        self.m_formula = 0 #proximo
         self.m_session_time_left = 0
         self.m_session_duration = 0
         self.m_pit_speed_limit = 0
@@ -70,7 +70,7 @@ class Session:
         self.m_num_safety_car_periods = 0
         self.m_num_virtual_safety_car_periods = 0
         self.m_num_red_flag_periods = 0
-
+        
         # Atributos extras
         self.flag = "Verde"
         self.SafetyCarStatus = "Nenhum"

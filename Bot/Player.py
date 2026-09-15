@@ -59,6 +59,39 @@ class Player:
         self.m_team_id = 0
         self.m_my_team = False
         self.m_ai_controlled = False
+        self.drs_allowed = 0                    # 🆕 zona DRS disponível (0/1)
+        self.drs_activation_distance = 0        # 🆕 metros até a zona DRS
+        # ═══════════════════════════════════════════════════════
+        #  🆕 CAMPOS ADICIONADOS — leitura do pacote CarDamageData
+        # ═══════════════════════════════════════════════════════
+        # Pneus (dano interno + bolhas + pressão + temperatura dos freios)
+        self.tyre_damage         = [0, 0, 0, 0]      # % de dano nos pneus
+        self.brakes_damage       = [0, 0, 0, 0]      # % de dano nos freios
+        self.brakes_temperature  = [0, 0, 0, 0]      # °C (RL, RR, FL, FR)
+        self.tyres_pressure      = [0.0, 0.0, 0.0, 0.0]  # PSI (RL, RR, FL, FR)
+
+        # Falhas
+        self.drsFault = 0
+        self.ersFault = 0
+
+        # Powertrain / componentes do motor
+        self.gearBoxDamage   = 0
+        self.engineDamage    = 0
+        self.engine_mguhwear = 0
+        self.engine_eswear   = 0
+        self.engine_cewear   = 0
+        self.engine_icewear  = 0
+        self.engine_mgukwear = 0
+        self.engine_tcwear   = 0
+        self.engine_blown    = 0
+        self.engine_seized   = 0
+        # ── Warnings / punições ────────────────────────────────
+        self.warnings = 0
+        self.punicao = False
+        self.punicao_time = 0
+        self.punicao_type = 0
+        self.punicao_lap = 0
+        self.punicao_points = 0
 
     def __str__(self):
         return self.name + str(self.position)

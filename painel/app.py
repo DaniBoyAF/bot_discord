@@ -453,6 +453,11 @@ def apagar_db():
 
 @app.route("/dados_completos_live")
 def dados_completos_live():
+    """
+    JSON unificado da sessão atual.
+    Tenta primeiro os dados AO VIVO (Bot.jogadores.JOGADORES + SESSION).
+    Se não houver parser rodando, cai no último snapshot do banco.
+    """
     live_ok = False
     pilotos_live = []
     sessao_live = {}
@@ -464,7 +469,7 @@ def dados_completos_live():
         from Bot.Session import SESSION
         from utils.dictionnaries import (
             tyres_dictionnary, teams_name_dictionary, teams_color_dictionary,
-            session_dictionary
+            session_dictionary,
         )
 
         def _fmt(t):
@@ -499,7 +504,7 @@ def dados_completos_live():
             if _n > max_lap:
                 max_lap = _n
 
-        # ── Bandeira: lê das marshal zones e traduz para NOME ─────
+        # ── Bandeira ─────────────────────────────────────────
         _zonas = getattr(SESSION, "m_marshalZones", None)
         if _zonas is None:
             _zonas = getattr(SESSION, "m_marshal_zones", None)
@@ -513,7 +518,6 @@ def dados_completos_live():
             except (IndexError, TypeError):
                 _flag_id = -1
 
-        # 🆕 mapeamento direto ID → nome (evita o hex do color_flag_dict)
         _flag_map = {
             -1: "Desconhecida",
              0: "Nenhuma",
@@ -533,6 +537,13 @@ def dados_completos_live():
         except (TypeError, ValueError):
             _stype_code = -1
         _stype_name = session_dictionary.get(_stype_code, "Sessão")
+
+        # ── Fórmula (F1 / F2) ─────────────────────────────────
+        try:
+            _formula_code = int(getattr(SESSION, 'm_formula', 0) or 0)
+        except Exception:
+            _formula_code = 0
+        _formula_name = "F2" if _formula_code == 2 else "F1"
 
         _track = getattr(SESSION, 'track_name', None)
         if not _track or str(_track).strip() in ("", "—", "Desconhecida", "DESCONHECIDA"):
@@ -565,6 +576,8 @@ def dados_completos_live():
             "clima":         getattr(SESSION, 'weather', '—') or "—",
             "sc_status":     getattr(SESSION, 'SafetyCarStatus', 'Nenhum') or "Nenhum",
             "flag":          _flag_raw,
+            "formula":       _formula_code,
+            "formula_name":  _formula_name,
         }
 
         for idx, p in enumerate(JOGADORES):
@@ -640,6 +653,44 @@ def dados_completos_live():
             if isinstance(delta, str):
                 delta = None
 
+            # ── Desgaste / temperaturas / danos / combustível ──
+            tyre_wear_raw = getattr(p, 'tyre_wear', [0, 0, 0, 0]) or [0, 0, 0, 0]
+            if isinstance(tyre_wear_raw, tuple):
+                tyre_wear_raw = list(tyre_wear_raw)
+            while len(tyre_wear_raw) < 4:
+                tyre_wear_raw.append(0)
+            tw = [float(x or 0) for x in tyre_wear_raw[:4]]
+
+            ti = list(getattr(p, 'tyres_temp_inner', [0,0,0,0]) or [0,0,0,0])
+            ts = list(getattr(p, 'tyres_temp_surface', [0,0,0,0]) or [0,0,0,0])
+            while len(ti) < 4: ti.append(0)
+            while len(ts) < 4: ts.append(0)
+
+            dano_asa_e = float(getattr(p, 'FrontLeftWingDamage',  0) or 0)
+            dano_asa_d = float(getattr(p, 'FrontRightWingDamage', 0) or 0)
+            dano_asa_t = float(getattr(p, 'rearWingDamage',       0) or 0)
+            dano_assoa = float(getattr(p, 'floorDamage',          0) or 0)
+            dano_difus = float(getattr(p, 'diffuserDamage',       0) or 0)
+            dano_sidep = float(getattr(p, 'sidepodDamage',        0) or 0)
+
+            try:
+                fuel_kg   = float(getattr(p, 'fuel_in_tank', 0) or 0)
+                fuel_cap  = float(getattr(p, 'fuel_capacity', 0) or 0)
+                fuel_laps = float(getattr(p, 'fuel_remaining_laps', 0) or 0)
+            except Exception:
+                fuel_kg = fuel_cap = fuel_laps = 0.0
+
+            try:
+                ers_j  = float(getattr(p, 'ers_store_energy', 0) or 0)
+                ers_pct = min(100.0, max(0.0, round(ers_j / 4_000_000 * 100, 1)))
+            except Exception:
+                ers_pct = 0.0
+
+            # ── 🆕 DRS — 3 estados ─────────────────────────────
+            drs_ativo      = bool(getattr(p, 'drs', 0))                     # aberto agora
+            drs_disponivel = bool(getattr(p, 'drs_allowed', 0))             # dentro da zona
+            drs_distancia  = int(getattr(p, 'drs_activation_distance', 0) or 0)
+
             pilotos_live.append({
                 "idx":         idx,
                 "nome":        nome,
@@ -665,12 +716,34 @@ def dados_completos_live():
                 "is_pit":      bool(getattr(p, 'pit', False)),
 
                 "delta_to_leader": delta,
+
                 "pneu_atual":  tyre,
                 "idade_pneu":  tyre_age,
 
                 "s1_atual":    last_s1,
                 "s2_atual":    last_s2,
                 "s3_atual":    last_s3,
+
+                "tyre_wear":          tw,
+                "tyre_temp_inner":    [float(x) for x in ti[:4]],
+                "tyre_temp_surface":  [float(x) for x in ts[:4]],
+                "dano_asa_esquerda":  dano_asa_e,
+                "dano_asa_direita":   dano_asa_d,
+                "dano_asa_traseira":  dano_asa_t,
+                "dano_assoalho":      dano_assoa,
+                "dano_difusor":       dano_difus,
+                "dano_sidepods":      dano_sidep,
+                "fuel":               fuel_kg,
+                "fuel_capacity":      fuel_cap,
+                "fuel_laps":          fuel_laps,
+                "ers_pct":            ers_pct,
+
+                # 🆕 DRS — 3 campos
+                "drs":                     drs_ativo,
+                "drs_allowed":             drs_disponivel,
+                "drs_activation_distance": drs_distancia,
+
+                "current_lap":        int(getattr(p, 'current_lap_num', 0) or 0),
             })
 
         if pilotos_live:
@@ -751,6 +824,7 @@ def dados_completos_live():
 
             sessao_id = sessao["id"]
             sessao_dict = dict(sessao)
+            sessao_dict["formula_name"] = "F1"   # fallback
 
             cur.execute("""
                 SELECT
@@ -806,6 +880,24 @@ def dados_completos_live():
                 p["is_sb_s3"]   = False
                 p["is_pit"]     = False
                 p["team_color"] = "#666666"
+                p["tyre_wear"]         = [0, 0, 0, 0]
+                p["tyre_temp_inner"]   = [0, 0, 0, 0]
+                p["tyre_temp_surface"] = [0, 0, 0, 0]
+                p["dano_asa_esquerda"] = 0
+                p["dano_asa_direita"]  = 0
+                p["dano_asa_traseira"] = 0
+                p["dano_assoalho"]     = 0
+                p["dano_difusor"]      = 0
+                p["dano_sidepods"]     = 0
+                p["fuel"]              = 0
+                p["fuel_capacity"]     = 0
+                p["fuel_laps"]         = 0
+                p["ers_pct"]           = 0
+
+                # 🆕 DRS — 3 campos no fallback também
+                p["drs"]                     = False
+                p["drs_allowed"]             = False
+                p["drs_activation_distance"] = 0
 
             clima = {}
             try:
@@ -857,10 +949,11 @@ def api_mapa_posicoes():
         from Bot.Session import SESSION
         from utils.dictionnaries import (
             teams_color_dictionary, teams_name_dictionary,
-            tyres_dictionnary, session_dictionary
+            tyres_dictionnary, session_dictionary, track_dictionary,pit_dictionary
         )
         from dados.map_performance import carros_dados
 
+        # ── Bandeira: hex → nome ──────────────────────────────
         flag_raw = getattr(SESSION, 'flag', 'Verde')
         if isinstance(flag_raw, str) and flag_raw.startswith('#'):
             flag_map = {
@@ -870,16 +963,16 @@ def api_mapa_posicoes():
             }
             flag_raw = flag_map.get(flag_raw.upper(), "Verde")
 
+        # ── Tipo de sessão ─────────────────────────────────────
         sess_type_code = getattr(SESSION, 'm_session_type', None)
         sess_type_code = -1 if sess_type_code is None else sess_type_code
-        sess_type_name = session_dictionary.get(sess_type_code, "Sessão")
-
         try:
-            sess_type_code = int(sess_type_code) if sess_type_code is not None else -1
+            sess_type_code = int(sess_type_code)
         except (TypeError, ValueError):
             sess_type_code = -1
-            sess_type_name = session_dictionary.get(sess_type_code, "Sessão")
+        sess_type_name = session_dictionary.get(sess_type_code, "Sessão")
 
+        # ── Volta atual (maior current_lap_num) ───────────────
         max_lap = 0
         for p in JOGADORES:
             n = getattr(p, 'current_lap_num', 0) or 0
@@ -887,29 +980,94 @@ def api_mapa_posicoes():
                 max_lap = n
 
         total_laps = getattr(SESSION, 'm_total_laps', 0) or 0
-        track = getattr(SESSION, 'track_name', None) or 'unknown'
+        session_time_left = int(getattr(SESSION, 'm_session_time_left', 0) or 0)
+        formula_code = int(getattr(SESSION, 'm_formula', 0) or 0)
+        formula_name = "F2" if formula_code == 2 else "F1"
+        # ── Nome da pista: track_name → track_id → fallback ──
+        track = getattr(SESSION, 'track_name', None)
+        if not track or str(track).strip().lower() in ("", "unknown", "desconhecida", "—"):
+            try:
+                tid = getattr(SESSION, 'm_track_id', -1)
+                if tid is not None and tid in track_dictionary:
+                    track = str(track_dictionary[tid][0]).replace('_', ' ').title()
+            except Exception:
+                pass
+        if not track or str(track).strip().lower() in ("", "unknown", "desconhecida", "—"):
+            track = "—"
 
+        # ── Clima (primeira amostra de forecast) ──────────────
+        _amostra = None
+        amostras = getattr(SESSION, "m_weatherForecastSamples", None)
+        if amostras is None:
+            amostras = getattr(SESSION, "m_weather_forecast_samples", None)
+        if amostras:
+            try:
+                _amostra = amostras[0]
+            except (IndexError, TypeError):
+                _amostra = None
+
+        def _samp(attr, fallback=None):
+            if _amostra is not None:
+                v = getattr(_amostra, attr, None)
+                if v not in (None, ""):
+                    return v
+            return fallback
+
+        temp_pista = _samp("m_track_temperature") or getattr(SESSION, 'm_track_temperature', None) or "—"
+        temp_ar    = _samp("m_air_temperature")   or getattr(SESSION, 'm_air_temperature', None)   or "—"
+         
+        clima      = getattr(SESSION, 'weather', '—') or "—"
+        sc_status  = getattr(SESSION, 'SafetyCarStatus', 'Nenhum') or "Nenhum"
+        def _get_rain_percent():
+            """Retorna % de chuva do forecast, com 3 fallbacks em ordem."""
+            # 1) O que atualizar_SessionData já gravou direto (mais confiável)
+            rp = getattr(SESSION, 'rainPercentage', None)
+            if rp is not None and rp != "":
+                try:
+                    return int(rp)
+                except (TypeError, ValueError):
+                    pass
+
+            # 2) Primeira amostra do forecast (nome real do campo é m_rain_percentage)
+            amostras = (getattr(SESSION, "m_weatherForecastSamples", None)
+                        or getattr(SESSION, "m_weather_forecast_samples", None))
+            if amostras:
+                try:
+                    amostra = amostras[0]
+                    v = (getattr(amostra, "m_rain_percentage", None)
+                         if getattr(amostra, "m_rain_percentage", None) is not None
+                         else getattr(amostra, "m_rainPercentage", None))
+                    if v is not None:
+                        return int(v)
+                except (IndexError, TypeError, ValueError):
+                    pass
+
+            # 3) Nada disponível
+            return 0
+        
+        # ── Loop dos pilotos ──────────────────────────────────
         pilotos_raw = []
         for idx, p in enumerate(JOGADORES):
             nome = (getattr(p, 'name', '') or '').strip()
             if not nome:
                 continue
 
+            # Posição no mapa (se existir)
+            x, z, has_pos = 0.0, 0.0, False
             pos_list = carros_dados.get(idx)
-            if not pos_list:
-                continue
-            ultimo = pos_list[-1]
-            if not (isinstance(ultimo, (list, tuple)) and len(ultimo) >= 3):
-                continue
-
-            try:
-                x = float(ultimo[0])
-                z = float(ultimo[1])
-            except (TypeError, ValueError):
-                continue
+            if pos_list:
+                try:
+                    ultimo = pos_list[-1]
+                    if isinstance(ultimo, (list, tuple)) and len(ultimo) >= 3:
+                        x = float(ultimo[0])
+                        z = float(ultimo[1])
+                        has_pos = True
+                except (TypeError, ValueError, IndexError):
+                    pass
 
             team_id = getattr(p, 'm_team_id', -1)
 
+            # ── Pneu ──
             tyre_name = getattr(p, 'tyre_type', None)
             if not tyre_name:
                 code = getattr(p, 'tyres', None)
@@ -919,11 +1077,59 @@ def api_mapa_posicoes():
                     code = None
                 tyre_name = tyres_dictionnary.get(code, "Médio") if code is not None else "Médio"
 
+            # ── Desgaste (UDP: [RL, RR, FL, FR]) ──
+            tw = list(getattr(p, 'tyre_wear', [0, 0, 0, 0]) or [0, 0, 0, 0])
+            while len(tw) < 4:
+                tw.append(0)
+            tw = [float(v or 0) for v in tw[:4]]
+
+            # ── Temperaturas dos pneus ──
+            ti = list(getattr(p, 'tyres_temp_inner',   [0, 0, 0, 0]) or [0, 0, 0, 0])
+            ts = list(getattr(p, 'tyres_temp_surface', [0, 0, 0, 0]) or [0, 0, 0, 0])
+            while len(ti) < 4: ti.append(0)
+            while len(ts) < 4: ts.append(0)
+            ti = [float(v or 0) for v in ti[:4]]
+            ts = [float(v or 0) for v in ts[:4]]
+
+            # ── Freios ──
+            try:
+                bt = list(getattr(p, 'brakes_temperature', [0, 0, 0, 0]) or [0, 0, 0, 0])
+                while len(bt) < 4: bt.append(0)
+                bt = [float(v or 0) for v in bt[:4]]
+            except Exception:
+                bt = [0, 0, 0, 0]
+
+            # ── Danos ──
+            dano_e = float(getattr(p, 'FrontLeftWingDamage',  0) or 0)
+            dano_d = float(getattr(p, 'FrontRightWingDamage', 0) or 0)
+            dano_t = float(getattr(p, 'rearWingDamage',       0) or 0)
+            dano_a = float(getattr(p, 'floorDamage',          0) or 0)
+            dano_f = float(getattr(p, 'diffuserDamage',       0) or 0)
+            dano_s = float(getattr(p, 'sidepodDamage',        0) or 0)
+
+            # ── Fuel / ERS / DRS ──
+            try:
+                fuel_kg   = float(getattr(p, 'fuel_in_tank', 0) or 0)
+                fuel_cap  = float(getattr(p, 'fuel_capacity', 0) or 0)
+                fuel_laps = float(getattr(p, 'fuel_remaining_laps', 0) or 0)    
+            except Exception:
+                fuel_kg = fuel_cap = fuel_laps = 0.0
+
+            try:
+                ers_j   = float(getattr(p, 'ers_store_energy', 0) or 0)
+                ers_pct = min(100.0, max(0.0, round(ers_j / 4_000_000 * 100, 1)))
+            except Exception:
+                ers_pct = 0.0
+
+            drs_ativo      = bool(getattr(p, 'drs', 0))
+            drs_disponivel = bool(getattr(p, 'drs_allowed', 0))
+            drs_distancia  = int(getattr(p, 'drs_activation_distance', 0) or 0)
+            pit_on         = bool(getattr(p, 'pit', 0))
+            # ── Laps ──
             voltas = getattr(p, 'todas_voltas_setores', []) or []
             validas = [v for v in voltas
                        if v.get('tempo_total') and v['tempo_total'] > 10]
             best_lap_p = min((v['tempo_total'] for v in validas), default=None)
-
             last_lap_p = getattr(p, 'lastLapTime', 0) or 0
             if not last_lap_p and validas:
                 last_lap_p = validas[-1].get('tempo_total')
@@ -933,50 +1139,109 @@ def api_mapa_posicoes():
             except Exception:
                 speed = 0
 
+            delta = getattr(p, 'delta_to_leader', None)
+            if isinstance(delta, str):
+                delta = None
+
             pilotos_raw.append({
-                "idx":     idx,
-                "nome":    nome,
-                "numero":  getattr(p, 'numero', None),
-                "posicao": getattr(p, 'position', None),
-                "x":       x,
-                "z":       z,
-                "speed":   speed,
-                "cor":     teams_color_dictionary.get(team_id, "#FFFFFF"),
-                "equipe":  teams_name_dictionary.get(team_id, "?"),
-                "pit":     bool(getattr(p, 'pit', False)),
-                "is_pit":  bool(getattr(p, 'pit', False)),
-                "tyre":    tyre_name,
+                "idx":      idx,
+                "nome":     nome,
+                "numero":   getattr(p, 'numero', None),
+                "posicao":  getattr(p, 'position', None),
+                "x":        x,
+                "z":        z,
+                "has_pos":  has_pos,
+                "speed":    speed,
+                "cor":      teams_color_dictionary.get(team_id, "#FFFFFF"),
+                "equipe":   teams_name_dictionary.get(team_id, "?"),
+                "pit_on":   bool(getattr(p, 'pit', 0)),
+                "pit":      bool(getattr(p, 'pit', False)),
+                "is_pit":   bool(getattr(p, 'pit', False)),
+                "tyre":     tyre_name,
                 "tyre_age": int(getattr(p, 'tyresAgeLaps', 0) or 0),
                 "best_lap": round(best_lap_p, 3) if best_lap_p else None,
                 "last_lap": round(last_lap_p, 3) if last_lap_p else None,
-                "gap":     None,
+                "delta_to_leader": delta,
+                "gap":      None,
                 "interval": None,
+
+                # detalhes
+                "tyre_wear":         tw,
+                "tyre_temp_inner":   ti,
+                "tyre_temp_surface": ts,
+                "brakes_temp":       bt,
+                "dano_asa_esquerda": dano_e,
+                "dano_asa_direita":  dano_d,
+                "dano_asa_traseira": dano_t,
+                "dano_assoalho":     dano_a,
+                "dano_difusor":      dano_f,
+                "dano_sidepods":     dano_s,
+                "fuel":              fuel_kg,
+                "fuel_capacity":     fuel_cap,
+                "fuel_laps":         fuel_laps,
+                "ers_pct":           ers_pct,
+                "drs_ativo":         drs_ativo,
+                "drs_disponivel":    drs_disponivel,
+                "drs_distancia":     drs_distancia,
+                "pit_on":            pit_on,
+                "current_lap":       int(getattr(p, 'current_lap_num', 0) or 0),
+
+
+                                # ── Motor / Powertrain ──
+                "engine_damage":  float(getattr(p, 'engineDamage', 0) or 0),
+                "engine_ice":     float(getattr(p, 'engine_icewear', 0) or 0),
+                "engine_mguk":    float(getattr(p, 'engine_mgukwear', 0) or 0),
+                "engine_mguh":    float(getattr(p, 'engine_mguhwear', 0) or 0),
+                "engine_es":      float(getattr(p, 'engine_eswear', 0) or 0),
+                "engine_ce":      float(getattr(p, 'engine_cewear', 0) or 0),
+                "engine_tc":      float(getattr(p, 'engine_tcwear', 0) or 0),
+                "gearbox_damage": float(getattr(p, 'gearBoxDamage', 0) or 0),
+                "drs_fault":      float(getattr(p, 'drsFault', 0) or 0),
+                "ers_fault":      float(getattr(p, 'ersFault', 0) or 0),
+                "tyre_blisters":  list(getattr(p, 'tyre_blisters', [0,0,0,0]) or [0,0,0,0]),
             })
 
-        pilotos_raw.sort(key=lambda x: (x['posicao'] is None,
-                                        x['posicao'] if x['posicao'] else 999))
+        # ── Ordena por posição ──
+        pilotos_raw.sort(key=lambda y: (y['posicao'] is None,
+                                        y['posicao'] if y['posicao'] else 999))
 
-        leader_best = next((x['best_lap'] for x in pilotos_raw if x['best_lap']), None)
-        for i, x in enumerate(pilotos_raw):
-            if x['best_lap'] and leader_best:
-                x['gap'] = round(x['best_lap'] - leader_best, 3)
-                if x['gap'] == 0:
-                    x['gap'] = 0
+        # ── Gap + Interval ──
+        for i, y in enumerate(pilotos_raw):
+            d = y.get('delta_to_leader')
+            if isinstance(d, (int, float)) and d >= 0:
+                y['gap'] = round(float(d), 3)
+            else:
+                y['gap'] = None
+
             if i == 0:
-                x['interval'] = 0.0 if x['gap'] == 0 else None
+                y['interval'] = 0.0 if y.get('gap') == 0 else None
             else:
                 prev = pilotos_raw[i-1]
-                if x['gap'] is not None and prev['gap'] is not None:
-                    x['interval'] = round(x['gap'] - prev['gap'], 3)
-
+                if y.get('gap') is not None and prev.get('gap') is not None:
+                    y['interval'] = round(y['gap'] - prev['gap'], 3)
+                else:
+                    y['interval'] = None
+        time_of_day = int(getattr(SESSION, 'm_time_of_day', 0) or 0)
         return jsonify({
             "track": track,
             "sessao": {
-                "nome_pista":   track,
-                "tipo_sessao":  sess_type_name,
-                "volta_atual":  max_lap,
-                "total_voltas": total_laps,
-                "bandeira":     flag_raw,
+                "nome_pista":        track,
+                "tipo_sessao":       sess_type_name,
+                "volta_atual":       max_lap,
+                "total_voltas":      total_laps,
+                "session_time_left": session_time_left,
+                "bandeira":          flag_raw,
+                "sc_status":         sc_status,
+                "time_of_day":       time_of_day,
+                "temp_pista":        temp_pista,
+                "temp_ar":           temp_ar,
+                "chance_chuva":      _get_rain_percent(),
+                "clima":             clima,
+                "formula":           formula_code,       # 🆕
+                "formula_name":      formula_name,       # 🆕
+                "pit_ideal_lap":  int(getattr(SESSION, 'm_pit_stop_window_ideal_lap', 0) or 0),
+                "pit_latest_lap": int(getattr(SESSION, 'm_pit_stop_window_latest_lap', 0) or 0),
+                "pit_rejoin_pos": int(getattr(SESSION, 'm_pit_stop_rejoin_position', 0) or 0),
             },
             "pilotos": pilotos_raw,
         })
@@ -984,8 +1249,21 @@ def api_mapa_posicoes():
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({
-            "track": "unknown",
-            "sessao": {"volta_atual": 0, "total_voltas": 0, "bandeira": "—", "tipo_sessao": "—"},
+            "track": "—",
+            "sessao": {
+                "nome_pista": "—", "tipo_sessao": "—",
+                "volta_atual": 0, "total_voltas": 0,
+                "session_time_left": 0,
+                "time_of_day": 0,   
+                "formula": 0,
+                "formula_name": "F1",
+                "bandeira": "—", "sc_status": "Nenhum",
+                "temp_pista": "—", "temp_ar": "—",
+                "chance_chuva": 0, "clima": "—",
+                "pit_ideal_lap":  0,
+                "pit_latest_lap": 0,
+                "pit_rejoin_pos": 0,
+            },
             "pilotos": [], "erro": str(e),
         })
 
