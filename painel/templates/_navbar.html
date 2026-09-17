@@ -1,0 +1,95 @@
+<!-- Barra de navegação compartilhada entre páginas de análise -->
+<style>
+  .shared-nav {
+    position: sticky; top: 0; z-index: 999;
+    display: flex; gap: 4px; padding: 8px 16px;
+    background: #0a0c18;
+    border-bottom: 1px solid #1a1d2e;
+    font-family: 'Titillium Web','Segoe UI',sans-serif;
+    overflow-x: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  }
+  .shared-nav a {
+    padding: 8px 14px;
+    border-radius: 6px;
+    color: #8a8db0;
+    text-decoration: none;
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    white-space: nowrap;
+    transition: all .15s;
+    border: 1px solid transparent;
+  }
+  .shared-nav a:hover {
+    background: #14192a;
+    color: #00c8ff;
+    border-color: #00c8ff40;
+  }
+  .shared-nav a.ativo {
+    background: #00c8ff;
+    color: #000;
+    border-color: #00c8ff;
+  }
+  .shared-nav .voltar {
+    margin-right: 8px;
+    background: #1a1d2e;
+    color: #fff;
+  }
+  .shared-nav .voltar:hover {
+    background: #252840;
+    color: #fff;
+  }
+  .shared-nav .sessao-tag {
+    margin-left: auto;
+    padding: 8px 14px;
+    font-size: 11px;
+    color: #5a5d78;
+    font-family: 'Orbitron', monospace;
+    letter-spacing: 1px;
+    display: flex; align-items: center;
+    white-space: nowrap;
+  }
+  .shared-nav .sessao-tag strong {
+    color: #00c8ff;
+    margin-left: 6px;
+  }
+</style>
+
+<nav class="shared-nav" id="sharedNav">
+  <a href="/" class="voltar">← Histórico</a>
+  <a data-rota="/g">📈 Race Pace</a>
+  <a data-rota="/graf">📊 Média Volta</a>
+  <a data-rota="/race_positions">🏁 Posições</a>
+  <a data-rota="/pit">🛞 Pit Hub</a>
+  <a data-rota="/Comparar">📈 Comparar</a>
+  <a data-rota="/painel" target="_blank">📡 Ao Vivo</a>
+  <span class="sessao-tag" id="sessaoTag"></span>
+</nav>
+
+<script>
+(function() {
+  const params    = new URLSearchParams(location.search);
+  const sessaoId  = params.get('sessao');
+  const pathAtual = location.pathname;
+
+  // Injeta o ?sessao= em todos os links internos
+  document.querySelectorAll('#sharedNav a[data-rota]').forEach(a => {
+    const rota = a.dataset.rota;
+    if (sessaoId && !a.hasAttribute('target')) {
+      a.href = `${rota}?sessao=${sessaoId}`;
+    } else {
+      a.href = rota;
+    }
+    // Marca como ativo se for a rota atual (ignora o path completo)
+    if (pathAtual === rota || pathAtual === rota + '/') {
+      a.classList.add('ativo');
+    }
+  });
+
+  // Mostra o ID da sessão do lado direito
+  const tag = document.getElementById('sessaoTag');
+  if (tag && sessaoId) {
+    tag.innerHTML = `SESSÃO <strong>#${sessaoId}</strong>`;
+  }
+})();
+</script>

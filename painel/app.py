@@ -642,7 +642,7 @@ def dados_completos_live():
 
             team_id = getattr(p, 'm_team_id', -1)
             team_name = getattr(p, 'team_name', None) or teams_name_dictionary.get(team_id, "?")
-            team_color = teams_color_dictionary.get(team_id, "#666666")
+            team_color = teams_color_dictionary.get(team_id, "#888888")
 
             try:
                 speed = int(getattr(p, 'speed_trap', 0) or 0)
@@ -949,7 +949,7 @@ def api_mapa_posicoes():
         from Bot.Session import SESSION
         from utils.dictionnaries import (
             teams_color_dictionary, teams_name_dictionary,
-            tyres_dictionnary, session_dictionary, track_dictionary,pit_dictionary
+            tyres_dictionnary, session_dictionary, track_dictionary, pit_dictionary
         )
         from dados.map_performance import carros_dados
 
@@ -972,7 +972,7 @@ def api_mapa_posicoes():
             sess_type_code = -1
         sess_type_name = session_dictionary.get(sess_type_code, "Sessão")
 
-        # ── Volta atual (maior current_lap_num) ───────────────
+        # ── Volta atual ───────────────────────────────────────
         max_lap = 0
         for p in JOGADORES:
             n = getattr(p, 'current_lap_num', 0) or 0
@@ -983,7 +983,8 @@ def api_mapa_posicoes():
         session_time_left = int(getattr(SESSION, 'm_session_time_left', 0) or 0)
         formula_code = int(getattr(SESSION, 'm_formula', 0) or 0)
         formula_name = "F2" if formula_code == 2 else "F1"
-        # ── Nome da pista: track_name → track_id → fallback ──
+
+        # ── Nome da pista ──────────────────────────────────────
         track = getattr(SESSION, 'track_name', None)
         if not track or str(track).strip().lower() in ("", "unknown", "desconhecida", "—"):
             try:
@@ -995,7 +996,7 @@ def api_mapa_posicoes():
         if not track or str(track).strip().lower() in ("", "unknown", "desconhecida", "—"):
             track = "—"
 
-        # ── Clima (primeira amostra de forecast) ──────────────
+        # ── Clima ─────────────────────────────────────────────
         _amostra = None
         amostras = getattr(SESSION, "m_weatherForecastSamples", None)
         if amostras is None:
@@ -1015,20 +1016,16 @@ def api_mapa_posicoes():
 
         temp_pista = _samp("m_track_temperature") or getattr(SESSION, 'm_track_temperature', None) or "—"
         temp_ar    = _samp("m_air_temperature")   or getattr(SESSION, 'm_air_temperature', None)   or "—"
-         
         clima      = getattr(SESSION, 'weather', '—') or "—"
         sc_status  = getattr(SESSION, 'SafetyCarStatus', 'Nenhum') or "Nenhum"
+
         def _get_rain_percent():
-            """Retorna % de chuva do forecast, com 3 fallbacks em ordem."""
-            # 1) O que atualizar_SessionData já gravou direto (mais confiável)
             rp = getattr(SESSION, 'rainPercentage', None)
             if rp is not None and rp != "":
                 try:
                     return int(rp)
                 except (TypeError, ValueError):
                     pass
-
-            # 2) Primeira amostra do forecast (nome real do campo é m_rain_percentage)
             amostras = (getattr(SESSION, "m_weatherForecastSamples", None)
                         or getattr(SESSION, "m_weather_forecast_samples", None))
             if amostras:
@@ -1041,10 +1038,8 @@ def api_mapa_posicoes():
                         return int(v)
                 except (IndexError, TypeError, ValueError):
                     pass
-
-            # 3) Nada disponível
             return 0
-        
+
         # ── Loop dos pilotos ──────────────────────────────────
         pilotos_raw = []
         for idx, p in enumerate(JOGADORES):
@@ -1052,7 +1047,7 @@ def api_mapa_posicoes():
             if not nome:
                 continue
 
-            # Posição no mapa (se existir)
+            # Posição no mapa
             x, z, has_pos = 0.0, 0.0, False
             pos_list = carros_dados.get(idx)
             if pos_list:
@@ -1077,13 +1072,13 @@ def api_mapa_posicoes():
                     code = None
                 tyre_name = tyres_dictionnary.get(code, "Médio") if code is not None else "Médio"
 
-            # ── Desgaste (UDP: [RL, RR, FL, FR]) ──
+            # ── Desgaste ──
             tw = list(getattr(p, 'tyre_wear', [0, 0, 0, 0]) or [0, 0, 0, 0])
             while len(tw) < 4:
                 tw.append(0)
             tw = [float(v or 0) for v in tw[:4]]
 
-            # ── Temperaturas dos pneus ──
+            # ── Temperaturas ──
             ti = list(getattr(p, 'tyres_temp_inner',   [0, 0, 0, 0]) or [0, 0, 0, 0])
             ts = list(getattr(p, 'tyres_temp_surface', [0, 0, 0, 0]) or [0, 0, 0, 0])
             while len(ti) < 4: ti.append(0)
@@ -1107,11 +1102,11 @@ def api_mapa_posicoes():
             dano_f = float(getattr(p, 'diffuserDamage',       0) or 0)
             dano_s = float(getattr(p, 'sidepodDamage',        0) or 0)
 
-            # ── Fuel / ERS / DRS ──
+            # ── Fuel / ERS ──
             try:
                 fuel_kg   = float(getattr(p, 'fuel_in_tank', 0) or 0)
                 fuel_cap  = float(getattr(p, 'fuel_capacity', 0) or 0)
-                fuel_laps = float(getattr(p, 'fuel_remaining_laps', 0) or 0)    
+                fuel_laps = float(getattr(p, 'fuel_remaining_laps', 0) or 0)
             except Exception:
                 fuel_kg = fuel_cap = fuel_laps = 0.0
 
@@ -1125,14 +1120,43 @@ def api_mapa_posicoes():
             drs_disponivel = bool(getattr(p, 'drs_allowed', 0))
             drs_distancia  = int(getattr(p, 'drs_activation_distance', 0) or 0)
             pit_on         = bool(getattr(p, 'pit', 0))
-            # ── Laps ──
+
+            # ── Laps + Setores ──────────────────────────────────
             voltas = getattr(p, 'todas_voltas_setores', []) or []
             validas = [v for v in voltas
                        if v.get('tempo_total') and v['tempo_total'] > 10]
+
             best_lap_p = min((v['tempo_total'] for v in validas), default=None)
             last_lap_p = getattr(p, 'lastLapTime', 0) or 0
             if not last_lap_p and validas:
                 last_lap_p = validas[-1].get('tempo_total')
+
+            # Última volta com setores preenchidos
+            _ultima_com_setores = None
+            for _v in reversed(voltas):
+                _set = _v.get('setores') or []
+                if any(s is not None and s > 0 for s in _set):
+                    _ultima_com_setores = _v
+                    break
+
+            _last_s1 = _last_s2 = _last_s3 = None
+            if _ultima_com_setores and _ultima_com_setores.get('setores'):
+                _set = _ultima_com_setores['setores']
+                _last_s1 = _set[0] if len(_set) > 0 and _set[0] and _set[0] > 0 else None
+                _last_s2 = _set[1] if len(_set) > 1 and _set[1] and _set[1] > 0 else None
+                _last_s3 = _set[2] if len(_set) > 2 and _set[2] and _set[2] > 0 else None
+
+            # Melhores setores pessoais
+            _s1s = [v['setores'][0] for v in validas
+                    if v.get('setores') and v['setores'][0] and v['setores'][0] > 5]
+            _s2s = [v['setores'][1] for v in validas
+                    if v.get('setores') and v['setores'][1] and v['setores'][1] > 5]
+            _s3s = [v['setores'][2] for v in validas
+                    if v.get('setores') and v['setores'][2] and v['setores'][2] > 5]
+
+            _best_s1_p = min(_s1s) if _s1s else None
+            _best_s2_p = min(_s2s) if _s2s else None
+            _best_s3_p = min(_s3s) if _s3s else None
 
             try:
                 speed = int(getattr(p, 'speed_trap', 0) or 0)
@@ -1152,7 +1176,7 @@ def api_mapa_posicoes():
                 "z":        z,
                 "has_pos":  has_pos,
                 "speed":    speed,
-                "cor":      teams_color_dictionary.get(team_id, "#FFFFFF"),
+                "cor": teams_color_dictionary.get(team_id, "#888888"),
                 "equipe":   teams_name_dictionary.get(team_id, "?"),
                 "pit_on":   bool(getattr(p, 'pit', 0)),
                 "pit":      bool(getattr(p, 'pit', False)),
@@ -1161,6 +1185,15 @@ def api_mapa_posicoes():
                 "tyre_age": int(getattr(p, 'tyresAgeLaps', 0) or 0),
                 "best_lap": round(best_lap_p, 3) if best_lap_p else None,
                 "last_lap": round(last_lap_p, 3) if last_lap_p else None,
+
+                # Setores já fechados (última volta completa)
+                "s1":      round(_last_s1, 3) if _last_s1 else None,
+                "s2":      round(_last_s2, 3) if _last_s2 else None,
+                "s3":      round(_last_s3, 3) if _last_s3 else None,
+                "best_s1": round(_best_s1_p, 3) if _best_s1_p else None,
+                "best_s2": round(_best_s2_p, 3) if _best_s2_p else None,
+                "best_s3": round(_best_s3_p, 3) if _best_s3_p else None,
+
                 "delta_to_leader": delta,
                 "gap":      None,
                 "interval": None,
@@ -1186,8 +1219,7 @@ def api_mapa_posicoes():
                 "pit_on":            pit_on,
                 "current_lap":       int(getattr(p, 'current_lap_num', 0) or 0),
 
-
-                                # ── Motor / Powertrain ──
+                # Motor / Powertrain
                 "engine_damage":  float(getattr(p, 'engineDamage', 0) or 0),
                 "engine_ice":     float(getattr(p, 'engine_icewear', 0) or 0),
                 "engine_mguk":    float(getattr(p, 'engine_mgukwear', 0) or 0),
@@ -1221,6 +1253,19 @@ def api_mapa_posicoes():
                     y['interval'] = round(y['gap'] - prev['gap'], 3)
                 else:
                     y['interval'] = None
+
+        # Melhores setores da SESSÃO
+        _sb_s1  = [y['best_s1']  for y in pilotos_raw if y.get('best_s1')]
+        _sb_s2  = [y['best_s2']  for y in pilotos_raw if y.get('best_s2')]
+        _sb_s3  = [y['best_s3']  for y in pilotos_raw if y.get('best_s3')]
+        _sb_lap = [y['best_lap'] for y in pilotos_raw if y.get('best_lap')]
+        _session_bests = {
+            "s1":  min(_sb_s1)  if _sb_s1  else None,
+            "s2":  min(_sb_s2)  if _sb_s2  else None,
+            "s3":  min(_sb_s3)  if _sb_s3  else None,
+            "lap": min(_sb_lap) if _sb_lap else None,
+        }
+
         time_of_day = int(getattr(SESSION, 'm_time_of_day', 0) or 0)
         return jsonify({
             "track": track,
@@ -1237,13 +1282,14 @@ def api_mapa_posicoes():
                 "temp_ar":           temp_ar,
                 "chance_chuva":      _get_rain_percent(),
                 "clima":             clima,
-                "formula":           formula_code,       # 🆕
-                "formula_name":      formula_name,       # 🆕
+                "formula":           formula_code,
+                "formula_name":      formula_name,
                 "pit_ideal_lap":  int(getattr(SESSION, 'm_pit_stop_window_ideal_lap', 0) or 0),
                 "pit_latest_lap": int(getattr(SESSION, 'm_pit_stop_window_latest_lap', 0) or 0),
                 "pit_rejoin_pos": int(getattr(SESSION, 'm_pit_stop_rejoin_position', 0) or 0),
             },
             "pilotos": pilotos_raw,
+            "session_bests": _session_bests,
         })
 
     except Exception as e:
@@ -1254,7 +1300,7 @@ def api_mapa_posicoes():
                 "nome_pista": "—", "tipo_sessao": "—",
                 "volta_atual": 0, "total_voltas": 0,
                 "session_time_left": 0,
-                "time_of_day": 0,   
+                "time_of_day": 0,
                 "formula": 0,
                 "formula_name": "F1",
                 "bandeira": "—", "sc_status": "Nenhum",
@@ -1264,9 +1310,10 @@ def api_mapa_posicoes():
                 "pit_latest_lap": 0,
                 "pit_rejoin_pos": 0,
             },
-            "pilotos": [], "erro": str(e),
+            "pilotos": [],
+            "session_bests": {},
+            "erro": str(e),
         })
-
 @app.route("/debug_map")
 def debug_map():
     import dados.map_performance as m
@@ -2202,7 +2249,240 @@ def api_danos_por_volta(sessao_id):
         import traceback; traceback.print_exc()
         return jsonify({"pilotos": [], "erro": str(e)}), 500
 
+def _garantir_tabela_tracados():
+    """
+    Cria a tabela `tracados` se não existir.
+    Retorna True se OK, False se falhou.
+    """
+    try:
+        # Garante que o diretório pai do DB existe e é gravável
+        db_dir = os.path.dirname(DB_PATH)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+            print(f"📁 diretório criado: {db_dir}")
 
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tracados (
+                track_key   TEXT PRIMARY KEY,
+                nome_pista  TEXT,
+                segmentos   TEXT NOT NULL,
+                updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+        conn.close()
+        print(f"✅ tabela 'tracados' pronta em {DB_PATH}")
+        return True
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"❌ _garantir_tabela_tracados falhou: {e}")
+        print(f"   DB_PATH = {DB_PATH}")
+        print(f"   dir pai existe? {os.path.exists(os.path.dirname(DB_PATH))}")
+        print(f"   dir pai gravável? {os.access(os.path.dirname(DB_PATH), os.W_OK) if os.path.exists(os.path.dirname(DB_PATH)) else 'N/A'}")
+        return False
+
+
+# Roda no startup e guarda o resultado numa flag global
+TRACADOS_OK = _garantir_tabela_tracados()
+@app.route("/api/tracados", methods=["GET"])
+def listar_tracados():
+    """Lista todos os traçados salvos (só metadados, sem os pontos)."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT track_key, nome_pista,
+                   LENGTH(segmentos) AS tamanho,
+                   updated_at
+            FROM tracados
+            ORDER BY updated_at DESC
+        """)
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return jsonify(rows)
+    except Exception as e:
+        return jsonify([]), 500
+
+
+@app.route("/api/tracados/<track_key>", methods=["GET"])
+def carregar_tracado(track_key):
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT nome_pista, segmentos, updated_at FROM tracados WHERE track_key = ?",
+            (track_key.upper(),)
+        )
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            return jsonify({"ok": False, "erro": "não encontrado"}), 404
+
+        try:
+            segmentos = json.loads(row["segmentos"])
+        except Exception:
+            segmentos = []
+
+        return jsonify({
+            "ok": True,
+            "track_key": track_key.upper(),
+            "nome_pista": row["nome_pista"],
+            "segmentos": segmentos,
+            "updated_at": row["updated_at"],
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "erro": str(e)}), 500
+
+
+@app.route("/api/tracados/<track_key>", methods=["POST"])
+def salvar_tracado(track_key):
+    """
+    Salva (ou substitui) o traçado de uma pista.
+
+    Body JSON esperado:
+        {
+            "nome_pista": "Interlagos",
+            "segmentos": [
+                [ {"x": 1.2, "z": 3.4, "speed": 210}, ... ],   # seg 1
+                [ {"x": 5.6, "z": 7.8, "speed": 180}, ... ],   # seg 2
+                ...
+            ]
+        }
+    """
+    # ── 0) Backend saudável? ──────────────────────────────────────
+    if not TRACADOS_OK:
+        print(f"❌ POST /api/tracados/{track_key} rejeitado: tabela indisponível")
+        return jsonify({
+            "ok": False,
+            "erro": "tabela 'tracados' indisponível no backend",
+            "db_path": DB_PATH,
+        }), 503
+
+    try:
+        # ── 1) Log de entrada (sempre, ajuda a diagnosticar) ──────
+        payload_bytes = len(request.data or b"")
+        print(f"🔵 POST /api/tracados/{track_key} — {payload_bytes} bytes recebidos")
+
+        # ── 2) Parse do body ──────────────────────────────────────
+        data = request.get_json(silent=True)
+        if data is None:
+            print(f"❌ body JSON inválido em {track_key}")
+            return jsonify({"ok": False, "erro": "body não é JSON válido"}), 400
+
+        segmentos  = data.get("segmentos")
+        nome_pista = (data.get("nome_pista") or track_key or "").strip() or track_key
+
+        # ── 3) Validação ──────────────────────────────────────────
+        if not isinstance(segmentos, list):
+            print(f"❌ segmentos não é lista em {track_key}")
+            return jsonify({"ok": False, "erro": "segmentos deve ser uma lista"}), 400
+
+        # Filtra segmentos vazios/inválidos
+        segmentos = [
+            s for s in segmentos
+            if isinstance(s, list) and len(s) > 0
+        ]
+
+        if not segmentos:
+            print(f"⚠️  {track_key}: nenhum segmento válido para salvar")
+            return jsonify({"ok": False, "erro": "nenhum segmento válido"}), 400
+
+        # Limita a 20 segmentos (mesma regra do front)
+        if len(segmentos) > 20:
+            segmentos = segmentos[-20:]
+
+        # Valida pontos mínimos (cada ponto precisa de x e z)
+        segmentos_saneados = []
+        for i, seg in enumerate(segmentos):
+            pontos_ok = []
+            for p in seg:
+                if isinstance(p, dict) and "x" in p and "z" in p:
+                    try:
+                        pontos_ok.append({
+                            "x": float(p["x"]),
+                            "z": float(p["z"]),
+                            "speed": float(p.get("speed", 0) or 0),
+                        })
+                    except (TypeError, ValueError):
+                        continue
+            if pontos_ok:
+                segmentos_saneados.append(pontos_ok)
+
+        if not segmentos_saneados:
+            print(f"❌ {track_key}: todos os pontos inválidos após sanitização")
+            return jsonify({"ok": False, "erro": "pontos inválidos"}), 400
+
+        # ── 4) Serialização ───────────────────────────────────────
+        blob = json.dumps(segmentos_saneados, separators=(",", ":"))
+        total_pontos = sum(len(s) for s in segmentos_saneados)
+
+        # ── 5) Persistência ───────────────────────────────────────
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO tracados (track_key, nome_pista, segmentos, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(track_key) DO UPDATE SET
+                    nome_pista = excluded.nome_pista,
+                    segmentos  = excluded.segmentos,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (track_key.upper(), nome_pista, blob))
+            conn.commit()
+        finally:
+            conn.close()
+
+        # ── 6) Log de sucesso ─────────────────────────────────────
+        print(f"💾 traçado salvo: {track_key} "
+              f"({len(segmentos_saneados)} seg, {total_pontos} pts, {len(blob)} bytes)")
+
+        return jsonify({
+            "ok":         True,
+            "track_key":  track_key.upper(),
+            "nome_pista": nome_pista,
+            "segmentos":  len(segmentos_saneados),
+            "pontos":     total_pontos,
+            "bytes":      len(blob),
+        })
+
+    except sqlite3.OperationalError as e:
+        # Erro específico do SQLite (ex.: no such table, disk full, locked)
+        import traceback; traceback.print_exc()
+        print(f"❌ SQLite OperationalError em {track_key}: {e}")
+        return jsonify({
+            "ok": False,
+            "erro": f"SQLite: {e}",
+            "db_path": DB_PATH,
+        }), 500
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"❌ Erro inesperado em salvar_tracado/{track_key}: {e}")
+        return jsonify({"ok": False, "erro": str(e)}), 500
+
+@app.route("/api/tracados/<track_key>", methods=["DELETE"])
+def deletar_tracado(track_key):
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        cur = conn.cursor()
+        cur.execute("DELETE FROM tracados WHERE track_key = ?", (track_key.upper(),))
+        conn.commit()
+        conn.close()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "erro": str(e)}), 500
 if __name__ == "__main__":
     print(f"[INFO] STATIC_PATH: {STATIC_PATH}")
     print()

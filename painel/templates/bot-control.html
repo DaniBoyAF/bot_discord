@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Bot Control</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #06070f; color: #e8eaf6;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    width: 100%; max-width: 420px;
+    background: linear-gradient(180deg, #0d0f1c 0%, #0a0c18 100%);
+    border: 1px solid #252840;
+    border-radius: 12px;
+    padding: 32px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .title {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px; font-weight: 900; letter-spacing: 3px;
+    color: #00c8ff; text-align: left;
+    margin-bottom: 6px;
+    border-left: 3px solid #e10600;
+    padding-left: 14px;
+  }
+  .subtitle {
+    font-size: 11px; color: #5a5d78; letter-spacing: 2px;
+    text-transform: uppercase; text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .status {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 18px;
+    background: #0a0c18;
+    border: 1px solid #1a1d2e;
+    border-radius: 8px;
+    margin-bottom: 22px;
+  }
+  .dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    flex-shrink: 0;
+    transition: all .3s;
+  }
+  .dot.off  { background: #e10600; box-shadow: 0 0 12px rgba(225,6,0,.7); }
+  .dot.on   { background: #22c55e; box-shadow: 0 0 16px rgba(34,197,94,.9); animation: pulse 1.4s ease-in-out infinite; }
+  .dot.wait { background: #ffc000; box-shadow: 0 0 12px rgba(255,192,0,.7); animation: pulse .7s ease-in-out infinite; }
+  @keyframes pulse {
+    0%,100% { opacity: 1;   transform: scale(1); }
+    50%     { opacity: 0.4; transform: scale(1.4); }
+  }
+  .status-txt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .status-lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #5a5d78; }
+  .status-val { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 900; letter-spacing: 1px; }
+  .status-val.on   { color: #22c55e; }
+  .status-val.off  { color: #e10600; }
+  .status-val.wait { color: #ffc000; }
+
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  button {
+    padding: 14px 12px;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 13px; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase;
+    border-radius: 8px; border: 1.5px solid;
+    cursor: pointer; transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+
+  .btn-start {
+    background: rgba(34,197,94,.12);
+    border-color: #22c55e;
+    color: #22c55e;
+  }
+  .btn-start:hover:not(:disabled) {
+    background: rgba(34,197,94,.25);
+    box-shadow: 0 0 20px rgba(34,197,94,.4);
+  }
+
+  .btn-stop {
+    background: rgba(225,6,0,.12);
+    border-color: #e10600;
+    color: #e10600;
+  }
+  .btn-stop:hover:not(:disabled) {
+    background: rgba(225,6,0,.25);
+    box-shadow: 0 0 20px rgba(225,6,0,.4);
+  }
+
+  .links {
+    margin-top: 18px; padding-top: 18px;
+    border-top: 1px solid #1a1d2e;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .links a {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px;
+    background: #0a0c18;
+    border: 1px solid #1a1d2e;
+    border-radius: 6px;
+    color: #8a8db0; text-decoration: none;
+    font-size: 12px; font-weight: 600;
+    letter-spacing: .5px;
+    transition: all .15s;
+  }
+  .links a:hover {
+    background: #14192a;
+    color: #00c8ff;
+    border-color: #00c8ff;
+  }
+  .links a span:last-child {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px; color: #5a5d78;
+  }
+  .links a:hover span:last-child { color: #00c8ff; }
+
+  .footer {
+    text-align: center; margin-top: 18px;
+    font-size: 10px; color: #3a3d5a; letter-spacing: 1px;
+  }
+  .toast {
+    position: fixed; top: 20px; left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: #0a0c18;
+    border: 1px solid #e10600;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 12px; font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0,0,0,.6);
+    transition: transform .3s;
+    z-index: 999;
+    max-width: 90vw;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.ok   { border-color: #22c55e; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="title">BOT CONTROL</div>
+  <div class="subtitle">F1 Telemetry</div>
+
+  <div class="status">
+    <div class="dot wait" id="dot"></div>
+    <div class="status-txt">
+      <span class="status-lbl">Status do bot</span>
+      <span class="status-val wait" id="statusTxt">Verificando...</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-start" id="btnStart" disabled>▶ Ligar</button>
+    <button class="btn-stop"  id="btnStop"  disabled>⏹ Parar</button>
+  </div>
+
+  <div class="links">
+    <a href="http://localhost:5000/" target="_blank">
+      <span>📚 Histórico de Sessões</span>
+      <span>→</span>
+    </a>
+    <a href="http://localhost:5000/painel" target="_blank">
+      <span>📊 Painel de telemetria</span>
+      <span>→</span>
+    </a>
+    <a href="http://localhost:5000/mapa" target="_blank">
+      <span>🗺️ Mapa ao vivo</span>
+      <span>→</span>
+    </a>
+    <a href="http://localhost:5000/Comparar" target="_blank">
+      <span>📈 Telemetry Insights</span>
+      <span>→</span>
+    </a>
+  </div>
+
+  <div class="footer">CONTROLLER · PORTA 5001</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:5001';
+const dot       = document.getElementById('dot');
+const statusTxt = document.getElementById('statusTxt');
+const btnStart  = document.getElementById('btnStart');
+const btnStop   = document.getElementById('btnStop');
+const toast     = document.getElementById('toast');
+
+let rodando = false;
+let ocupado = false;
+
+function toastMsg(msg, tipo = 'erro') {
+  toast.textContent = msg;
+  toast.classList.remove('ok', 'erro');
+  toast.classList.add('show', tipo === 'ok' ? 'ok' : 'erro');
+  clearTimeout(toastMsg._t);
+  toastMsg._t = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function render() {
+  dot.className = 'dot ' + (ocupado ? 'wait' : rodando ? 'on' : 'off');
+  statusTxt.className = 'status-val ' + (ocupado ? 'wait' : rodando ? 'on' : 'off');
+
+  if (ocupado) statusTxt.textContent = 'Aguarde...';
+  else         statusTxt.textContent = rodando ? 'RODANDO' : 'PARADO';
+
+  btnStart.disabled = ocupado || rodando;
+  btnStop.disabled  = ocupado || !rodando;
+}
+
+async function checar() {
+  try {
+    const r = await fetch(`${API}/status`, { cache: 'no-store' });
+    const j = await r.json();
+    rodando = !!j.rodando;
+  } catch {
+    rodando = false;
+    statusTxt.textContent = 'Controller offline';
+    dot.className = 'dot off';
+    btnStart.disabled = true;
+    btnStop.disabled  = true;
+    return;
+  }
+  render();
+}
+
+async function acao(rota) {
+  if (ocupado) return;
+  ocupado = true; render();
+  try {
+    const r = await fetch(`${API}/${rota}`, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) {
+      toastMsg(j.erro || `Erro ${r.status}`);
+    } else {
+      toastMsg(rota === 'start' ? '✅ Bot iniciado' : '⏹ Bot parado', 'ok');
+    }
+  } catch (e) {
+    toastMsg('Controller não respondeu');
+  }
+  ocupado = false;
+  setTimeout(checar, 800);
+}
+
+btnStart.addEventListener('click', () => acao('start'));
+btnStop .addEventListener('click', () => acao('stop'));
+
+setInterval(checar, 3000);
+checar();
+</script>
+
+</body>
+</html>

@@ -84,8 +84,23 @@
   .toast .item .nome { font-weight:700; letter-spacing:.3px; }
   .toast .item .val { color:#f97316; font-weight:800; font-variant-numeric: tabular-nums; }
 
-  .compare-panel { position:absolute; top:58px; right:210px; z-index:14; width:236px; display:none; flex-direction:column; border-radius:4px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.8); font-family:'Titillium Web','Segoe UI',sans-serif; animation:pitIn .25s ease both; background:#0a0a0a; }
-  .compare-panel.on { display:flex; }
+  .side-panel {
+    position:absolute;
+    top:58px;
+    right:210px;
+    z-index:14;
+    width:236px;
+    display:none;
+    flex-direction:column;
+    border-radius:4px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,.8);
+    font-family:'Titillium Web','Segoe UI',sans-serif;
+    animation:pitIn .25s ease both;
+    background:#0a0a0a;
+  }
+  .side-panel.on { display:flex; }
+
   .cmp-header { display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; background:#111; padding:6px 10px; border-bottom:1px solid #1a1a1a; gap:6px; }
   .cmp-driver { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:900; letter-spacing:1px; color:#fff; white-space:nowrap; }
   .cmp-driver.right { justify-content:flex-end; }
@@ -103,6 +118,124 @@
   .cmp-val.lose { color:#888; }
   .cmp-val.mid  { color:#e8eaf6; }
   .cmp-val.warn { color:#ffd400; font-weight:900; }
+
+  .drs-header {
+    display:flex; align-items:center; gap:8px;
+    background:#111; padding:6px 10px;
+    border-bottom:1px solid #1a1a1a;
+  }
+  .drs-header .bar { width:4px; height:18px; border-radius:1px; }
+  .drs-header .code { font-size:13px; font-weight:900; letter-spacing:1px; color:#fff; }
+  .drs-header .lbl {
+    margin-left:auto; font-size:9px; font-weight:900;
+    letter-spacing:1.5px; color:#888; text-transform:uppercase;
+  }
+  .drs-body {
+    background:#0a0a0a; padding:14px 12px; text-align:center;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .drs-state {
+    font-family:'Orbitron','Titillium Web',monospace;
+    font-size:18px; font-weight:900; letter-spacing:1px;
+    font-variant-numeric: tabular-nums;
+    transition: color .2s;
+  }
+  .drs-state.ok   { color:#00e87a; text-shadow:0 0 12px rgba(0,232,122,.55); }
+  .drs-state.warn { color:#ffd400; text-shadow:0 0 12px rgba(255,212,0,.55); }
+  .drs-state.dim  { color:#555; }
+  .drs-sub {
+    font-size:10px; color:#888; letter-spacing:1px;
+    text-transform:uppercase;
+  }
+
+  .tempos-panel {
+    position: absolute;
+    top: 175px;
+    right: 210px;
+    z-index: 14;
+    width: 178px;
+    display: none;
+    flex-direction: column;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #0a0a0a;
+    box-shadow: 0 10px 30px rgba(0,0,0,.8);
+    font-family: 'Titillium Web','Segoe UI',sans-serif;
+    animation: pitIn .25s ease both;
+  }
+  .tempos-panel.on { display: flex; }
+
+  .tp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: #111;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .tp-lbl {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: #888;
+    text-transform: uppercase;
+  }
+  .tp-volta {
+    font-family: 'Orbitron','Titillium Web',monospace;
+    font-size: 12px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: .5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tp-time {
+    text-align: center;
+    padding: 10px 8px 8px;
+    font-family: 'Orbitron','Titillium Web',monospace;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: .5px;
+    color: #fff;
+    background: #0a0a0a;
+    font-variant-numeric: tabular-nums;
+    transition: color .2s;
+  }
+  .tp-time.purple { color: #c04cff; text-shadow: 0 0 12px rgba(192,76,255,.5); }
+  .tp-time.green  { color: #23e07a; text-shadow: 0 0 12px rgba(35,224,122,.5); }
+  .tp-time.yellow { color: #ffd400; }
+  .tp-time.red    { color: #ff3c00; }
+
+  .tp-sectors {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 3px;
+    padding: 4px 8px 8px;
+    background: #0a0a0a;
+  }
+  .tp-sector {
+    height: 6px;
+    border-radius: 3px;
+    background: #1a1a1a;
+    transition: background .2s;
+  }
+  .tp-sector.sb     { background: #c04cff; box-shadow: 0 0 6px rgba(192,76,255,.6); }
+  .tp-sector.pb     { background: #23e07a; box-shadow: 0 0 6px rgba(35,224,122,.5); }
+  .tp-sector.yellow { background: #ffd400; }
+  .tp-sector.red    { background: #ff3c00; }
+  .tp-sector.dim    { background: #333; }
+
+  .tp-foot {
+    padding: 5px 10px 6px;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #888;
+    background: #0a0a0a;
+    border-top: 1px solid #1a1a1a;
+  }
 
   .modal-bg { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.8); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; padding:20px; }
   .modal-bg.on { display:flex; }
@@ -269,7 +402,7 @@
       </div>
     </div>
 
-    <div class="compare-panel" id="comparePanel">
+    <div class="side-panel" id="comparePanel">
       <div class="cmp-header">
         <span class="cmp-driver" id="cmpA">
           <span class="cmp-bar" id="cmpABar"></span>
@@ -282,6 +415,32 @@
         </span>
       </div>
       <div class="cmp-rows" id="cmpRows"></div>
+    </div>
+
+    <div class="side-panel" id="drsPanel">
+      <div class="drs-header">
+        <span class="bar" id="drsBar"></span>
+        <span class="code" id="drsCode">---</span>
+        <span class="lbl">DRS</span>
+      </div>
+      <div class="drs-body">
+        <div class="drs-state" id="drsState">⚫ —</div>
+        <div class="drs-sub" id="drsSub">Indisponível</div>
+      </div>
+    </div>
+
+    <div class="tempos-panel" id="temposPanel">
+      <div class="tp-header">
+        <span class="tp-lbl">VOLTA</span>
+        <span class="tp-volta" id="tpVolta">--/--</span>
+      </div>
+      <div class="tp-time" id="tpTime">--:--.---</div>
+      <div class="tp-sectors">
+        <div class="tp-sector" id="tpS1"></div>
+        <div class="tp-sector" id="tpS2"></div>
+        <div class="tp-sector" id="tpS3"></div>
+      </div>
+      <div class="tp-foot">TEMPOS</div>
     </div>
 
     <button class="toggle-lb" id="btnToggleLb">Mostrar tower</button>
@@ -328,10 +487,21 @@ const state = {
   pista: null, pistaKey: null,
   tracado: [], ultimoLid: null,
   pilotos: [], sessao: {},
+  session_bests: {},
   selectedDriver: null, compareDriver: null,
   activeTab: 'tyres', formula: 'F1',
-  // 🆕 rastreia delta por volta entre os 2 pilotos comparados
   deltaTrend: { lastLapRef: 0, prevDelta: null, currentDelta: null },
+};
+
+/* ═══ Estado do cronômetro ao vivo (interpolado no front) ═══ */
+let _liveClock = {
+  nome: null,
+  base: 0,
+  baseTime: 0,
+  sector: 0,
+  s1: 0, s2: 0, s3: 0,
+  s1_closed: 0, s2_closed: 0,
+  lastLap: 0,
 };
 
 const RASTRO_MIN = 0.5;
@@ -420,32 +590,146 @@ function damageColor(v) {
 function normalizeTrackKey(t) {
   return String(t || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
 }
-function ls_load(track) {
+/* ═══ Storage: SQLite no backend + cache localStorage ═══ */
+const API_BASE = "/api/tracados";
+
+async function ls_load(track) {
   if (!track) return [];
+
   try {
-    const all = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-    const t = all[track];
-    if (!Array.isArray(t)) return [];
-    return t.filter(seg => Array.isArray(seg) && seg.length > 0);
-  } catch (e) { return []; }
+    const r = await fetch(`${API_BASE}/${encodeURIComponent(track)}`, { cache: "no-store" });
+    if (r.ok) {
+      const j = await r.json();
+      if (j.ok && Array.isArray(j.segmentos) && j.segmentos.length) {
+        try { localStorage.setItem(LS_KEY + "::" + track, JSON.stringify(j.segmentos)); } catch {}
+        return j.segmentos;
+      }
+    }
+  } catch (e) {
+    console.warn("ls_load: backend indisponível, caindo no localStorage", e);
+  }
+
+  try {
+    const raw = localStorage.getItem(LS_KEY + "::" + track);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(s => Array.isArray(s) && s.length > 0) : [];
+  } catch { return []; }
 }
+
 function ls_save(track, segmentos) {
   if (!track) return;
+
+  const dados = segmentos.filter(s => Array.isArray(s) && s.length > 0);
+  const finais = dados.length > 20 ? dados.slice(-20) : dados;
+
   try {
-    let dados = segmentos.filter(seg => Array.isArray(seg) && seg.length > 0);
-    if (dados.length > 20) dados = dados.slice(-20);
-    const all = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-    all[track] = dados;
-    localStorage.setItem(LS_KEY, JSON.stringify(all));
-  } catch (e) { console.error('ls_save erro:', e); }
+    localStorage.setItem(LS_KEY + "::" + track, JSON.stringify(finais));
+  } catch (e) { console.warn("ls_save localStorage:", e); }
+
+  salvarNoBackendDebounced(track, finais, state.pista);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ✅ CORREÇÃO 1: debounce → throttle
+   O debounce anterior reiniciava o timer a cada 20 pontos novos
+   (a cada ~1–4 s), então o POST ao backend NUNCA disparava
+   durante a corrida — só quando o carro parava 5 s.
+   Agora: agenda o save uma única vez a cada 5 s e não reinicia.
+   ═══════════════════════════════════════════════════════════════ */
+let _saveTimer     = null;
+let _saveAgendado  = false;
+let _ultimoTrack   = null;
+let _ultimosSegmentos = null;
+let _ultimoNome    = null;
+
+function salvarNoBackendDebounced(track, segmentos, nomePista) {
+  _ultimoTrack       = track;
+  _ultimosSegmentos  = segmentos;
+  _ultimoNome        = nomePista || track;
+
+  // Se já existe um save agendado, só atualiza os dados.
+  // NÃO reinicia o timer — senão nunca dispara.
+  if (_saveAgendado) return;
+  _saveAgendado = true;
+
+  _saveTimer = setTimeout(() => {
+    _saveAgendado = false;
+    _enviarParaBackend(_ultimoTrack, _ultimosSegmentos, _ultimoNome);
+  }, 5000);
+}
+
+function forcarSaveImediato() {
+  if (!_ultimoTrack || !_ultimosSegmentos) return;
+  clearTimeout(_saveTimer);
+  _saveAgendado = false;
+  _enviarParaBackend(_ultimoTrack, _ultimosSegmentos, _ultimoNome);
+}
+
+async function _enviarParaBackend(track, segmentos, nomePista) {
+  if (!track || !segmentos) return;
+  try {
+    const r = await fetch(`${API_BASE}/${encodeURIComponent(track)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nome_pista: nomePista || track,
+        segmentos: segmentos,
+      }),
+    });
+    if (r.ok) {
+      const j = await r.json();
+      console.log(`💾 ${track}: ${j.segmentos} seg, ${j.bytes} bytes`);
+    }
+  } catch (e) {
+    console.warn("_enviarParaBackend:", e);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ✅ CORREÇÃO 2: beforeunload unificado
+   Antes havia DOIS handlers; o primeiro (sendBeacon) rodava com
+   dados ~20 pontos atrás, antes do segundo atualizar. Agora um só
+   handler pega o state.tracado MAIS RECENTE e manda os dois.
+   ═══════════════════════════════════════════════════════════════ */
+window.addEventListener("beforeunload", () => {
+  if (!state.pistaKey || !state.tracado.length) return;
+
+  const segs   = state.tracado.filter(s => Array.isArray(s) && s.length > 0);
+  const finais = segs.length > 20 ? segs.slice(-20) : segs;
+
+  // 1) localStorage (sempre funciona, síncrono)
+  try {
+    localStorage.setItem(LS_KEY + "::" + state.pistaKey, JSON.stringify(finais));
+  } catch {}
+
+  // 2) backend — tenta sendBeacon; se falhar por tamanho, cai em fetch keepalive
+  const url  = `${API_BASE}/${encodeURIComponent(state.pistaKey)}`;
+  const body = JSON.stringify({ nome_pista: state.pista || state.pistaKey, segmentos: finais });
+
+  try {
+    const blob = new Blob([body], { type: "application/json" });
+    if (blob.size < 60_000) {
+      navigator.sendBeacon?.(url, blob);
+    } else {
+      // fetch com keepalive tem o MESMO limite (64 KB), então
+      // melhor garantir que o throttle periódico já salvou antes.
+      console.warn(`[unload] payload ${blob.size} B — confiando no throttle periódico`);
+    }
+  } catch (e) {
+    console.warn("[unload] beacon falhou:", e);
+  }
+});
+
 function ls_clear(track) {
   if (!track) return;
   try {
-    const all = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-    delete all[track];
-    localStorage.setItem(LS_KEY, JSON.stringify(all));
+    localStorage.removeItem(LS_KEY + "::" + track);
   } catch {}
+
+  fetch(`${API_BASE}/${encodeURIComponent(track)}`, { method: "DELETE" })
+    .then(r => r.ok && console.log(`🗑️  ${track} removido do backend`))
+    .catch(e => console.warn("ls_clear backend:", e));
 }
 function push_ponto(x, z, speed) {
   const segs = state.tracado;
@@ -686,7 +970,7 @@ function draw() {
   }
 }
 
-/* ═══ Rastreia o delta de volta entre 2 pilotos, com trend ═══ */
+/* ═══ Trend do delta por volta (compare) ═══ */
 function getDeltaTrend(a, b) {
   const lapRef = Math.min(a.current_lap || 0, b.current_lap || 0);
   const lastA  = Number(a.last_lap) || 0;
@@ -710,6 +994,21 @@ function getDeltaTrend(a, b) {
   return state.deltaTrend;
 }
 
+/* ═══ Estado de DRS de um piloto ═══ */
+function drsStateInfo(p) {
+  if (!p) return { txt: '—', cls: 'mid' };
+
+  const ativo = Number(p.drs_ativo) === 1;
+  const disp  = Number(p.drs_disponivel) === 1;
+  const dist  = Number(p.drs_distancia) || 0;
+
+  if (ativo)     return { txt: '🟢 ABERTO', cls: 'win'  };
+  if (disp)      return { txt: '🟡 DISP.',  cls: 'warn' };
+  if (dist > 0)  return { txt: `⏳ ${dist}m`, cls: 'mid' };
+  return { txt: '⚫ —', cls: 'lose' };
+}
+
+/* ═══ Painel COMPARE ═══ */
 function renderComparePanel() {
   const panel = document.getElementById('comparePanel');
   if (!panel) return;
@@ -735,7 +1034,6 @@ function renderComparePanel() {
   const betterHigher = (a_, b_) => a_ > b_ ? 'a' : a_ < b_ ? 'b' : 'tie';
   const betterLower  = (a_, b_) => a_ < b_ ? 'a' : a_ > b_ ? 'b' : 'tie';
 
-  // 🆕 Trend do delta por volta
   const trend     = getDeltaTrend(a, b);
   const deltaLap  = trend ? trend.currentDelta : null;
   const prevDelta = trend ? trend.prevDelta    : null;
@@ -744,9 +1042,12 @@ function renderComparePanel() {
   if (deltaLap != null && prevDelta != null) {
     const absNow  = Math.abs(deltaLap);
     const absPrev = Math.abs(prevDelta);
-    if (absNow < absPrev - 0.001)      deltaTrendCls = 'win';   // verde: se aproximando
-    else if (absNow > absPrev + 0.001) deltaTrendCls = 'warn';  // amarelo: se afastando
+    if (absNow < absPrev - 0.001)      deltaTrendCls = 'win';
+    else if (absNow > absPrev + 0.001) deltaTrendCls = 'warn';
   }
+
+  const drsA = drsStateInfo(a);
+  const drsB = drsStateInfo(b);
 
   const rows = [
     { lbl: '🛞 Pneu', a: avgWear(a), b: avgWear(b), fmt: fmtPct, better: betterLower },
@@ -754,7 +1055,6 @@ function renderComparePanel() {
     { lbl: '⛽ Fuel', a: Number(a.fuel||0), b: Number(b.fuel||0), fmt: fmtKg, better: betterHigher },
     { lbl: '⏱️ Best', a: Number(a.best_lap||0), b: Number(b.best_lap||0), fmt: fmtLap, better: betterLower },
     { lbl: '🏁 Last', a: Number(a.last_lap||0), b: Number(b.last_lap||0), fmt: fmtLap, better: betterLower },
-    // 🆕 Delta por volta com trend (mesmo valor nos dois lados)
     deltaLap != null ? {
       lbl: '🔄 Δ Volta',
       a: deltaLap, b: deltaLap,
@@ -763,15 +1063,28 @@ function renderComparePanel() {
     } : null,
     { lbl: '📊 Gap',  a: Number(a.gap||0), b: Number(b.gap||0), fmt: (v) => v === 0 ? 'Leader' : '+' + fmtTempo(v), better: betterLower },
     { lbl: '🎯 Pos',  a: Number(a.posicao||99), b: Number(b.posicao||99), fmt: (v) => `P${v}`, better: betterLower },
+    {
+      lbl: '🟢 DRS',
+      _customSides: { a: drsA, b: drsB },
+    },
   ].filter(Boolean);
 
   document.getElementById('cmpRows').innerHTML = rows.map(r => {
-    let clsA, clsB;
+    let clsA, clsB, txtA, txtB;
 
-    if (r._forceCls) {
+    if (r._customSides) {
+      txtA = r._customSides.a.txt;
+      txtB = r._customSides.b.txt;
+      clsA = r._customSides.a.cls;
+      clsB = r._customSides.b.cls;
+    } else if (r._forceCls) {
+      txtA = r.fmt(r.a);
+      txtB = r.fmt(r.b);
       clsA = r._forceCls;
       clsB = r._forceCls;
     } else {
+      txtA = r.fmt(r.a);
+      txtB = r.fmt(r.b);
       const winner = r.better(r.a, r.b);
       clsA = winner === 'a' ? 'win' : winner === 'b' ? 'lose' : 'mid';
       clsB = winner === 'b' ? 'win' : winner === 'a' ? 'lose' : 'mid';
@@ -779,12 +1092,191 @@ function renderComparePanel() {
 
     return `
       <div class="cmp-row">
-        <span class="cmp-val left ${clsA}">${r.fmt(r.a)}</span>
+        <span class="cmp-val left ${clsA}">${txtA}</span>
         <span class="cmp-lbl">${r.lbl}</span>
-        <span class="cmp-val right ${clsB}">${r.fmt(r.b)}</span>
+        <span class="cmp-val right ${clsB}">${txtB}</span>
       </div>`;
   }).join('');
 }
+
+/* ═══ Painel DRS ═══ */
+function renderDRSPanel() {
+  const panel = document.getElementById('drsPanel');
+  if (!panel) return;
+
+  const temCompare = !!(state.selectedDriver && state.compareDriver);
+  const p = state.selectedDriver
+    ? state.pilotos.find(x => x.nome === state.selectedDriver)
+    : null;
+
+  if (!p || temCompare) {
+    panel.classList.remove('on');
+    return;
+  }
+
+  panel.classList.add('on');
+
+  const cor  = teamColor(p.equipe, p.cor);
+  const code = shortCode(p.nome).toUpperCase();
+
+  document.getElementById('drsBar').style.background = cor;
+  document.getElementById('drsCode').textContent      = code;
+
+  const drsAtivo      = Number(p.drs_ativo) === 1;
+  const drsDisponivel = Number(p.drs_disponivel) === 1;
+  const drsDistancia  = Number(p.drs_distancia) || 0;
+
+  const stateEl = document.getElementById('drsState');
+  const subEl   = document.getElementById('drsSub');
+
+  stateEl.classList.remove('ok', 'warn', 'dim');
+
+  if (drsAtivo) {
+    stateEl.textContent = '🟢 ABERTO';
+    stateEl.classList.add('ok');
+    subEl.textContent = 'DRS ativado';
+  } else if (drsDisponivel) {
+    stateEl.textContent = '🟡 DISPONÍVEL';
+    stateEl.classList.add('warn');
+    subEl.textContent = 'Zona DRS detectada';
+  } else if (drsDistancia > 0) {
+    stateEl.textContent = `⏳ ${drsDistancia}m`;
+    subEl.textContent = 'Até a zona DRS';
+  } else {
+    stateEl.textContent = '⚫ —';
+    stateEl.classList.add('dim');
+    subEl.textContent = 'Indisponível';
+  }
+}
+
+/* ═══ Painel TEMPOS (com cronômetro ao vivo) ═══ */
+function renderTemposPanel() {
+  const el = document.getElementById('temposPanel');
+  if (!el) return;
+
+  const temCompare = !!(state.selectedDriver && state.compareDriver);
+  const p = state.selectedDriver
+    ? state.pilotos.find(x => x.nome === state.selectedDriver)
+    : null;
+
+  if (!p || temCompare) {
+    el.classList.remove('on');
+    _liveClock.nome = null;
+    return;
+  }
+
+  el.classList.add('on');
+
+  // ── Volta atual / total ─────────────────────────────────────────
+  const voltaAtual  = Number(p.current_lap) || 0;
+  const totalVoltas = Number(state.sessao?.total_voltas) || 0;
+  document.getElementById('tpVolta').textContent =
+    totalVoltas > 0 ? `${voltaAtual}/${totalVoltas}` : `${voltaAtual}/—`;
+
+  // ── Sincroniza o snapshot do cronômetro ─────────────────────────
+  _liveClock.nome = p.nome;
+  _liveClock.base = Number(p.current_lap_time) || 0;
+  _liveClock.baseTime = performance.now();
+  _liveClock.sector = Number(p.current_sector) || 0;
+  _liveClock.s1 = Number(p.s1_live) || 0;
+  _liveClock.s2 = Number(p.s2_live) || 0;
+  _liveClock.s3 = Number(p.s3_live) || 0;
+  _liveClock.s1_closed = Number(p.s1_closed) || 0;
+  _liveClock.s2_closed = Number(p.s2_closed) || 0;
+  _liveClock.lastLap = Number(p.last_lap) || 0;
+
+  // ── Cor do tempo ─────────────────────────────────────────────
+  const sbLap = Number(state.session_bests?.lap) || 0;
+  const pbLap = Number(p.best_lap) || 0;
+
+  const timeEl = document.getElementById('tpTime');
+  timeEl.classList.remove('purple', 'green', 'yellow', 'red');
+
+  if (_liveClock.lastLap > 0) {
+    if (sbLap > 0 && Math.abs(_liveClock.lastLap - sbLap) < 0.001) {
+      timeEl.classList.add('purple');
+    } else if (pbLap > 0 && _liveClock.lastLap <= pbLap + 0.001) {
+      timeEl.classList.add('green');
+    } else if (pbLap > 0 && (_liveClock.lastLap - pbLap) <= 1.5) {
+      timeEl.classList.add('yellow');
+    } else if (pbLap > 0) {
+      timeEl.classList.add('red');
+    }
+  }
+
+  // ── Barras dos setores ──────────────────────────────────────
+  const sb = state.session_bests || {};
+  const cfg = [
+    { key: 's1', best: 'best_s1', id: 'tpS1', liveKey: 's1', closedKey: 's1_closed' },
+    { key: 's2', best: 'best_s2', id: 'tpS2', liveKey: 's2', closedKey: 's2_closed' },
+    { key: 's3', best: 'best_s3', id: 'tpS3', liveKey: 's3', closedKey: null },
+  ];
+
+  cfg.forEach((c, i) => {
+    const secEl = document.getElementById(c.id);
+    secEl.classList.remove('sb', 'pb', 'yellow', 'red', 'dim');
+
+    let val = 0;
+    if (c.closedKey && _liveClock[c.closedKey] > 0) {
+      val = _liveClock[c.closedKey];
+    } else if (i === _liveClock.sector) {
+      val = _liveClock[c.liveKey];
+    } else if (_liveClock[c.liveKey] > 0) {
+      val = _liveClock[c.liveKey];
+    } else if (c.key === 's3' && _liveClock.sector === 2) {
+      val = _liveClock.s3;
+    }
+
+    const pbVal = Number(p[c.best]) || 0;
+    const sbVal = Number(sb[c.key]) || 0;
+
+    if (val <= 0) {
+      secEl.classList.add('dim');
+      return;
+    }
+    if (sbVal > 0 && Math.abs(val - sbVal) < 0.001) {
+      secEl.classList.add('sb');
+    } else if (pbVal > 0 && val <= pbVal + 0.001) {
+      secEl.classList.add('pb');
+    } else if (pbVal > 0 && (val - pbVal) <= 1.5) {
+      secEl.classList.add('yellow');
+    } else if (pbVal > 0) {
+      secEl.classList.add('red');
+    } else {
+      secEl.classList.add('pb');
+    }
+  });
+}
+
+/* ═══ Loop de animação do cronômetro ═══ */
+function _animateClock() {
+  const timeEl = document.getElementById('tpTime');
+  if (!timeEl || !_liveClock.nome) {
+    requestAnimationFrame(_animateClock);
+    return;
+  }
+
+  const el = document.getElementById('temposPanel');
+  if (!el || !el.classList.contains('on')) {
+    requestAnimationFrame(_animateClock);
+    return;
+  }
+
+  const elapsed = (performance.now() - _liveClock.baseTime) / 1000;
+  const live = _liveClock.base + elapsed;
+
+  if (_liveClock.base > 0) {
+    timeEl.textContent = fmtTempo(live);
+  } else if (_liveClock.lastLap > 0) {
+    timeEl.textContent = fmtTempo(_liveClock.lastLap);
+  } else {
+    timeEl.textContent = '--:--.---';
+  }
+
+  requestAnimationFrame(_animateClock);
+}
+
+_animateClock();
 
 function renderLeaderboard(pilotos, sessao) {
   const body = document.getElementById('lbBody');
@@ -878,6 +1370,9 @@ function handleDriverClick(nome) {
     state.selectedDriver = nome;
     state.compareDriver  = null;
     renderLeaderboard(state.pilotos, state.sessao);
+    renderComparePanel();
+    renderDRSPanel();
+    renderTemposPanel();
     draw();
     return;
   }
@@ -887,6 +1382,8 @@ function handleDriverClick(nome) {
       state.compareDriver  = null;
       state.deltaTrend = { lastLapRef: 0, prevDelta: null, currentDelta: null };
       renderComparePanel();
+      renderDRSPanel();
+      renderTemposPanel();
       renderLeaderboard(state.pilotos, state.sessao);
       draw();
     } else {
@@ -896,7 +1393,6 @@ function handleDriverClick(nome) {
   }
   if (!cmp) {
     state.compareDriver = nome;
-    // reseta trend quando forma um novo par
     state.deltaTrend = { lastLapRef: 0, prevDelta: null, currentDelta: null };
   } else if (nome === cmp) {
     state.selectedDriver = cmp;
@@ -907,6 +1403,8 @@ function handleDriverClick(nome) {
     state.deltaTrend = { lastLapRef: 0, prevDelta: null, currentDelta: null };
   }
   renderComparePanel();
+  renderDRSPanel();
+  renderTemposPanel();
   renderLeaderboard(state.pilotos, state.sessao);
   draw();
 }
@@ -926,6 +1424,8 @@ function openModal(nome) {
   document.getElementById('modalBg').classList.add('on');
   renderLeaderboard(state.pilotos, state.sessao);
   renderComparePanel();
+  renderDRSPanel();
+  renderTemposPanel();
   renderPitWindow(state.sessao, state.pilotos);
   draw();
 }
@@ -1073,10 +1573,11 @@ function closeModal(ev) {
   renderLeaderboard(state.pilotos, state.sessao);
   renderPitWindow(state.sessao, state.pilotos);
   renderComparePanel();
+  renderDRSPanel();
+  renderTemposPanel();
   draw();
 }
 
-/* ═══ Listeners globais ═══ */
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 document.getElementById('lbBody').addEventListener('click', (ev) => {
@@ -1087,7 +1588,6 @@ document.getElementById('lbBody').addEventListener('click', (ev) => {
   handleDriverClick(nome);
 });
 
-/* ═══ Zoom ═══ */
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
   const fator = e.deltaY < 0 ? 1.15 : 0.87;
@@ -1101,7 +1601,6 @@ canvas.addEventListener('wheel', e => {
   draw();
 }, { passive:false });
 
-/* ═══ Pan / Clique ═══ */
 let arrastando = false;
 let ultimoMouse = { x:0, y:0 };
 let mouseInicio = { x:0, y:0 };
@@ -1195,7 +1694,6 @@ document.getElementById('btnToggleLb').onclick = () => {
   setTimeout(resize, 50);
 };
 
-/* ═══ Top bar ═══ */
 function renderSessionBar(sessao) {
   const pista = sessao.nome_pista || '—';
   const tipo  = sessao.tipo_sessao || '—';
@@ -1324,9 +1822,6 @@ function renderPitWindow(sessao, pilotos) {
 }
 
 let pontosDesdeSave = 0;
-window.addEventListener('beforeunload', () => {
-  if (state.pistaKey && state.tracado.length) ls_save(state.pistaKey, state.tracado);
-});
 
 async function tick() {
   try {
@@ -1334,22 +1829,42 @@ async function tick() {
     if (!r.ok) return;
     const data = await r.json();
 
+    /* ═══════════════════════════════════════════════════════════
+       ✅ CORREÇÃO 3: race condition ao trocar de pista
+       Antes, entre trocar pistaKey e o ls_load resolver, os
+       push_ponto() continuavam escrevendo no traçado antigo.
+       Agora limpamos state.tracado imediatamente.
+       ═══════════════════════════════════════════════════════════ */
     const novaKey = normalizeTrackKey(data.track);
     if (novaKey && novaKey !== state.pistaKey) {
-      state.pistaKey = novaKey;
-      state.pista    = data.track;
-      state.tracado  = ls_load(novaKey);
+      // Se havia uma pista anterior com pontos não salvos, força flush
+      if (state.pistaKey && state.tracado.length) {
+        forcarSaveImediato();
+      }
+
+      state.pistaKey  = novaKey;
+      state.pista     = data.track;
+      state.tracado   = [];        // ← limpa JÁ para não misturar
       state.ultimoLid = null;
       pontosDesdeSave = 0;
       document.getElementById('pistaNome').textContent = (data.track || '—').toUpperCase();
+
+      ls_load(novaKey).then(segs => {
+        state.tracado = segs;
+        draw();
+        console.log(`📥 ${novaKey}: ${segs.length} seg carregados`);
+      });
     }
 
     state.pilotos = data.pilotos || [];
     state.sessao  = data.sessao  || {};
+    state.session_bests = data.session_bests || {};
 
     renderSessionBar(state.sessao);
     renderPitWindow(state.sessao, state.pilotos);
     renderComparePanel();
+    renderDRSPanel();
+    renderTemposPanel();
     renderLeaderboard(state.pilotos, state.sessao);
     renderToast(state.pilotos);
 

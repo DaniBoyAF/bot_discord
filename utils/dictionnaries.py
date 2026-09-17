@@ -96,8 +96,19 @@ teams_color_dictionary = {
     8: "#FFAE00",
     9: "#980404",
     41:"#000000",
-    104: "#670498",
-    255: "#670498"
+    255: "#670498",
+    104: "#009FE3", # MP Motorsport      — azul
+    255: "#FF6B00", # Van Amersfoort     — laranja
+    44:  "#1E5BC6", # Carlin             — azul médio
+    10:  "#002F6C", # DAMS               — azul escuro
+    11:  "#E6007E", # Virtuosi           — magenta
+    12:  "#122B7A", # Campos             — azul escuro
+    13:  "#1A1A1A", # Charouz            — preto
+    14:  "#DC0000", # PREMA              — vermelho
+    15:  "#FFD800", # ART Grand Prix     — amarelo
+    16:  "#0080FF", # Trident            — azul
+    17:  "#7C4DFF", # Hitech             — roxo
+    18:  "#E91E63", # PHM Racing         — rosa/vermelho
 }
 
 teams_name_dictionary = {

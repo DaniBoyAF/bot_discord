@@ -1204,6 +1204,7 @@ def atualizar_lapdata(pacote_lap):
         piloto.position = lap.m_car_position
         piloto.current_lap_num = getattr(lap, 'm_current_lap_num', 0)
 
+        
         grid = getattr(lap, 'm_grid_position', 0)
         if grid and grid > 0 and not getattr(piloto, 'grid_position', 0):
             piloto.grid_position = int(grid)

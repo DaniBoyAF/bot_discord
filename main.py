@@ -1060,9 +1060,9 @@ async def volta_salvar(bot):
                    # telemetria
                     try:
                         cursor.execute('''
-                            INSERT OR REPLACE INTO telemetria (sessao_id, piloto_id, velocidade, timestamp)
-                            VALUES (?, ?, ?, ?)
-                        ''', (sessao_id_atual, piloto_id, maior_speed, time.time()))
+                            INSERT OR REPLACE INTO telemetria (sessao_id, piloto_id, velocidade ,delta_to_leader, timestamp)
+                            VALUES (?, ?, ?, ? , ?)
+                        ''', (sessao_id_atual, piloto_id, maior_speed,delta, time.time()))
                     except Exception as e:
                         print("Erro insert telemetria:", e)
                     # stints
@@ -1472,6 +1472,7 @@ def criar_tabelas():
         sessao_id INTEGER,
         piloto_id INTEGER,
         velocidade REAL,
+        delta_to_leader REAL,
         timestamp REAL,
         FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
         FOREIGN KEY (piloto_id) REFERENCES pilotos(id),
@@ -1870,6 +1871,16 @@ async def live_pneus(ctx):
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
      await ctx.send(f"🔗 Painel disponível ver a corrida: {url}/tyres")
+try:
+    import Server_20 as ws_server
+except Exception :
+    ws_server = None
+@bot.command()
+async def live_mapa(ctx):
+     if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+     await ctx.send(f"🔗 Painel disponível ver a corrida: {url}/mapa")
 try:
     import Server_20 as ws_server
 except Exception :
