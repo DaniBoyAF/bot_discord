@@ -1027,8 +1027,7 @@ def start_udp_listener():
                 atualizar_ultrapassagem(body)
             elif event_code == "SGSV":
                 atualizar_pit_stop_served(body)
-            elif event_code == "PENA":
-                atualizar_punicao(body)
+            
 
 
 def atualizar_SessionData(pacote_session):
@@ -1488,59 +1487,3 @@ def atualizar_pit_stop_served(pacote_pit_stop_served):
             'tempo_parado': getattr(piloto, 'pit_stop_time', 0),
             'timestamp': time.time()
         }
-
-
-PENALTY_TYPES = {
-    0: "Drive Through", 1: "Stop Go",
-    2: "Stop Go (Unsafe Release)", 3: "Stop Go (Unsafe Release)",
-    6: "Stop Go (Blocking)",
-    7: "Stop Go (Ignoring Blue Flags)",
-    8: "Stop Go (Ignoring Yellow Flags)",
-    9: "Stop Go (Overtaking Under Yellow)",
-    10: "Stop Go (Overtaking Under Safety Car)",
-    12: "Stop Go (Exceeding Track Limits)",
-    13: "Stop Go (Too Many Track Limits)",
-    17: "Stop Go (Too Many Warnings)",
-    18: "Retired", 20: "Disqualified",
-    24: "This Lap Invalidated",
-    25: "This And Next Lap Invalidated",
-    26: "This Lap Invalidated (No Reason)",
-    27: "This And Next Lap Invalidated (No Reason)",
-    28: "This And Previous Lap Invalidated",
-    29: "This And Previous Lap Invalidated (No Reason)",
-}
-
-
-def atualizar_punicao(pacote_punicao):
-    from Bot.jogadores import JOGADORES
-
-    try:
-        pen = pacote_punicao.m_event_details.m_penalty
-    except Exception as e:
-        print(f"⚠️ PENA: union inválida: {e}")
-        return
-
-    idx = int(pen.m_vehicle_idx)
-    if idx >= len(JOGADORES):
-        return
-
-    piloto = JOGADORES[idx]
-    tipo   = int(pen.m_penalty_type)
-
-    piloto.punicao           = True
-    piloto.punicao_type      = tipo
-    piloto.punicao_type_nome = PENALTY_TYPES.get(tipo, f"Tipo {tipo}")
-    piloto.punicao_infringe  = int(pen.m_infringement_type)
-    piloto.punicao_time      = int(pen.m_time)
-    piloto.punicao_lap       = int(pen.m_lap_num)
-    piloto.punicao_points    = int(pen.m_places_gained)
-
-    piloto.historico_punicoes.append({
-        'volta':        piloto.punicao_lap,
-        'tipo_codigo':  tipo,
-        'tipo_nome':    piloto.punicao_type_nome,
-        'infringement': piloto.punicao_infringe,
-        'tempo_s':      piloto.punicao_time,
-        'posicoes':     piloto.punicao_points,
-        'timestamp':    time.time(),
-    })

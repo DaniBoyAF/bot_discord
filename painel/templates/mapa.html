@@ -54,6 +54,7 @@
   .session-bar .blk.flag { background:#111; color:#fff; font-weight:700; letter-spacing:.5px; text-transform:uppercase; padding:0 14px; }
   .session-bar .blk.flag.red    { background:#c40000; }
   .session-bar .blk.flag.yellow { background:#c4a400; color:#000; }
+  .session-bar .blk.flag.green  { background:#009d45; }
   .session-bar .blk.formula { background:#e10600; color:#fff; font-weight:900; letter-spacing:1.5px; text-transform:uppercase; padding:0 14px; font-size:14px; }
   .session-bar .spacer { flex:1; }
   .session-bar .w-icon { font-size:16px; line-height:1; }
@@ -63,7 +64,7 @@
   canvas { display:block; width:100%; flex:1; cursor:grab; min-height:0; }
   canvas.arrastando { cursor:grabbing; }
 
-  .bar { position:absolute; top:54px; left:12px; right:12px; display:flex; gap:10px; align-items:center; padding:8px 12px; border-radius:10px; background:rgba(10,10,10,.75); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.08); font-size:12px; z-index:10; flex-wrap:wrap; }
+  .bar { position:absolute; top:54px; left:12px; right:12px; display:flex; gap:10px; align-items:center; padding:8px 12px; border-radius:10px; background:rgba(10,10,10,.75); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,.08); font-size:12px; z-index:45; flex-wrap:wrap; }
   .bar label { display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:.6px; font-size:10px; color:#aaa; }
   .bar select, .bar button { background:#111; color:#fff; border:1px solid #333; padding:5px 10px; border-radius:6px; font-family:inherit; font-size:11px; cursor:pointer; outline:none; }
   .bar select:hover, .bar button:hover { background:#1a1a1a; }
@@ -83,6 +84,60 @@
   .toast .item { display:flex; justify-content:space-between; gap:12px; color:#eee; }
   .toast .item .nome { font-weight:700; letter-spacing:.3px; }
   .toast .item .val { color:#f97316; font-weight:800; font-variant-numeric: tabular-nums; }
+
+  .toast-section + .toast-section {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .toast-sec-title {
+    color: #ccc;
+    font-weight: 800;
+    letter-spacing: .8px;
+    font-size: 9px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .toast-sec-title .badge-count {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+  .toast .item.dmg .val { color: #ff8c00; }
+
+  .toast .dmg-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .3px;
+    margin-left: 4px;
+    font-family: 'Orbitron', monospace;
+    vertical-align: middle;
+  }
+  .toast .dmg-badge.lvl-1 { background: rgba(34,197,94,0.18);  color: #22c55e; border: 1px solid rgba(34,197,94,0.5); }
+  .toast .dmg-badge.lvl-2 { background: rgba(245,158,11,0.18); color: #f59e0b; border: 1px solid rgba(245,158,11,0.5); }
+  .toast .dmg-badge.lvl-3 { background: rgba(239,68,68,0.20);  color: #ef4444; border: 1px solid rgba(239,68,68,0.6);
+                            animation: dmgPulse 1.2s ease-in-out infinite; }
+  @keyframes dmgPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+    50%     { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+  }
+  .toast .part-icon {
+    display: inline-block;
+    font-size: 9px;
+    color: #aaa;
+    margin-left: 2px;
+    letter-spacing: .2px;
+  }
 
   .side-panel {
     position:absolute;
@@ -325,6 +380,44 @@
   .pit-window .pw-foot .aws b { color:#aaa; font-style:italic; }
   .pit-window.closed .pw-hdr { background:#444; }
   .pit-window.closed .pw-laps { border-color:#444; color:#888; }
+
+  html body .drag-panel {
+    position: fixed !important;
+    right:  auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    z-index: 40;
+    cursor: grab;
+    transition: box-shadow .15s, opacity .15s;
+  }
+  html body .drag-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 40px; height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: rgba(255,255,255,.18);
+    pointer-events: none;
+  }
+  html body .drag-panel button,
+  html body .drag-panel select,
+  html body .drag-panel input,
+  html body .drag-panel a { cursor: pointer; }
+  html body .drag-panel:hover {
+    box-shadow: 0 12px 34px rgba(0,0,0,.85),
+                0 0 0 1px rgba(0,157,69,.45);
+  }
+  html body .drag-panel.dragging {
+    cursor: grabbing !important;
+    user-select: none;
+    z-index: 200 !important;
+    opacity: .96;
+    box-shadow: 0 24px 60px rgba(0,0,0,.9),
+                0 0 0 2px rgba(0,157,69,.55) !important;
+  }
+  html body .drag-panel.dragging * { cursor: grabbing !important; }
+  html body .drag-panel.toast { z-index: 100; }
 </style>
 </head>
 <body>
@@ -465,6 +558,9 @@
       </label>
       <button id="btnReset">Reset</button>
       <button id="btnLimpar">Limpar</button>
+      <button id="btnResetPaineis" title="Devolver painéis ao lugar original">
+        Reset painéis
+      </button>
       <button id="btnOcultar">Ocultar tower</button>
       <span class="info" id="infoRodape">aguardando…</span>
     </div>
@@ -631,11 +727,7 @@ function ls_save(track, segmentos) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ✅ CORREÇÃO 1: debounce → throttle
-   O debounce anterior reiniciava o timer a cada 20 pontos novos
-   (a cada ~1–4 s), então o POST ao backend NUNCA disparava
-   durante a corrida — só quando o carro parava 5 s.
-   Agora: agenda o save uma única vez a cada 5 s e não reinicia.
+   Throttle de save para o backend (5s) — NÃO reinicia o timer
    ═══════════════════════════════════════════════════════════════ */
 let _saveTimer     = null;
 let _saveAgendado  = false;
@@ -648,8 +740,6 @@ function salvarNoBackendDebounced(track, segmentos, nomePista) {
   _ultimosSegmentos  = segmentos;
   _ultimoNome        = nomePista || track;
 
-  // Se já existe um save agendado, só atualiza os dados.
-  // NÃO reinicia o timer — senão nunca dispara.
   if (_saveAgendado) return;
   _saveAgendado = true;
 
@@ -686,24 +776,16 @@ async function _enviarParaBackend(track, segmentos, nomePista) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ✅ CORREÇÃO 2: beforeunload unificado
-   Antes havia DOIS handlers; o primeiro (sendBeacon) rodava com
-   dados ~20 pontos atrás, antes do segundo atualizar. Agora um só
-   handler pega o state.tracado MAIS RECENTE e manda os dois.
-   ═══════════════════════════════════════════════════════════════ */
 window.addEventListener("beforeunload", () => {
   if (!state.pistaKey || !state.tracado.length) return;
 
   const segs   = state.tracado.filter(s => Array.isArray(s) && s.length > 0);
   const finais = segs.length > 20 ? segs.slice(-20) : segs;
 
-  // 1) localStorage (sempre funciona, síncrono)
   try {
     localStorage.setItem(LS_KEY + "::" + state.pistaKey, JSON.stringify(finais));
   } catch {}
 
-  // 2) backend — tenta sendBeacon; se falhar por tamanho, cai em fetch keepalive
   const url  = `${API_BASE}/${encodeURIComponent(state.pistaKey)}`;
   const body = JSON.stringify({ nome_pista: state.pista || state.pistaKey, segmentos: finais });
 
@@ -712,8 +794,6 @@ window.addEventListener("beforeunload", () => {
     if (blob.size < 60_000) {
       navigator.sendBeacon?.(url, blob);
     } else {
-      // fetch com keepalive tem o MESMO limite (64 KB), então
-      // melhor garantir que o throttle periódico já salvou antes.
       console.warn(`[unload] payload ${blob.size} B — confiando no throttle periódico`);
     }
   } catch (e) {
@@ -731,11 +811,24 @@ function ls_clear(track) {
     .then(r => r.ok && console.log(`🗑️  ${track} removido do backend`))
     .catch(e => console.warn("ls_clear backend:", e));
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ✅ CACHE de trail/bounds — invalidação por evento (ZERO delay)
+   ═══════════════════════════════════════════════════════════════ */
+let _cacheTrail    = null;
+let _cacheBounds   = null;
+
+function _invalidarCacheTrail() {
+  _cacheTrail  = null;
+  _cacheBounds = null;
+  _offTrailKey = '';           // ✅ invalida também o cache offscreen
+}
+
 function push_ponto(x, z, speed) {
   const segs = state.tracado;
   if (!segs.length) segs.push([]);
   const seg = segs[segs.length - 1];
-  if (seg.length === 0) { seg.push({ x, z, speed }); return; }
+  if (seg.length === 0) { seg.push({ x, z, speed }); _invalidarCacheTrail(); return; }
   const last = seg[seg.length - 1];
   const d = Math.hypot(x - last.x, z - last.z);
   if (d < RASTRO_MIN) return;
@@ -747,6 +840,8 @@ function push_ponto(x, z, speed) {
     if (seg.length > PONTOS_POR_SEGMENTO) segs.push(seg.slice(-1000));
   }
   if (segs.length > 10) segs.shift();
+
+  _invalidarCacheTrail();
 }
 
 function resize() {
@@ -755,13 +850,16 @@ function resize() {
   canvas.width  = r.width  * dpr;
   canvas.height = r.height * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  _offTrailKey = '';          // ✅ força redesenho do offscreen no novo tamanho
 }
 addEventListener('resize', resize);
 window.addEventListener('load', resize);
 
 function allTrailPoints() {
+  if (_cacheTrail) return _cacheTrail;
   const out = [];
   for (const seg of state.tracado) for (const p of seg) out.push(p);
+  _cacheTrail = out;
   return out;
 }
 function calcBounds(pontos) {
@@ -793,10 +891,17 @@ function pilotoNaPosicao(mx, my, raio = null) {
   if (!pilotosComPos.length) return null;
   const trail = allTrailPoints();
   if (!trail.length) return null;
-  const b = calcBounds([...trail, ...pilotosComPos]);
+
+  if (!_cacheBounds) {
+    _cacheBounds = calcBounds([...trail, ...pilotosComPos]);
+  }
+  const b = _cacheBounds;
+
   let melhor = null, melhorDist = r;
   for (const p of pilotosComPos) {
-    const [sx, sy] = worldToScreen(p.x, p.z, b);
+    const pos = _getPos(p);            // ✅ usa posição interpolada
+    if (!pos) continue;
+    const [sx, sy] = worldToScreen(pos.x, pos.z, b);
     const d = Math.hypot(mx - sx, my - sy);
     if (d < melhorDist) { melhorDist = d; melhor = p; }
   }
@@ -817,6 +922,132 @@ function corVelocidade(v) {
   return '#fff';
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   ✅ INTERPOLAÇÃO v4 — sem stutter
+   • Interpola sempre da posição VISUAL atual → alvo novo
+   • Mede o intervalo REAL entre updates e adapta a duração
+   ═══════════════════════════════════════════════════════════════ */
+let _ultimoFeed  = 0;
+let _interpMs    = 100;      // valor inicial (será ajustado)
+const INTERP_MIN = 40;
+const INTERP_MAX = 300;
+
+const _posRender = new Map();   // posição VISUAL atual
+const _posTarget = new Map();   // alvo + timestamp
+
+function _feedInterpolacao(pilotos) {
+  const now = performance.now();
+
+  // Mede o intervalo entre updates (média móvel 70/30)
+  if (_ultimoFeed > 0) {
+    const dt = now - _ultimoFeed;
+    if (dt > 10 && dt < 500) {
+      _interpMs = _interpMs * 0.7 + dt * 0.3;
+      _interpMs = Math.max(INTERP_MIN, Math.min(INTERP_MAX, _interpMs));
+    }
+  }
+  _ultimoFeed = now;
+
+  for (const p of pilotos) {
+    if (!p.has_pos) continue;
+    const atual = _posRender.get(p.nome) || { x: p.x, z: p.z };
+    _posTarget.set(p.nome, {
+      fromX: atual.x, fromZ: atual.z,
+      toX:   p.x,     toZ:   p.z,
+      t:     now,
+    });
+  }
+}
+
+function _tickInterpolacao() {
+  const now = performance.now();
+  for (const [nome, tgt] of _posTarget) {
+    const k = Math.min(1, (now - tgt.t) / _interpMs);
+    const e = k * k * (3 - 2 * k);
+    _posRender.set(nome, {
+      x: tgt.fromX + (tgt.toX - tgt.fromX) * e,
+      z: tgt.fromZ + (tgt.toZ - tgt.fromZ) * e,
+    });
+  }
+}
+
+
+function _getPos(p) {
+  if (!p.has_pos) return null;
+  return _posRender.get(p.nome) || { x: p.x, z: p.z };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ✅ CACHE OFFSCREEN DO TRAÇADO — evita redesenhar milhares de pts/frame
+   ═══════════════════════════════════════════════════════════════ */
+const _offTrail    = document.createElement('canvas');
+const _offTrailCtx = _offTrail.getContext('2d');
+let   _offTrailKey = '';
+
+function _trailCacheKey(b, W, H) {
+  const totalPts = state.tracado.reduce((a, s) => a + s.length, 0);
+  return [
+    state.tema, state.modo,
+    state.escala.toFixed(4),
+    state.offsetX.toFixed(2), state.offsetY.toFixed(2),
+    b.minX.toFixed(2), b.maxX.toFixed(2),
+    b.minZ.toFixed(2), b.maxZ.toFixed(2),
+    state.tracado.length, totalPts,
+    W, H,
+  ].join('|');
+}
+
+function _drawTrailToOffscreen(b, W, H) {
+  const dpr = window.devicePixelRatio || 1;
+  _offTrail.width  = W * dpr;
+  _offTrail.height = H * dpr;
+  _offTrailCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  _offTrailCtx.clearRect(0, 0, W, H);
+
+  const t = TEMAS[state.tema];
+
+  if (state.modo === 'tracado') {
+    _offTrailCtx.strokeStyle = t.rastro;
+    _offTrailCtx.lineWidth = 16 * state.escala;
+    _offTrailCtx.lineCap = 'round'; _offTrailCtx.lineJoin = 'round';
+    for (const seg of state.tracado) {
+      if (seg.length < 2) continue;
+      _offTrailCtx.beginPath();
+      seg.forEach((p, i) => {
+        const [sx, sy] = worldToScreen(p.x, p.z, b);
+        i === 0 ? _offTrailCtx.moveTo(sx, sy) : _offTrailCtx.lineTo(sx, sy);
+      });
+      _offTrailCtx.stroke();
+    }
+    _offTrailCtx.strokeStyle = t.linha;
+    _offTrailCtx.lineWidth = 2 * state.escala;
+    for (const seg of state.tracado) {
+      if (seg.length < 2) continue;
+      _offTrailCtx.beginPath();
+      seg.forEach((p, i) => {
+        const [sx, sy] = worldToScreen(p.x, p.z, b);
+        i === 0 ? _offTrailCtx.moveTo(sx, sy) : _offTrailCtx.lineTo(sx, sy);
+      });
+      _offTrailCtx.stroke();
+    }
+  }
+
+  if (state.modo === 'heatmap') {
+    _offTrailCtx.lineWidth = 14 * state.escala;
+    _offTrailCtx.lineCap = 'round'; _offTrailCtx.lineJoin = 'round';
+    for (const seg of state.tracado) {
+      for (let i = 1; i < seg.length; i++) {
+        const a = seg[i-1], c = seg[i];
+        const [x1,y1] = worldToScreen(a.x, a.z, b);
+        const [x2,y2] = worldToScreen(c.x, c.z, b);
+        _offTrailCtx.beginPath();
+        _offTrailCtx.strokeStyle = corVelocidade(((a.speed||0)+(c.speed||0))/2);
+        _offTrailCtx.moveTo(x1,y1); _offTrailCtx.lineTo(x2,y2); _offTrailCtx.stroke();
+      }
+    }
+  }
+}
+
 function draw() {
   const t = TEMAS[state.tema];
   const W = canvas.clientWidth, H = canvas.clientHeight;
@@ -829,51 +1060,25 @@ function draw() {
   const pilotosComPos = state.pilotos.filter(p => p.has_pos);
   const trail = allTrailPoints();
   if (!pilotosComPos.length && !trail.length) return;
-  const b = calcBounds([...trail, ...pilotosComPos]);
 
-  if (state.modo === 'tracado') {
-    ctx.strokeStyle = t.rastro;
-    ctx.lineWidth = 16 * state.escala;
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    for (const seg of state.tracado) {
-      if (seg.length < 2) continue;
-      ctx.beginPath();
-      seg.forEach((p, i) => {
-        const [sx, sy] = worldToScreen(p.x, p.z, b);
-        i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
-      });
-      ctx.stroke();
-    }
-    ctx.strokeStyle = t.linha;
-    ctx.lineWidth = 2 * state.escala;
-    for (const seg of state.tracado) {
-      if (seg.length < 2) continue;
-      ctx.beginPath();
-      seg.forEach((p, i) => {
-        const [sx, sy] = worldToScreen(p.x, p.z, b);
-        i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
-      });
-      ctx.stroke();
-    }
+  if (!_cacheBounds) {
+    _cacheBounds = calcBounds([...trail, ...pilotosComPos]);
   }
+  const b = _cacheBounds;
 
-  if (state.modo === 'heatmap') {
-    ctx.lineWidth = 14 * state.escala;
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    for (const seg of state.tracado) {
-      for (let i = 1; i < seg.length; i++) {
-        const a = seg[i-1], c = seg[i];
-        const [x1,y1] = worldToScreen(a.x, a.z, b);
-        const [x2,y2] = worldToScreen(c.x, c.z, b);
-        ctx.beginPath();
-        ctx.strokeStyle = corVelocidade(((a.speed||0)+(c.speed||0))/2);
-        ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-      }
-    }
+  /* ── Traçado em cache offscreen (só redesenha quando muda) ── */
+  const key = _trailCacheKey(b, W, H);
+  if (key !== _offTrailKey) {
+    _offTrailKey = key;
+    _drawTrailToOffscreen(b, W, H);
   }
+  ctx.drawImage(_offTrail, 0, 0, W, H);
 
+  /* ── Pilotos (usam posição interpolada) ── */
   for (const p of pilotosComPos) {
-    const [sx, sy] = worldToScreen(p.x, p.z, b);
+    const pos = _getPos(p);
+    if (!pos) continue;
+    const [sx, sy] = worldToScreen(pos.x, pos.z, b);
     const corCarro = state.modo === 'heatmap' ? corVelocidade(p.speed || 0) : teamColor(p.equipe, p.cor);
     const isSel = state.selectedDriver === p.nome;
     const isCmp = state.compareDriver  === p.nome;
@@ -1167,13 +1372,11 @@ function renderTemposPanel() {
 
   el.classList.add('on');
 
-  // ── Volta atual / total ─────────────────────────────────────────
   const voltaAtual  = Number(p.current_lap) || 0;
   const totalVoltas = Number(state.sessao?.total_voltas) || 0;
   document.getElementById('tpVolta').textContent =
     totalVoltas > 0 ? `${voltaAtual}/${totalVoltas}` : `${voltaAtual}/—`;
 
-  // ── Sincroniza o snapshot do cronômetro ─────────────────────────
   _liveClock.nome = p.nome;
   _liveClock.base = Number(p.current_lap_time) || 0;
   _liveClock.baseTime = performance.now();
@@ -1185,7 +1388,6 @@ function renderTemposPanel() {
   _liveClock.s2_closed = Number(p.s2_closed) || 0;
   _liveClock.lastLap = Number(p.last_lap) || 0;
 
-  // ── Cor do tempo ─────────────────────────────────────────────
   const sbLap = Number(state.session_bests?.lap) || 0;
   const pbLap = Number(p.best_lap) || 0;
 
@@ -1204,7 +1406,6 @@ function renderTemposPanel() {
     }
   }
 
-  // ── Barras dos setores ──────────────────────────────────────
   const sb = state.session_bests || {};
   const cfg = [
     { key: 's1', best: 'best_s1', id: 'tpS1', liveKey: 's1', closedKey: 's1_closed' },
@@ -1278,17 +1479,47 @@ function _animateClock() {
 
 _animateClock();
 
+/* ═══════════════════════════════════════════════════════════════
+   ✅ Helper: só escreve no DOM se o valor mudou
+   ═══════════════════════════════════════════════════════════════ */
+function _setText(id, txt) {
+  const el = document.getElementById(id);
+  if (el && el.textContent !== txt) el.textContent = txt;
+}
+function _setHTML(id, html) {
+  const el = document.getElementById(id);
+  if (el && el.innerHTML !== html) el.innerHTML = html;
+}
+function _setClassToggle(id, cls, on) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle(cls, on);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ✅ renderLeaderboard — hash p/ evitar re-render
+   ═══════════════════════════════════════════════════════════════ */
+let _lastLbHash = '';
+
 function renderLeaderboard(pilotos, sessao) {
   const body = document.getElementById('lbBody');
   const lapEl = document.getElementById('lbLap');
   const total = sessao.total_voltas || 0;
   const atual = sessao.volta_atual || 0;
-  lapEl.textContent = (total || atual) ? `LAP ${atual} / ${total || '?'}` : 'LIVE';
+  const lapTxt = (total || atual) ? `LAP ${atual} / ${total || '?'}` : 'LIVE';
+  if (lapEl.textContent !== lapTxt) lapEl.textContent = lapTxt;
+
   if (!pilotos.length) {
-    body.innerHTML = `<div style="text-align:center;padding:30px 10px;color:#666;font-size:11px">Aguardando sessão...</div>`;
+    _setHTML('lbBody', `<div style="text-align:center;padding:30px 10px;color:#666;font-size:11px">Aguardando sessão...</div>`);
     return;
   }
   const ordered = [...pilotos].sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999));
+
+  const hash = state.lbMode + '|' + ordered.map(p =>
+    `${p.nome}:${p.posicao}:${p.gap}:${p.interval}:${p.last_lap}:${p.best_lap}:${p.is_pit}:${p.tyre}:${p.tyre_age}:${(p.tyre_wear||[]).map(x=>Math.round(x||0)).join(',')}`
+  ).join(';');
+
+  if (hash === _lastLbHash) return;
+  _lastLbHash = hash;
 
   function renderValor(p, idx) {
     switch (state.lbMode) {
@@ -1337,31 +1568,134 @@ function renderLeaderboard(pilotos, sessao) {
   }).join('');
 }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   ✅ TOASTS DE ALERTA — pneus + dano
+   ═══════════════════════════════════════════════════════════════ */
 let lastToastHash = '';
+
+function _danoInfo(p) {
+  const aero = {
+    asa_esq:  Number(p.dano_asa_esquerda || 0),
+    asa_dir:  Number(p.dano_asa_direita  || 0),
+    asa_tras: Number(p.dano_asa_traseira || 0),
+    assoalho: Number(p.dano_assoalho     || 0),
+    difusor:  Number(p.dano_difusor      || 0),
+    sidepods: Number(p.dano_sidepods     || 0),
+  };
+  const motor = {
+    engine:   Number(p.engine_damage || 0),
+    gearbox:  Number(p.gearbox_damage || 0),
+  };
+  const totalAero =
+    (aero.asa_esq + aero.asa_dir) * 0.35 +
+    aero.asa_tras * 0.15 +
+    aero.assoalho * 0.20 +
+    aero.difusor  * 0.15 +
+    aero.sidepods * 0.15;
+
+  const maiorParte = Math.max(...Object.values(aero));
+  const maiorMotor = Math.max(...Object.values(motor));
+
+  const nivel = (v) => v >= 85 ? 3 : v >= 67 ? 2 : v >= 40 ? 1 : 0;
+
+  const nomes = {
+    asa_esq: 'Asa E', asa_dir: 'Asa D', asa_tras: 'Asa T',
+    assoalho: 'Assoalho', difusor: 'Difusor', sidepods: 'Sidepod',
+  };
+  const pecaMais = Object.entries(aero).sort((a,b) => b[1] - a[1])[0];
+
+  return {
+    total:   totalAero,
+    maior:   maiorParte,
+    nivel:   Math.max(nivel(totalAero), nivel(maiorParte), maiorMotor >= 50 ? 2 : 0),
+    pecaNome: nomes[pecaMais[0]] || '—',
+    pecaVal:  pecaMais[1],
+    temMotor: maiorMotor >= 50,
+  };
+}
+
 function renderToast(pilotos) {
-  const alerts = pilotos
+  const alertsPneu = pilotos
     .map(p => {
       const tw = Array.isArray(p.tyre_wear) ? p.tyre_wear : [0,0,0,0];
       const mw = Math.max(...tw.map(x => Number(x) || 0));
       return { nome: p.nome, code: shortCode(p.nome), cor: teamColor(p.equipe, p.cor), wear: mw };
     })
-    .filter(x => x.wear >= 50).sort((a, b) => b.wear - a.wear);
-  const hash = alerts.map(a => `${a.code}:${Math.round(a.wear)}`).join('|');
+    .filter(x => x.wear >= 50)
+    .sort((a, b) => b.wear - a.wear);
+
+  const alertsDano = pilotos
+    .map(p => {
+      const info = _danoInfo(p);
+      return { nome: p.nome, code: shortCode(p.nome), cor: teamColor(p.equipe, p.cor), ...info };
+    })
+    .filter(x => x.nivel >= 1)
+    .sort((a, b) => b.total - a.total);
+
+  const hash =
+    'P:' + alertsPneu.map(a => `${a.code}:${Math.round(a.wear)}`).join('|') +
+    '|D:' + alertsDano.map(d => `${d.code}:${d.nivel}:${Math.round(d.total)}`).join('|');
   if (hash === lastToastHash) return;
   lastToastHash = hash;
-  const toast = document.getElementById('toast');
+
+  const toast   = document.getElementById('toast');
   const titleEl = document.getElementById('toastTitle');
-  const bodyEl = document.getElementById('toastBody');
-  if (!alerts.length) { toast.classList.remove('on'); return; }
-  titleEl.textContent = `⚠️ ${alerts.length} piloto${alerts.length > 1 ? 's' : ''} com pneu >50%`;
-  bodyEl.innerHTML = alerts.slice(0, 8).map(a => `
-    <div class="item">
-      <span class="nome" style="color:${a.cor}">${a.code}</span>
-      <span class="val">${Math.round(a.wear)}%</span>
-    </div>`).join('');
+  const bodyEl  = document.getElementById('toastBody');
+
+  if (!alertsPneu.length && !alertsDano.length) {
+    toast.classList.remove('on');
+    return;
+  }
+
+  const partes = [];
+  if (alertsPneu.length) partes.push(`${alertsPneu.length} c/ pneu >50%`);
+  if (alertsDano.length) partes.push(`${alertsDano.length} c/ dano`);
+  titleEl.textContent = `⚠️ ${partes.join(' · ')}`;
+
+  let html = '';
+
+  if (alertsPneu.length) {
+    html += `
+      <div class="toast-section">
+        <div class="toast-sec-title">
+          🛞 Pneus desgastados
+          <span class="badge-count">${alertsPneu.length}</span>
+        </div>
+        ${alertsPneu.slice(0, 6).map(a => `
+          <div class="item">
+            <span class="nome" style="color:${a.cor}">${a.code}</span>
+            <span class="val">${Math.round(a.wear)}%</span>
+          </div>`).join('')}
+        ${alertsPneu.length > 6 ? `<div class="item" style="opacity:.6;font-size:10px"><span>+${alertsPneu.length - 6} outros…</span></div>` : ''}
+      </div>
+    `;
+  }
+
+  if (alertsDano.length) {
+    html += `
+      <div class="toast-section">
+        <div class="toast-sec-title">
+          🔧 Dano no carro
+          <span class="badge-count">${alertsDano.length}</span>
+        </div>
+        ${alertsDano.slice(0, 6).map(d => `
+          <div class="item dmg">
+            <span class="nome" style="color:${d.cor}">${d.code}</span>
+            <span class="val" style="display:flex;align-items:center;gap:4px">
+              <span class="part-icon">${d.pecaNome} ${Math.round(d.pecaVal)}%</span>
+              ${d.temMotor ? '<span class="part-icon">· ⚙️ Motor</span>' : ''}
+              <span class="dmg-badge lvl-${d.nivel}">${Math.round(d.total)}%</span>
+            </span>
+          </div>`).join('')}
+        ${alertsDano.length > 6 ? `<div class="item" style="opacity:.6;font-size:10px"><span>+${alertsDano.length - 6} outros…</span></div>` : ''}
+      </div>
+    `;
+  }
+
+  bodyEl.innerHTML = html;
   toast.classList.add('on');
 }
-
 function handleDriverClick(nome) {
   const sel = state.selectedDriver;
   const cmp = state.compareDriver;
@@ -1373,7 +1707,6 @@ function handleDriverClick(nome) {
     renderComparePanel();
     renderDRSPanel();
     renderTemposPanel();
-    draw();
     return;
   }
   if (nome === sel) {
@@ -1385,7 +1718,6 @@ function handleDriverClick(nome) {
       renderDRSPanel();
       renderTemposPanel();
       renderLeaderboard(state.pilotos, state.sessao);
-      draw();
     } else {
       openModal(nome);
     }
@@ -1406,7 +1738,6 @@ function handleDriverClick(nome) {
   renderDRSPanel();
   renderTemposPanel();
   renderLeaderboard(state.pilotos, state.sessao);
-  draw();
 }
 
 function openModal(nome) {
@@ -1427,7 +1758,6 @@ function openModal(nome) {
   renderDRSPanel();
   renderTemposPanel();
   renderPitWindow(state.sessao, state.pilotos);
-  draw();
 }
 
 function renderModalHeader(p) {
@@ -1575,7 +1905,6 @@ function closeModal(ev) {
   renderComparePanel();
   renderDRSPanel();
   renderTemposPanel();
-  draw();
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
@@ -1598,7 +1927,6 @@ canvas.addEventListener('wheel', e => {
   state.offsetX = cx - (cx - state.offsetX) * k;
   state.offsetY = cy - (cy - state.offsetY) * k;
   state.escala  = novo;
-  draw();
 }, { passive:false });
 
 let arrastando = false;
@@ -1630,7 +1958,6 @@ addEventListener('mouseup', e => {
     if (ehClique) {
       state.offsetX = offsetInicio.x;
       state.offsetY = offsetInicio.y;
-      draw();
 
       const r = canvas.getBoundingClientRect();
       const p = pilotoNaPosicao(e.clientX - r.left, e.clientY - r.top);
@@ -1641,6 +1968,7 @@ addEventListener('mouseup', e => {
   canvas.classList.remove('arrastando');
 });
 
+/* ✅ Drag: só atualiza estado — renderLoop já redesenha no próximo frame */
 addEventListener('mousemove', e => {
   if (!arrastando) return;
   const dx = e.clientX - mouseInicio.x;
@@ -1650,18 +1978,30 @@ addEventListener('mousemove', e => {
   state.offsetX += e.clientX - ultimoMouse.x;
   state.offsetY += e.clientY - ultimoMouse.y;
   ultimoMouse = { x:e.clientX, y:e.clientY };
-  draw();
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   ✅ Throttle do mousemove — 1 callback por frame (rAF)
+   ═══════════════════════════════════════════════════════════════ */
+let _mouseRaf  = null;
+let _mouseLast = null;
 
 canvas.addEventListener('mousemove', e => {
   if (arrastando) return;
-  const r = canvas.getBoundingClientRect();
-  const p = pilotoNaPosicao(e.clientX - r.left, e.clientY - r.top);
-  canvas.style.cursor = p ? 'pointer' : 'grab';
+  _mouseLast = e;
+  if (_mouseRaf) return;
+  _mouseRaf = requestAnimationFrame(() => {
+    _mouseRaf = null;
+    if (!_mouseLast) return;
+    const r = canvas.getBoundingClientRect();
+    const p = pilotoNaPosicao(_mouseLast.clientX - r.left, _mouseLast.clientY - r.top);
+    const novoCursor = p ? 'pointer' : 'grab';
+    if (canvas.style.cursor !== novoCursor) canvas.style.cursor = novoCursor;
+  });
 });
 
 canvas.addEventListener('dblclick', resetZoom);
-function resetZoom() { state.escala = 1; state.offsetX = 0; state.offsetY = 0; draw(); }
+function resetZoom() { state.escala = 1; state.offsetX = 0; state.offsetY = 0; }
 
 document.querySelectorAll('#lbMode button').forEach(btn => {
   btn.onclick = () => {
@@ -1672,18 +2012,18 @@ document.querySelectorAll('#lbMode button').forEach(btn => {
   };
 });
 
-document.getElementById('selTema').onchange = e => { state.tema = e.target.value; draw(); };
+document.getElementById('selTema').onchange = e => { state.tema = e.target.value; _offTrailKey = ''; };
 document.getElementById('selModo').onchange = e => {
   state.modo = e.target.value;
+  _offTrailKey = '';
   document.getElementById('legenda').classList.toggle('on', state.modo === 'heatmap');
-  draw();
 };
 document.getElementById('btnReset').onclick  = resetZoom;
 document.getElementById('btnLimpar').onclick = () => {
   state.tracado = [];
   state.ultimoLid = null;
+  _invalidarCacheTrail();
   if (state.pistaKey) ls_clear(state.pistaKey);
-  draw();
 };
 document.getElementById('btnOcultar').onclick = () => {
   document.getElementById('app').classList.add('sem-lb');
@@ -1697,28 +2037,35 @@ document.getElementById('btnToggleLb').onclick = () => {
 function renderSessionBar(sessao) {
   const pista = sessao.nome_pista || '—';
   const tipo  = sessao.tipo_sessao || '—';
-  document.getElementById('sNome').textContent = `${pista} : ${tipo}`;
+  _setText('sNome', `${pista} : ${tipo}`);
 
   const total = sessao.total_voltas || 0;
   const atual = sessao.volta_atual || 0;
-  document.getElementById('sLap').textContent = total ? `LAP ${atual}/${total}` : 'LIVE';
+  _setText('sLap', total ? `LAP ${atual}/${total}` : 'LIVE');
 
   const flag = flagName(sessao.bandeira || '—');
-  const flagEl = document.getElementById('sFlag');
   const sc = (sessao.sc_status && sessao.sc_status !== 'Nenhum') ? sessao.sc_status : flag;
-  flagEl.textContent = sc;
-  flagEl.classList.toggle('red',    /vermelh|red|Safety Car Completo/i.test(sc));
-  flagEl.classList.toggle('yellow', /amarel|yellow|Virtual|Formação/i.test(sc));
+  _setText('sFlag', sc);
+
+  const isRed    = /vermelh|red|Safety Car Completo/i.test(sc);
+  const isYellow = /amarel|yellow|Virtual|Formação/i.test(sc);
+  const isGreen  = !isRed && !isYellow;
+
+  _setClassToggle('sFlag', 'red',    isRed);
+  _setClassToggle('sFlag', 'yellow', isYellow);
+  _setClassToggle('sFlag', 'green',  isGreen);
 
   const formula = sessao.formula_name || 'F1';
   state.formula = formula;
-  const fEl = document.getElementById('sFormula');
-  if (fEl) fEl.textContent = formula;
+  _setText('sFormula', formula);
   const lbF1 = document.getElementById('lbF1');
-  if (lbF1) lbF1.innerHTML = `${formula}<span> RACE</span>`;
+  if (lbF1) {
+    const html = `${formula}<span> RACE</span>`;
+    if (lbF1.innerHTML !== html) lbF1.innerHTML = html;
+  }
 
   const chuva = Number(sessao.chance_chuva);
-  document.getElementById('sRain').textContent = Number.isFinite(chuva) ? `${Math.round(chuva)}%` : '0%';
+  _setText('sRain', Number.isFinite(chuva) ? `${Math.round(chuva)}%` : '0%');
 
   const tod = Number(sessao.time_of_day) || 0;
   let timeStr;
@@ -1731,7 +2078,7 @@ function renderSessionBar(sessao) {
     const now = new Date();
     timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
   }
-  document.getElementById('sTime').textContent = timeStr;
+  _setText('sTime', timeStr);
 
   const climaStr = String(sessao.clima || '').toLowerCase();
   let icon = '☀️';
@@ -1740,18 +2087,18 @@ function renderSessionBar(sessao) {
   else if (climaStr.includes('light rain') || climaStr.includes('leve'))  icon = '🌦️';
   else if (climaStr.includes('overcast') || climaStr.includes('nublado')) icon = '☁️';
   else if (climaStr.includes('cloud') || climaStr.includes('nuvem'))      icon = '🌥️';
-  document.getElementById('sWeatherIcon').textContent = icon;
-  document.getElementById('sTempA').textContent = (sessao.temp_ar ?? '—') + '°C';
+  _setText('sWeatherIcon', icon);
+  _setText('sTempA', (sessao.temp_ar ?? '—') + '°C');
 
   const segLeft = sessao.session_time_left ?? null;
   const elLeft = document.getElementById('sTimeLeft');
   if (segLeft != null && segLeft > 0) {
     const m = Math.floor(segLeft / 60);
     const s = segLeft % 60;
-    elLeft.textContent = m > 0 ? `${m}m ${String(s).padStart(2,'0')}s` : `${s}s`;
-  } else elLeft.textContent = '—';
+    _setText('sTimeLeft', m > 0 ? `${m}m ${String(s).padStart(2,'0')}s` : `${s}s`);
+  } else _setText('sTimeLeft', '—');
 
-  document.getElementById('sTempP').textContent = (sessao.temp_pista ?? '—') + '°C';
+  _setText('sTempP', (sessao.temp_pista ?? '—') + '°C');
   renderSCBanner(sessao);
 }
 
@@ -1823,35 +2170,176 @@ function renderPitWindow(sessao, pilotos) {
 
 let pontosDesdeSave = 0;
 
+/* ═══════════════════════════════════════════════════════════════
+   ✅ PAINÉIS ARRASTÁVEIS (versão consolidada)
+   ═══════════════════════════════════════════════════════════════ */
+const DRAG_PANELS = [
+  { id:'toast',        key:'f1_drag_toast',    ox:336, oy:58  },
+  { id:'pitWindow',    key:'f1_drag_pit',      ox:196, oy:200 },
+  { id:'comparePanel', key:'f1_drag_compare',  ox:254, oy:360 },
+  { id:'drsPanel',     key:'f1_drag_drs',      ox:254, oy:660 },
+  { id:'temposPanel',  key:'f1_drag_tempos',   ox:196, oy:780 },
+];
+
+const _dragState = new Map();
+let _activeDrag  = null;
+
+function _loadDragPos(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    return (p && typeof p.x === 'number' && typeof p.y === 'number') ? p : null;
+  } catch { return null; }
+}
+function _saveDragPos(key, x, y) {
+  try { localStorage.setItem(key, JSON.stringify({ x, y })); } catch {}
+}
+function _clampPos(x, y, w, h) {
+  const maxX = Math.max(6, window.innerWidth  - w - 6);
+  const maxY = Math.max(50, window.innerHeight - h - 6);
+  return {
+    x: Math.min(Math.max(6, x), maxX),
+    y: Math.min(Math.max(50, y), maxY),
+  };
+}
+function _isInteractive(t) {
+  return !!(t && t.closest &&
+    t.closest('button, a, input, select, textarea, [data-no-drag]'));
+}
+function _applyDefaultPos(el, p) {
+  const W = window.innerWidth;
+  const r = el.getBoundingClientRect();
+  const w = (r.width  > 0 ? r.width  : p.ox) || 220;
+  const h = (r.height > 0 ? r.height : 140);
+  const c = _clampPos(Math.max(8, W - p.ox), p.oy, w, h);
+  el.style.setProperty('left', c.x + 'px', 'important');
+  el.style.setProperty('top',  c.y + 'px', 'important');
+}
+
+window.addEventListener('mousemove', (ev) => {
+  if (!_activeDrag) return;
+  const { el, sx, sy, ox, oy } = _activeDrag;
+  const r = el.getBoundingClientRect();
+  const c = _clampPos(
+    ox + (ev.clientX - sx),
+    oy + (ev.clientY - sy),
+    r.width, r.height
+  );
+  el.style.setProperty('left', c.x + 'px', 'important');
+  el.style.setProperty('top',  c.y + 'px', 'important');
+});
+
+window.addEventListener('mouseup', () => {
+  if (!_activeDrag) return;
+  const { el, key } = _activeDrag;
+  el.classList.remove('dragging');
+  document.body.style.cursor = '';
+  const r = el.getBoundingClientRect();
+  _saveDragPos(key, r.left, r.top);
+  _activeDrag = null;
+});
+
+function _makeDraggable(el, key) {
+  if (!el) return;
+  _dragState.set(el.id, { el, key });
+
+  el.addEventListener('mousedown', (ev) => {
+    if (ev.button !== 0) return;
+    if (_isInteractive(ev.target)) return;
+
+    const r = el.getBoundingClientRect();
+    _activeDrag = {
+      el, key,
+      sx: ev.clientX, sy: ev.clientY,
+      ox: r.left,     oy: r.top,
+    };
+    el.classList.add('dragging');
+    document.body.style.cursor = 'grabbing';
+    ev.preventDefault();
+  });
+
+  el.addEventListener('dblclick', (ev) => {
+    if (_isInteractive(ev.target)) return;
+    try { localStorage.removeItem(key); } catch {}
+    const p = DRAG_PANELS.find(x => x.id === el.id);
+    if (p) _applyDefaultPos(el, p);
+  });
+}
+
+function initDragPanels() {
+  DRAG_PANELS.forEach(p => {
+    const el = document.getElementById(p.id);
+    if (!el) return;
+
+    el.classList.add('drag-panel');
+    el.style.setProperty('right',  'auto', 'important');
+    el.style.setProperty('bottom', 'auto', 'important');
+
+    const saved = _loadDragPos(p.key);
+    if (saved) {
+      const c = _clampPos(saved.x, saved.y,
+                          el.getBoundingClientRect().width  || p.ox,
+                          el.getBoundingClientRect().height || 120);
+      el.style.setProperty('left', c.x + 'px', 'important');
+      el.style.setProperty('top',  c.y + 'px', 'important');
+    } else {
+      _applyDefaultPos(el, p);
+    }
+
+    _makeDraggable(el, p.key);
+  });
+}
+
+function resetDragPanels() {
+  DRAG_PANELS.forEach(p => {
+    try { localStorage.removeItem(p.key); } catch {}
+    const el = document.getElementById(p.id);
+    if (el) _applyDefaultPos(el, p);
+  });
+}
+
+window.addEventListener('resize', () => {
+  _dragState.forEach((st) => {
+    const el = st.el;
+    if (!el || !el.classList.contains('on')) return;
+    const r = el.getBoundingClientRect();
+    const c = _clampPos(r.left, r.top, r.width, r.height);
+    el.style.setProperty('left', c.x + 'px', 'important');
+    el.style.setProperty('top',  c.y + 'px', 'important');
+  });
+});
+
+initDragPanels();
+
+document.getElementById('btnResetPaineis')?.addEventListener('click', resetDragPanels);
+
+/* ═══════════════════════════════════════════════════════════════
+   ✅ LOOP PRINCIPAL (dados) — sem draw(), só atualiza estado
+   ═══════════════════════════════════════════════════════════════ */
 async function tick() {
   try {
     const r = await fetch('/api/mapa_posicoes', { cache:'no-store' });
     if (!r.ok) return;
     const data = await r.json();
 
-    /* ═══════════════════════════════════════════════════════════
-       ✅ CORREÇÃO 3: race condition ao trocar de pista
-       Antes, entre trocar pistaKey e o ls_load resolver, os
-       push_ponto() continuavam escrevendo no traçado antigo.
-       Agora limpamos state.tracado imediatamente.
-       ═══════════════════════════════════════════════════════════ */
     const novaKey = normalizeTrackKey(data.track);
     if (novaKey && novaKey !== state.pistaKey) {
-      // Se havia uma pista anterior com pontos não salvos, força flush
       if (state.pistaKey && state.tracado.length) {
         forcarSaveImediato();
       }
 
       state.pistaKey  = novaKey;
       state.pista     = data.track;
-      state.tracado   = [];        // ← limpa JÁ para não misturar
+      state.tracado   = [];
       state.ultimoLid = null;
       pontosDesdeSave = 0;
+      _invalidarCacheTrail();
       document.getElementById('pistaNome').textContent = (data.track || '—').toUpperCase();
 
       ls_load(novaKey).then(segs => {
         state.tracado = segs;
-        draw();
+        _invalidarCacheTrail();
         console.log(`📥 ${novaKey}: ${segs.length} seg carregados`);
       });
     }
@@ -1859,6 +2347,9 @@ async function tick() {
     state.pilotos = data.pilotos || [];
     state.sessao  = data.sessao  || {};
     state.session_bests = data.session_bests || {};
+
+    /* ✅ alimenta a interpolação com as posições novas */
+    _feedInterpolacao(state.pilotos);
 
     renderSessionBar(state.sessao);
     renderPitWindow(state.sessao, state.pilotos);
@@ -1876,10 +2367,12 @@ async function tick() {
       } else closeModal();
     }
 
+    /* Trail do líder — usa a posição interpolada (suave) */
     const lider = state.pilotos.find(p => p.posicao === 1 && !p.is_pit && p.has_pos);
     if (lider) {
+      const pos = _getPos(lider) || { x: lider.x, z: lider.z };
       const antes = state.tracado.reduce((a, s) => a + s.length, 0);
-      push_ponto(lider.x, lider.z, lider.speed || 0);
+      push_ponto(pos.x, pos.z, lider.speed || 0);
       const depois = state.tracado.reduce((a, s) => a + s.length, 0);
       if (depois > antes) {
         pontosDesdeSave += (depois - antes);
@@ -1888,15 +2381,25 @@ async function tick() {
     }
 
     const totalPts = state.tracado.reduce((a, s) => a + s.length, 0);
-    document.getElementById('infoRodape').textContent =
-      `${state.pilotos.length} pilotos • ${totalPts} pts • ${state.tracado.length} seg • zoom ${state.escala.toFixed(2)}×`;
-
-    draw();
+    _setText('infoRodape',
+      `${state.pilotos.length} pilotos • ${totalPts} pts • ${state.tracado.length} seg • zoom ${state.escala.toFixed(2)}×`);
   } catch (e) { console.error('mapa:', e); }
 }
 
-setInterval(tick, 100);
-tick();
+/* ✅ Loop de dados: só agenda o próximo tick DEPOIS que o atual termina */
+(async function loopTick() {
+  await tick();
+  setTimeout(loopTick, 50);
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   ✅ RENDER LOOP — 60fps · interpola + desenha
+   ═══════════════════════════════════════════════════════════════ */
+(function renderLoop() {
+  _tickInterpolacao();
+  draw();
+  requestAnimationFrame(renderLoop);
+})();
 </script>
 </body>
 </html>

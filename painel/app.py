@@ -545,9 +545,25 @@ def dados_completos_live():
             _formula_code = 0
         _formula_name = "F2" if _formula_code == 2 else "F1"
 
+                # ═══════════════════════════════════════════════════════════
+        # FIX: fallback de 3 níveis para nome de pista
+        # ═══════════════════════════════════════════════════════════
         _track = getattr(SESSION, 'track_name', None)
-        if not _track or str(_track).strip() in ("", "—", "Desconhecida", "DESCONHECIDA"):
-            _track = "—"
+        _track_norm = str(_track or '').strip().lower()
+        _inv = ("", "—", "unknown", "unknown track", "desconhecida", "desconhecido", "?")
+        if _track_norm in _inv:
+            # 2) tenta pelo ID no dicionário do jogo
+            try:
+                from utils.dictionnaries import track_dictionary as _td
+                _tid = getattr(SESSION, 'm_track_id', -1)
+                if _tid is not None and _tid in _td:
+                    _track = str(_td[_tid][0]).replace('_', ' ').title()
+                elif _tid is not None and _tid >= 0:
+                    _track = f"Pista ID {_tid}"
+                else:
+                    _track = "—"
+            except Exception:
+                _track = "—"
 
         _total_laps = getattr(SESSION, 'm_total_laps', 0) or 0
 
@@ -984,18 +1000,24 @@ def api_mapa_posicoes():
         formula_code = int(getattr(SESSION, 'm_formula', 0) or 0)
         formula_name = "F2" if formula_code == 2 else "F1"
 
-        # ── Nome da pista ──────────────────────────────────────
+              # ═══════════════════════════════════════════════════════════
+        # FIX: fallback de 3 níveis para nome de pista
+        # ═══════════════════════════════════════════════════════════
         track = getattr(SESSION, 'track_name', None)
-        if not track or str(track).strip().lower() in ("", "unknown", "desconhecida", "—"):
+        _track_norm = str(track or '').strip().lower()
+        _inv = ("", "—", "unknown", "unknown track", "desconhecida", "desconhecido", "?")
+        if _track_norm in _inv:
+            # 2) tenta pelo ID no dicionário
             try:
                 tid = getattr(SESSION, 'm_track_id', -1)
                 if tid is not None and tid in track_dictionary:
                     track = str(track_dictionary[tid][0]).replace('_', ' ').title()
+                elif tid is not None and tid >= 0:
+                    track = f"Pista ID {tid}"
+                else:
+                    track = "—"
             except Exception:
-                pass
-        if not track or str(track).strip().lower() in ("", "unknown", "desconhecida", "—"):
-            track = "—"
-
+                track = "—"
         # ── Clima ─────────────────────────────────────────────
         _amostra = None
         amostras = getattr(SESSION, "m_weatherForecastSamples", None)
@@ -2248,7 +2270,108 @@ def api_danos_por_volta(sessao_id):
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"pilotos": [], "erro": str(e)}), 500
+@app.route("/api/clima_por_volta/<int:sessao_id>")
+def api_clima_por_volta(sessao_id):
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
 
+        # 1) Total de voltas da sessão
+        cur.execute("SELECT MAX(numero_volta) FROM voltas WHERE sessao_id = ?", (sessao_id,))
+        r = cur.fetchone()
+        max_lap = r[0] if r and r[0] else 0
+        if not max_lap:
+            conn.close()
+            return jsonify({"periodos": [], "max_volta": 0})
+
+        # 2) Stints de TODOS os pilotos (usa pneu_stints)
+        cur.execute("""
+            SELECT p.nome AS piloto, s.stint_numero, s.tipo_pneu,
+                   s.volta_inicio, s.volta_fim
+            FROM pneu_stints s
+            INNER JOIN pilotos p ON p.id = s.piloto_id
+            WHERE s.sessao_id = ?
+            ORDER BY p.nome, s.stint_numero
+        """, (sessao_id,))
+        rows = [dict(x) for x in cur.fetchall()]
+
+        # 3) Normaliza tipo de pneu
+        def norm(t):
+            t = (t or "").upper()
+            if "WET"   in t or "CHUVA" in t or "MOLH" in t: return "WET"
+            if "INTER" in t:                                return "INTER"
+            if "SUPER" in t or t == "SS":                   return "SS"
+            if "SOFT"  in t or "MACIO" in t:                return "SOFT"
+            if "HARD"  in t or "DURO"  in t:                return "HARD"
+            if "MEDIUM" in t or "MEDIO" in t:               return "MEDIUM"
+            return "MEDIUM"
+
+        # 4) Mapa: pneu_por_volta[volta][piloto] = tipo
+        pneu_por_volta = {}
+        for row in rows:
+            pil  = row["piloto"]
+            tipo = norm(row["tipo_pneu"])
+            ini  = int(row["volta_inicio"] or 0)
+            fim  = int(row["volta_fim"]    or 0)
+            for v in range(ini, fim + 1):
+                pneu_por_volta.setdefault(v, {})[pil] = tipo
+
+        # 5) Classifica cada volta: pesada / leve / (seco = fora)
+        laps_tipo = {}
+        for v in range(1, max_lap + 1):
+            ativos = pneu_por_volta.get(v, {})
+            n = len(ativos)
+            if n < 2:
+                continue
+            n_wet   = sum(1 for t in ativos.values() if t == "WET")
+            n_inter = sum(1 for t in ativos.values() if t == "INTER")
+            pct_wet   = n_wet / n
+            pct_chuva = (n_wet + n_inter) / n
+
+            if pct_wet >= 0.80:       laps_tipo[v] = "pesada"
+            elif pct_chuva >= 0.40:   laps_tipo[v] = "leve"
+
+        # 6) Agrupa em períodos com suavização de 1 lap
+        periodos = []
+        atual = None
+        prev_tipo = None
+        for v in range(1, max_lap + 1):
+            tipo = laps_tipo.get(v)
+
+            # Suavização: 1 lap isolada de tipo diferente não muda o período
+            if prev_tipo and tipo and tipo != prev_tipo:
+                prox = laps_tipo.get(v + 1)
+                if prox == prev_tipo:
+                    tipo = prev_tipo
+
+            if tipo:
+                if (not atual) or atual["tipo"] != tipo:
+                    if atual:
+                        periodos.append(atual)
+                    atual = {"tipo": tipo, "volta_inicio": v, "volta_fim": v}
+                else:
+                    atual["volta_fim"] = v
+            else:
+                if atual:
+                    periodos.append(atual)
+                    atual = None
+
+            prev_tipo = tipo
+
+        if atual:
+            periodos.append(atual)
+
+        conn.close()
+        return jsonify({
+            "periodos":  periodos,
+            "max_volta": max_lap,
+        })
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"periodos": [], "max_volta": 0, "erro": str(e)}), 500
 def _garantir_tabela_tracados():
     """
     Cria a tabela `tracados` se não existir.

@@ -121,7 +121,8 @@
 
   td.speed-cell { text-align:right; padding:0 6px; white-space:nowrap; }
   td.tyre-cell  { padding:0 6px; white-space:nowrap; }
-    /* ═══ PIT BADGE ═══ */
+
+  /* ═══ PIT BADGE ═══ */
   .pit-badge {
     display: inline-block;
     background: #ffd400;
@@ -142,25 +143,77 @@
   table.timing tbody tr.driver-row.pit td {
     background: rgba(255,212,0,0.04);
   }
-    /* ═══ WEAR WARNING (média de pneus > 50%) ═══ */
-  .wear-warning-badge {
-    display: inline-block;
-    background: #e10600;
-    color: #fff;
-    font-size: 8px;
-    font-weight: 900;
-    letter-spacing: .5px;
-    padding: 1px 5px;
-    border-radius: 3px;
-    margin-right: 5px;
+
+  /* ═══ ALERTA DE PNEU > 50% ═══ */
+  .tyre-alert-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    font-size: 12px;
+    line-height: 1;
+    margin-left: 6px;
     vertical-align: middle;
-    animation: wearPulse 1.2s ease-in-out infinite;
+    border-radius: 3px;
+    cursor: help;
+    animation: tyreAlertPulse 1.1s ease-in-out infinite;
   }
-  @keyframes wearPulse {
-    0%, 100% { opacity: 1;    box-shadow: 0 0 4px rgba(225,6,0,0.6); }
-    50%      { opacity: 0.65; box-shadow: 0 0 10px rgba(225,6,0,0.95); }
+  .tyre-alert-icon.lvl-yellow {
+    color: #ffd400;
+    background: rgba(255,212,0,0.14);
+    box-shadow: 0 0 6px rgba(255,212,0,0.55);
   }
-  /* ─── DETAIL ROW (aparece ao clicar) ─────────────────── */
+  .tyre-alert-icon.lvl-orange {
+    color: #f97316;
+    background: rgba(249,115,22,0.18);
+    box-shadow: 0 0 8px rgba(249,115,22,0.65);
+  }
+  .tyre-alert-icon.lvl-red {
+    color: #ef4444;
+    background: rgba(239,68,68,0.22);
+    box-shadow: 0 0 10px rgba(239,68,68,0.85);
+    animation: tyreAlertPulse 0.65s ease-in-out infinite;
+  }
+  @keyframes tyreAlertPulse {
+    0%, 100% { transform: scale(1);    filter: brightness(1);   }
+    50%      { transform: scale(1.18); filter: brightness(1.45); }
+  }
+
+  /* ═══ ALERTA DE DANO NO CARRO (ao lado do nome) ═══ */
+  .dmg-alert-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 11px;
+    line-height: 1;
+    margin-left: 5px;
+    vertical-align: middle;
+    border-radius: 3px;
+    cursor: help;
+    animation: dmgAlertPulse 1.3s ease-in-out infinite;
+  }
+  .dmg-alert-icon.lvl-yellow {
+    background: rgba(234,179,8,0.18);
+    box-shadow: 0 0 5px rgba(234,179,8,0.55);
+  }
+  .dmg-alert-icon.lvl-orange {
+    background: rgba(245,158,11,0.22);
+    box-shadow: 0 0 7px rgba(245,158,11,0.70);
+  }
+  .dmg-alert-icon.lvl-red {
+    background: rgba(239,68,68,0.24);
+    box-shadow: 0 0 9px rgba(239,68,68,0.90);
+    animation: dmgAlertPulse 0.7s ease-in-out infinite;
+  }
+  @keyframes dmgAlertPulse {
+    0%, 100% { transform: scale(1);    filter: brightness(1);   }
+    50%      { transform: scale(1.15); filter: brightness(1.35); }
+  }
+
+  /* ─── DETAIL ROW ─────────────────────────────────────── */
   tr.detail-row td {
     padding: 12px 16px;
     background: linear-gradient(180deg, #05070a 0%, #0a0d12 100%);
@@ -205,13 +258,11 @@
     align-items:start;
   }
 
-  /* Car SVG */
   .detail-car svg {
     width:100%; height:auto; display:block;
     background: radial-gradient(ellipse at center, #0a0d14 0%, transparent 70%);
   }
 
-  /* Cards */
   .detail-card {
     background: #0a0d12; border: 1px solid #1a1d28;
     border-radius: 6px; padding: 10px 12px;
@@ -233,7 +284,6 @@
   .info-row .val.bad  { color:#ef4444; }
   .info-row .val.ok   { color:#22c55e; }
 
-  /* Barrinhas de pneu */
   .tyre-grid {
     display:grid; grid-template-columns:1fr 1fr;
     gap:6px 12px; font-size:11px;
@@ -255,7 +305,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Damage indicator list */
   .dmg-item {
     display:flex; justify-content:space-between; align-items:center;
     padding:4px 0; border-bottom:1px solid #0f1218;
@@ -269,7 +318,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* ─── BOTTOM PANELS ───────────────────────────────────── */
   .bottom-panels {
     display:grid; grid-template-columns: 1fr 1fr 1fr;
     height:50px; background:#050505; border-top:1px solid #1a1a1a;
@@ -405,7 +453,6 @@ function flagName(raw) {
   if (!raw) return "Verde";
   const s = String(raw);
   if (!s.startsWith("#")) {
-    // "Nenhuma" (zona sem bandeira) = pista verde
     return s === "Nenhuma" ? "Verde" : s;
   }
   const map = {
@@ -416,16 +463,16 @@ function flagName(raw) {
   return map[s.toUpperCase()] || "Verde";
 }
 
-/* 🆕 cor de uma peça danificada (0-100) */
+/* cor de uma peça danificada (0-100) */
 function partColor(v) {
   if (v == null) return "#22c55e";
-  if (v >= 67) return "#ef4444";   // vermelho
-  if (v >= 34) return "#f59e0b";   // laranja
-  if (v >= 1)  return "#eab308";   // amarelo
-  return "#22c55e";                 // verde
+  if (v >= 67) return "#ef4444";
+  if (v >= 34) return "#f59e0b";
+  if (v >= 1)  return "#eab308";
+  return "#22c55e";
 }
 
-/* 🆕 cor do desgaste do pneu (0-100) */
+/* cor do desgaste do pneu (0-100) */
 function wearColor(v) {
   if (v == null) return "#22c55e";
   if (v >= 75) return "#ef4444";
@@ -434,12 +481,28 @@ function wearColor(v) {
   return "#22c55e";
 }
 
-/* 🆕 renderização completa do painel de detalhes */
+/* valor de dano consolidado de um piloto (0-100) */
+function danoConsolidado(p) {
+  const parts = [
+    Number(p.dano_asa_esquerda) || 0,
+    Number(p.dano_asa_direita)  || 0,
+    Number(p.dano_asa_traseira) || 0,
+    Number(p.dano_assoalho)     || 0,
+    Number(p.dano_difusor)      || 0,
+    Number(p.dano_sidepods)     || 0,
+  ];
+  const maxPart = Math.max(...parts);
+  const weighted = parts[0] * 0.35 + parts[1] * 0.35 +
+                   parts[2] * 0.15 + parts[3] * 0.20 +
+                   parts[4] * 0.15 + parts[5] * 0.15;
+  return Math.max(maxPart, weighted);
+}
+
+/* renderização completa do painel de detalhes */
 function renderDetail(p) {
   const tw = Array.isArray(p.tyre_wear) && p.tyre_wear.length === 4
     ? p.tyre_wear
     : [0, 0, 0, 0];
-  // ordem UDP: [RL, RR, FL, FR]
   const RL = tw[0], RR = tw[1], FL = tw[2], FR = tw[3];
 
   const tInner = Array.isArray(p.tyre_temp_inner) && p.tyre_temp_inner.length === 4
@@ -466,25 +529,25 @@ function renderDetail(p) {
   const fuel = p.fuel != null ? Number(p.fuel).toFixed(1) : "—";
   const fuelLaps = p.fuel_laps != null ? Number(p.fuel_laps).toFixed(1) : "—";
   const ers = p.ers_pct != null ? Number(p.ers_pct).toFixed(0) : "0";
-  /* ── DRS: 3 estados reais ─────────────────────────────── */
+
   const drsAtivo     = Number(p.drs) === 1;
   const drsDisponivel = Number(p.drs_allowed) === 1;
   const drsDistancia = Number(p.drs_activation_distance) || 0;
 
   let drsTexto, drsCls;
-if (drsAtivo) {
-  drsTexto = "🟢 ABERTO";
-  drsCls   = "ok";
-} else if (drsDisponivel) {
-  drsTexto = "🟡 DISPONÍVEL";
-  drsCls   = "warn";
-} else if (drsDistancia > 0) {
-  drsTexto = `⏳ em ${drsDistancia}m`;
-  drsCls   = "";
-} else {
-  drsTexto = "⚫ indisponível";
-  drsCls   = "";
-}
+  if (drsAtivo) {
+    drsTexto = "🟢 ABERTO";
+    drsCls   = "ok";
+  } else if (drsDisponivel) {
+    drsTexto = "🟡 DISPONÍVEL";
+    drsCls   = "warn";
+  } else if (drsDistancia > 0) {
+    drsTexto = `⏳ em ${drsDistancia}m`;
+    drsCls   = "";
+  } else {
+    drsTexto = "⚫ indisponível";
+    drsCls   = "";
+  }
 
   return `
     <div class="detail-header">
@@ -500,77 +563,63 @@ if (drsAtivo) {
     </div>
 
     <div class="detail-grid">
-      <!-- Coluna 1: Carro SVG -->
       <div class="detail-car">
         <svg viewBox="0 0 240 320" xmlns="http://www.w3.org/2000/svg">
-          <!-- Asa dianteira esquerda -->
           <rect x="20" y="14" width="55" height="14" rx="3"
                 fill="${partColor(da.asa_e)}" stroke="#222" stroke-width="1"/>
           <text x="47" y="24" text-anchor="middle" font-size="9" font-weight="700"
                 fill="#000" opacity="0.75">AS E</text>
 
-          <!-- Asa dianteira direita -->
           <rect x="165" y="14" width="55" height="14" rx="3"
                 fill="${partColor(da.asa_d)}" stroke="#222" stroke-width="1"/>
           <text x="192" y="24" text-anchor="middle" font-size="9" font-weight="700"
                 fill="#000" opacity="0.75">AS D</text>
 
-          <!-- Pneu FL (índice 2) -->
           <circle cx="55" cy="70" r="26" fill="#0a0a0a"
                   stroke="${wearColor(FL)}" stroke-width="5"/>
           <text x="55" y="68" text-anchor="middle" font-size="14" font-weight="900"
                 fill="${wearColor(FL)}">${Math.round(FL)}%</text>
           <text x="55" y="82" text-anchor="middle" font-size="8" fill="#666">FL</text>
 
-          <!-- Pneu FR (índice 3) -->
           <circle cx="185" cy="70" r="26" fill="#0a0a0a"
                   stroke="${wearColor(FR)}" stroke-width="5"/>
           <text x="185" y="68" text-anchor="middle" font-size="14" font-weight="900"
                 fill="${wearColor(FR)}">${Math.round(FR)}%</text>
           <text x="185" y="82" text-anchor="middle" font-size="8" fill="#666">FR</text>
 
-          <!-- Chassis -->
           <rect x="90" y="40" width="60" height="240" rx="10"
                 fill="#0a0d12" stroke="#1f2330" stroke-width="2"/>
 
-          <!-- Cockpit / Halo -->
           <ellipse cx="120" cy="145" rx="16" ry="26"
                    fill="#000" stroke="#333" stroke-width="1.5"/>
           <ellipse cx="120" cy="145" rx="7" ry="14"
                    fill="#1a1a1a" stroke="#444" stroke-width="1"/>
 
-          <!-- Sidepod esquerda -->
           <rect x="72" y="95" width="16" height="115" rx="4"
                 fill="${partColor(da.sid)}" stroke="#222" stroke-width="1" opacity="0.9"/>
-          <!-- Sidepod direita -->
           <rect x="152" y="95" width="16" height="115" rx="4"
                 fill="${partColor(da.sid)}" stroke="#222" stroke-width="1" opacity="0.9"/>
 
-          <!-- Assoalho -->
           <rect x="98" y="190" width="44" height="50" rx="4"
                 fill="${partColor(da.ass)}" stroke="#222" stroke-width="1" opacity="0.75"/>
 
-          <!-- Difusor -->
           <rect x="88" y="248" width="64" height="14" rx="3"
                 fill="${partColor(da.dif)}" stroke="#222" stroke-width="1"/>
           <text x="120" y="259" text-anchor="middle" font-size="9" font-weight="700"
                 fill="#000" opacity="0.75">DIFUSOR</text>
 
-          <!-- Pneu RL (índice 0) -->
           <circle cx="55" cy="250" r="26" fill="#0a0a0a"
                   stroke="${wearColor(RL)}" stroke-width="5"/>
           <text x="55" y="248" text-anchor="middle" font-size="14" font-weight="900"
                 fill="${wearColor(RL)}">${Math.round(RL)}%</text>
           <text x="55" y="262" text-anchor="middle" font-size="8" fill="#666">RL</text>
 
-          <!-- Pneu RR (índice 1) -->
           <circle cx="185" cy="250" r="26" fill="#0a0a0a"
                   stroke="${wearColor(RR)}" stroke-width="5"/>
           <text x="185" y="248" text-anchor="middle" font-size="14" font-weight="900"
                 fill="${wearColor(RR)}">${Math.round(RR)}%</text>
           <text x="185" y="262" text-anchor="middle" font-size="8" fill="#666">RR</text>
 
-          <!-- Asa traseira -->
           <rect x="80" y="285" width="80" height="14" rx="3"
                 fill="${partColor(da.asa_t)}" stroke="#222" stroke-width="1"/>
           <text x="120" y="295" text-anchor="middle" font-size="9" font-weight="700"
@@ -578,7 +627,6 @@ if (drsAtivo) {
         </svg>
       </div>
 
-      <!-- Coluna 2: Pneus + Danos -->
       <div>
         <div class="detail-card">
           <h4>🛞 Desgaste dos Pneus</h4>
@@ -643,7 +691,6 @@ if (drsAtivo) {
         </div>
       </div>
 
-      <!-- Coluna 3: Combustível / ERS / DRS -->
       <div>
         <div class="detail-card">
           <h4>⛽ Combustível</h4>
@@ -662,12 +709,11 @@ if (drsAtivo) {
           </div>
         </div>
 
-       <div class="detail-card">
-       <h4>🏁 Estado</h4>
-       <div class="info-row"><span class="lbl">DRS</span><span class="val ${drsCls}">${drsTexto}</span></div>
-       <div class="info-row"><span class="lbl">Volta atual</span><span class="val">${p.current_lap || '—'}</span></div>
-      <div class="info-row"><span class="lbl">Pneu</span><span class="val">${p.tyre || '—'} · ${p.tyre_age || 0}L</span></div>
-         </div>
+        <div class="detail-card">
+          <h4>🏁 Estado</h4>
+          <div class="info-row"><span class="lbl">DRS</span><span class="val ${drsCls}">${drsTexto}</span></div>
+          <div class="info-row"><span class="lbl">Volta atual</span><span class="val">${p.current_lap || '—'}</span></div>
+          <div class="info-row"><span class="lbl">Pneu</span><span class="val">${p.tyre || '—'} · ${p.tyre_age || 0}L</span></div>
         </div>
       </div>
     </div>
@@ -691,7 +737,6 @@ async function atualizar() {
     const lideres = data.lideres_setor || {};
     const sessionBests = data.session_bests || {};
 
-    /* top bar */
     const pista = sessao.nome_pista || "—";
     const tipo  = sessao.tipo_sessao || "Sessão";
     document.getElementById("sessionName").textContent = `${pista} : ${tipo}`;
@@ -699,10 +744,8 @@ async function atualizar() {
     const temSC = sessao.sc_status && sessao.sc_status !== "Nenhum";
     scBadge.textContent = temSC ? sessao.sc_status : "";
     scBadge.style.display = temSC ? "flex" : "none";
-      // 🆕 Título da aba do navegador dinâmico (F1/F2)
     document.title = `${sessao.formula_name || 'F1'} Live Timing`;
 
-    // 🆕 Badge de fórmula no top bar
     const fBadge = document.getElementById("formulaBadge");
     if (fBadge) fBadge.textContent = sessao.formula_name || "F1";
     const totalV = sessao.total_voltas || 0;
@@ -712,14 +755,13 @@ async function atualizar() {
 
     const flag = flagName(sessao.bandeira || "Verde");
     const badge = document.getElementById("statusBadge");
-   
 
     const flagNorm = flagName(sessao.bandeira || "Verde");
     if (flagNorm === "Verde") {
-     badge.style.display = "none";
+      badge.style.display = "none";
     } else {
-     badge.style.display = "flex";
-    badge.textContent = flagNorm;
+      badge.style.display = "flex";
+      badge.textContent = flagNorm;
     }
     badge.classList.toggle("red", /vermelh|red|Safety Car Completo/i.test(badge.textContent));
     badge.classList.toggle("yellow", /amarel|yellow|Virtual|Formação/i.test(badge.textContent));
@@ -729,7 +771,6 @@ async function atualizar() {
     document.getElementById("wRain").textContent  = (sessao.chance_chuva ?? 0) + "%";
     document.getElementById("wClima").textContent = sessao.clima || "—";
 
-    /* tabela */
     const tbody = document.getElementById("tabela_pilotos");
     tbody.innerHTML = "";
 
@@ -750,7 +791,6 @@ async function atualizar() {
         if (p.is_pit) tr.classList.add("pit");
         if (p.nome === selectedDriverName) tr.classList.add("selected");
 
-        // 🆕 click handler
         tr.addEventListener("click", () => {
           if (selectedDriverName === p.nome) {
             selectedDriverName = null;
@@ -766,11 +806,21 @@ async function atualizar() {
         tdPos.textContent = p.posicao ?? "-";
         tr.appendChild(tdPos);
 
+        /* ─── DRIVER (nome + alerta 🔧 de dano) ─── */
+        const dmgVal = danoConsolidado(p);
+        let dmgIcon = '';
+        if (dmgVal >= 1) {
+          const lvl = dmgVal >= 67 ? 'red'
+                    : dmgVal >= 34 ? 'orange'
+                    :                 'yellow';
+            dmgIcon = `<span class="dmg-alert-icon lvl-${lvl}" title="Carro danificado">🔧</span>`;
+        }
+
         const tdDriver = document.createElement("td");
         tdDriver.className = "driver-cell";
         tdDriver.style.borderLeft = `4px solid ${p.team_color || "#666"}`;
         tdDriver.style.background = `linear-gradient(90deg, ${p.team_color || "#666"}22 0%, transparent 60%)`;
-        tdDriver.innerHTML = `<span class="num">${p.numero ?? ""}</span><span class="code">${shortCode(p.nome)}</span>`;
+        tdDriver.innerHTML = `<span class="num">${p.numero ?? ""}</span><span class="code">${shortCode(p.nome)}</span>${dmgIcon}`;
         tr.appendChild(tdDriver);
 
         const tdGap = document.createElement("td");
@@ -819,34 +869,46 @@ async function atualizar() {
         tdLL.className = "num";
         tdLL.textContent = fmtTempo(p.last_lap);
         tr.appendChild(tdLL);
-        
-                const tdSpd = document.createElement("td");
+
+        /* ─── SPEED (só PIT badge) ─── */
+        const tdSpd = document.createElement("td");
         tdSpd.className = "speed-cell";
         const speedTxt = p.speed ? p.speed + " km/h" : "—";
 
-        // média de desgaste dos 4 pneus
-        const tw = Array.isArray(p.tyre_wear) ? p.tyre_wear : [0,0,0,0];
-        const avgWear = tw.length
-          ? tw.reduce((a,b) => a + (Number(b) || 0), 0) / tw.length
-          : 0;
-
-        const pitTag  = p.is_pit
+        const pitTag = p.is_pit
           ? `<span class="pit-badge">PIT</span>`
           : '';
-        const wearTag = avgWear >= 50
-          ? `<span class="wear-warning-badge">🛞 ${Math.round(avgWear)}%</span>`
-          : '';
 
-        if (pitTag || wearTag) {
-          tdSpd.innerHTML = `${pitTag}${wearTag}${speedTxt}`;
+        if (pitTag) {
+          tdSpd.innerHTML = `${pitTag}${speedTxt}`;
         } else {
           tdSpd.textContent = speedTxt;
         }
         tr.appendChild(tdSpd);
 
+        /* ─── TYRE (badge do pneu + idade + alerta ⚠️ se > 50%) ─── */
+        const tw = Array.isArray(p.tyre_wear) && p.tyre_wear.length === 4
+          ? p.tyre_wear
+          : [0, 0, 0, 0];
+        const maxWear = Math.max(
+          Number(tw[0]) || 0,
+          Number(tw[1]) || 0,
+          Number(tw[2]) || 0,
+          Number(tw[3]) || 0
+        );
+
+        let tyreAlert = '';
+        if (!p.is_pit && maxWear >= 50) {
+          const lvl = maxWear >= 90 ? 'red'
+                    : maxWear >= 75 ? 'orange'
+                    :                 'yellow';
+          const pct = Math.round(maxWear);
+              tyreAlert = `<span class="tyre-alert-icon lvl-${lvl}" title="Pneu desgastado">⚠️</span>`;
+        }
+
         const tdT = document.createElement("td");
         tdT.className = "tyre-cell";
-        tdT.innerHTML = `<span class="tyre-badge ${tyreClass(p.tyre)}"></span>${p.tyre_age ?? 0}L`;
+        tdT.innerHTML = `<span class="tyre-badge ${tyreClass(p.tyre)}"></span>${p.tyre_age ?? 0}L${tyreAlert}`;
         tr.appendChild(tdT);
 
         tbody.appendChild(tr);
@@ -855,7 +917,6 @@ async function atualizar() {
       }
     });
 
-    /* 🆕 linha de detalhes (aparece após o último piloto quando selecionado) */
     if (selectedDriverName) {
       const p = pilotos.find(x => x.nome === selectedDriverName);
       if (p) {
@@ -869,7 +930,6 @@ async function atualizar() {
       }
     }
 
-    /* líderes de setor */
     ["s1", "s2", "s3"].forEach((k, i) => {
       const el = document.getElementById(`sector${i+1}Content`);
       const L = lideres[k];

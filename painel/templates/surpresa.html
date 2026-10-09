@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>mais uma pra você</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,500&family=Manrope:wght@500;600;700&display=swap');
+
+  :root{
+    --cream:#faf6f1;
+    --ink:#2b2420;
+    --rose:#9c5a66;
+    --rose-soft:#c98a94;
+    --gold:#b8894f;
+    --line: rgba(43,36,32,0.14);
+    --green:#5f8a63;
+    --red:#b4544f;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ background:var(--cream); color:var(--ink); font-family:'Manrope',sans-serif; min-height:100%; }
+
+  #gate{
+    position:fixed; inset:0; z-index:50;
+    background: radial-gradient(circle at 50% 30%, #fff 0%, var(--cream) 60%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:20px; padding:0 34px; text-align:center; cursor:pointer;
+    transition:opacity .8s ease, visibility .8s ease;
+  }
+  #gate.hidden{ opacity:0; visibility:hidden; pointer-events:none; }
+  .pulse-heart{ font-size:1.6rem; color:var(--rose); animation:pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.18);} }
+  .gate-text{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:1.4rem; line-height:1.55; color:var(--ink); max-width:340px; }
+  .gate-sub{ font-size:.66rem; letter-spacing:.28em; text-transform:uppercase; color:var(--rose); margin-top:6px; }
+
+  #app{ max-width:560px; margin:0 auto; padding:26px 18px 70px; display:none; }
+  #app.show{ display:block; }
+  .screen{ display:none; }
+  .screen.active{ display:block; animation:fadein .5s ease; }
+  @keyframes fadein{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:translateY(0);} }
+
+  .panel{
+    background:#fff; border:1px solid var(--line); border-radius:20px;
+    padding:32px 24px; box-shadow:0 14px 34px rgba(43,36,32,.07);
+  }
+  .label{ font-size:.66rem; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:var(--gold); text-align:center; margin-bottom:6px; }
+  .title{ font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600; font-size:1.5rem; text-align:center; margin-bottom:8px; }
+  .sub{ font-size:.85rem; color:rgba(43,36,32,.6); text-align:center; margin-bottom:22px; line-height:1.5; }
+
+  .btn{
+    display:block; width:100%; margin-top:6px; padding:14px 20px; border:none; border-radius:999px;
+    background:var(--rose); color:#fff; font-family:'Manrope',sans-serif; font-weight:700; font-size:.9rem;
+    cursor:pointer; transition:transform .2s ease, background .2s ease, opacity .2s ease;
+  }
+  .btn:hover{ background:var(--rose-soft); transform:translateY(-1px); }
+  .btn.secondary{ background:transparent; color:var(--rose); border:1.5px solid var(--rose); margin-top:10px; }
+  .btn.secondary:hover{ background:rgba(156,90,102,.06); }
+  .btn[disabled]{ opacity:.35; pointer-events:none; }
+
+  .menu-card{
+    background:#fff; border:1.5px solid var(--line); border-radius:18px;
+    padding:26px 22px; margin-bottom:16px; text-align:center; cursor:pointer;
+    transition:all .2s ease; box-shadow:0 8px 22px rgba(43,36,32,.05);
+  }
+  .menu-card:hover{ border-color:var(--rose-soft); transform:translateY(-2px); }
+  .menu-emoji{ font-size:2.2rem; margin-bottom:10px; }
+  .menu-title{ font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600; font-size:1.3rem; margin-bottom:6px; }
+  .menu-desc{ font-size:.8rem; color:rgba(43,36,32,.6); }
+
+  .field-label{ font-size:.78rem; font-weight:700; color:var(--rose); margin:16px 0 8px; }
+  .field-label:first-of-type{ margin-top:0; }
+  textarea, input[type="date"]{
+    width:100%; border:1.5px solid var(--line); border-radius:12px; padding:13px 14px;
+    font-family:'Manrope',sans-serif; font-size:.88rem; color:var(--ink); background:var(--cream);
+    outline:none; resize:vertical;
+  }
+  textarea:focus, input[type="date"]:focus{ border-color:var(--gold); }
+
+  .cap-card{
+    border:1.5px solid var(--line); border-radius:16px; padding:26px 22px; text-align:center;
+    background: var(--cream);
+  }
+  .cap-date{ font-size:.72rem; color:rgba(43,36,32,.5); letter-spacing:.04em; margin-bottom:14px; text-transform:uppercase; }
+  .cap-lock{ font-size:2rem; margin-bottom:8px; }
+  .cap-count{ font-size:.92rem; color:var(--rose); font-weight:700; margin-bottom:16px; }
+  .cap-message{
+    font-family:'Cormorant Garamond',serif; font-style:italic; font-size:1.15rem; line-height:1.65;
+    color:var(--ink); text-align:left; margin-top:14px; white-space:pre-line;
+  }
+  .link-box{
+    background:#fff; border:1.5px dashed var(--gold); border-radius:12px; padding:12px 14px;
+    font-size:.76rem; word-break:break-all; color:var(--ink); margin:14px 0;
+  }
+  .reset-link{ display:block; text-align:center; font-size:.76rem; color:var(--rose); margin-top:16px; cursor:pointer; text-decoration:underline; }
+
+  .q-progress{ text-align:center; font-size:.78rem; color:var(--gold); font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:14px; }
+  .q-text{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:1.3rem; text-align:center; margin-bottom:20px; line-height:1.5; }
+  .option{
+    display:block; width:100%; text-align:left; border:1.5px solid var(--line); background:var(--cream);
+    padding:13px 16px; border-radius:12px; margin-bottom:10px; font-family:'Manrope',sans-serif;
+    font-size:.88rem; font-weight:600; color:var(--ink); cursor:pointer; transition:all .2s ease;
+  }
+  .option:hover{ border-color:var(--rose-soft); }
+  .option.correct{ background:var(--green); border-color:var(--green); color:#fff; }
+  .option.wrong{ background:var(--red); border-color:var(--red); color:#fff; }
+  .option.disabled{ pointer-events:none; }
+
+  .surprise-card{ text-align:center; padding:10px 4px; }
+  .surprise-heart{ font-size:2rem; margin-bottom:12px; animation:pulse 1.4s ease-in-out infinite; }
+  .surprise-text{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:1.2rem; line-height:1.6; margin-bottom:18px; color:var(--rose); }
+
+  .score-big{ font-family:'Cormorant Garamond',serif; font-style:italic; font-size:2.4rem; text-align:center; color:var(--rose); margin-bottom:10px; }
+  .score-msg{ text-align:center; font-size:.95rem; line-height:1.6; margin-bottom:6px; }
+
+  #toast{
+    position:fixed; left:50%; bottom:26px; transform:translate(-50%,10px);
+    background:var(--ink); color:var(--cream); padding:12px 20px; border-radius:999px;
+    font-size:.82rem; font-weight:600; opacity:0; pointer-events:none; transition:opacity .3s ease, transform .3s ease;
+    z-index:80; max-width:86vw; text-align:center;
+  }
+  #toast.show{ opacity:1; transform:translate(-50%,0); }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="pulse-heart">♥</div>
+  <div class="gate-text">Fiz mais uma coisinha pra você. Escolhe o que quiser fazer primeiro.</div>
+  <div class="gate-sub">toque para começar</div>
+</div>
+
+<div id="app">
+
+  <div class="screen" id="screen-menu">
+    <div class="label">Escolha uma opção</div>
+    <div class="title" style="margin-bottom:22px;">o que você quer abrir?</div>
+
+    <div class="menu-card" onclick="goTo('capsule')">
+      <div class="menu-emoji">⏳</div>
+      <div class="menu-title">cápsula do tempo</div>
+      <div class="menu-desc">escreva algo seu e lacre até uma data futura</div>
+    </div>
+
+    <div class="menu-card" onclick="goTo('quiz-start')">
+      <div class="menu-emoji">🧠</div>
+      <div class="menu-title">o quanto você me conhece?</div>
+      <div class="menu-desc">um quiz rapidinho sobre mim</div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-capsule">
+    <div class="panel" id="capsulePanel"></div>
+  </div>
+
+  <div class="screen" id="screen-quiz-start">
+    <div class="panel" style="text-align:center;">
+      <div class="label">Quiz</div>
+      <div class="title">o quanto você me conhece?</div>
+      <div class="sub">6 perguntinhas sobre mim. Bora ver quantas você acerta 👀</div>
+      <button class="btn" onclick="startQuiz()">começar</button>
+      <button class="btn secondary" onclick="goTo('menu')">voltar ao menu</button>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-quiz-play">
+    <div class="panel">
+      <div class="q-progress" id="qProgress">pergunta 1 de 6</div>
+      <div class="q-text" id="qText"></div>
+      <div id="qOptions"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-quiz-result">
+    <div class="panel" style="text-align:center;">
+      <div class="label">Resultado</div>
+      <div class="score-big" id="scoreBig"></div>
+      <div class="score-msg" id="scoreMsg"></div>
+      <button class="btn" onclick="startQuiz()">jogar de novo</button>
+      <button class="btn secondary" onclick="goTo('menu')">voltar ao menu</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  /* =====================================================================
+     CONFIGURÁVEL — edite aqui antes de mandar pra ela
+  ===================================================================== */
+
+  // A pergunta com "special: true" não tem resposta certa: não importa o
+  // que ela clicar, aparece essa mensagem-surpresa. Troque pelo lugar real.
+  const SURPRISE_MESSAGE = "Na verdade essa pergunta é pegadinha, não tinha resposta certa 😏 A verdade é: [ESCREVA AQUI ONDE / QUANDO VOCÊ VAI ESTAR — ex: 'tô te esperando na sua porta agora'].";
+
+  const questions = [
+    {
+      q: "Qual é o meu dinossauro favorito?",
+      options: ["Giganotossauro", "Triceratops", "Velociraptor", "Tiranossauro Rex"],
+      correct: 0 // TROQUE AQUI pela resposta certa
+    },
+    {
+      q: "Onde eu estou nesse exato momento?",
+      options: ["Em casa", "No trabalho ou faculdade", "Na rua", "Não faço ideia"],
+      special: true
+    },
+    {
+      q: "Qual foi a primeira coisa que eu notei em você?",
+      options: ["O sorriso", "A voz", "Os olhos", "O estilo"],
+      correct: 1
+    },
+    {
+      q: "Meu maior sonho hoje é...",
+      options: ["Viajar o mundo", "Construir uma família", "Realizar um projeto", "Ficar rico"],
+      correct: 1 // TROQUE AQUI pela resposta certa
+    },
+    {
+      q: "O que mais me tira do sério?",
+      options: ["Atraso", "Injustiça", "Bagunça", "Mentira"],
+      correct: 3 // TROQUE AQUI pela resposta certa
+    },
+    {
+      q: "O que eu mais amo em você?",
+      options: ["Seu jeito engraçado", "Sua inteligência", "Seu carinho", "Tudo isso junto"],
+      correct: 3
+    }
+  ];
+
+  /* ===================================================================== */
+
+  const gate = document.getElementById('gate');
+  const app = document.getElementById('app');
+  gate.addEventListener('click', ()=>{
+    gate.classList.add('hidden');
+    app.classList.add('show');
+    goTo('menu');
+  });
+
+  function goTo(name){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById('screen-'+name).classList.add('active');
+    window.scrollTo({top:0, behavior:'smooth'});
+    if(name === 'capsule') renderCapsuleScreen();
+  }
+
+  let noteTimeout;
+  function showNote(text){
+    const note = document.getElementById('toast');
+    note.textContent = text;
+    note.classList.add('show');
+    clearTimeout(noteTimeout);
+    noteTimeout = setTimeout(()=> note.classList.remove('show'), 3200);
+  }
+
+  let loadedCapsule = null; // { m: texto, d: data } — carregado ao lacrar ou ao subir um arquivo .json
+
+  function daysUntil(dateStr){
+    const target = new Date(dateStr + 'T00:00:00');
+    const now = new Date();
+    const diffMs = target.setHours(0,0,0,0) - new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.ceil(diffMs / (1000*60*60*24));
+  }
+  function prettyDate(dateStr){
+    const [y,m,d] = dateStr.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function downloadCapsuleFile(data){
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'capsula-do-tempo.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleCapsuleFile(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      try{
+        const data = JSON.parse(e.target.result);
+        if(!data.m || !data.d) throw new Error('formato inválido');
+        loadedCapsule = data;
+        renderCapsuleScreen();
+      }catch(err){
+        showNote('Esse arquivo não parece ser uma cápsula válida 😕');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+
+  function renderCapsuleScreen(){
+    const panel = document.getElementById('capsulePanel');
+
+    if(!loadedCapsule){
+      panel.innerHTML = `
+        <div class="label">Cápsula do tempo</div>
+        <div class="title">escreva algo seu</div>
+        <div class="sub">Pode ser uma carta, um desabafo, uma promessa... o que você quiser. Ela só vai poder ser lida na data que você escolher.</div>
+        <div class="field-label">sua cartinha</div>
+        <textarea id="capText" rows="6" placeholder="escreve aqui o que você quiser..."></textarea>
+        <div class="field-label">quando ela pode ser aberta?</div>
+        <input type="date" id="capDate">
+        <button class="btn" style="margin-top:20px;" onclick="sealCapsule()">lacrar e baixar cápsula 🔒</button>
+        <span class="reset-link" onclick="document.getElementById('capFileInput').click()">já tenho uma cápsula salva, abrir arquivo</span>
+        <input type="file" id="capFileInput" accept="application/json,.json" style="display:none" onchange="handleCapsuleFile(event)">
+        <button class="btn secondary" onclick="goTo('menu')">voltar ao menu</button>
+      `;
+      return;
+    }
+
+    const remaining = daysUntil(loadedCapsule.d);
+    if(remaining > 0){
+      panel.innerHTML = `
+        <div class="label">Cápsula lacrada</div>
+        <div class="cap-card">
+          <div class="cap-lock">🔒</div>
+          <div class="cap-date">abre em ${prettyDate(loadedCapsule.d)}</div>
+          <div class="cap-count">faltam ${remaining} dia${remaining===1?'':'s'}</div>
+        </div>
+        <div class="sub" style="margin-top:18px;">O arquivo <strong>capsula-do-tempo.json</strong> já foi baixado no seu celular. Guarde ele em algum lugar seguro e, na data certa, volte aqui e abra o arquivo de novo pra ler.</div>
+        <span class="reset-link" onclick="resetCapsule()">escrever uma nova cápsula</span>
+      `;
+    } else {
+      panel.innerHTML = `
+        <div class="label">Cápsula liberada</div>
+        <div class="cap-card" id="capCard">
+          <div class="cap-lock">💌</div>
+          <div class="cap-date">liberada em ${prettyDate(loadedCapsule.d)}</div>
+          <button class="btn" style="margin-top:6px;" onclick="revealCapsule()">abrir cápsula</button>
+        </div>
+        <span class="reset-link" onclick="resetCapsule()">escrever uma nova cápsula</span>
+      `;
+    }
+  }
+
+  function sealCapsule(){
+    const text = document.getElementById('capText').value.trim();
+    const dateVal = document.getElementById('capDate').value;
+    if(!text){ showNote('Escreve algo antes de lacrar 💌'); return; }
+    if(!dateVal){ showNote('Escolhe uma data pra abrir 📅'); return; }
+    if(daysUntil(dateVal) <= 0){ showNote('Escolhe uma data no futuro 🙂'); return; }
+    const data = { m:text, d:dateVal };
+    downloadCapsuleFile(data);
+    loadedCapsule = data;
+    renderCapsuleScreen();
+  }
+
+  function revealCapsule(){
+    if(!loadedCapsule) return;
+    const card = document.getElementById('capCard');
+    const msg = document.createElement('div');
+    msg.className = 'cap-message';
+    msg.textContent = loadedCapsule.m;
+    card.appendChild(msg);
+    const btn = card.querySelector('button');
+    if(btn) btn.remove();
+  }
+
+  function resetCapsule(){
+    loadedCapsule = null;
+    renderCapsuleScreen();
+  }
+
+  let currentQ = 0;
+  let score = 0;
+
+  function startQuiz(){
+    currentQ = 0;
+    score = 0;
+    goTo('quiz-play');
+    renderQuestion();
+  }
+
+  function renderQuestion(){
+    const item = questions[currentQ];
+    document.getElementById('qProgress').textContent = `pergunta ${currentQ+1} de ${questions.length}`;
+    document.getElementById('qText').textContent = item.q;
+    const optsWrap = document.getElementById('qOptions');
+    optsWrap.innerHTML = '';
+    item.options.forEach((opt, idx)=>{
+      const b = document.createElement('div');
+      b.className = 'option';
+      b.textContent = opt;
+      b.addEventListener('click', ()=> answerQuestion(idx, b));
+      optsWrap.appendChild(b);
+    });
+  }
+
+  function answerQuestion(idx, btnEl){
+    const item = questions[currentQ];
+    document.querySelectorAll('.option').forEach(o=>o.classList.add('disabled'));
+
+    if(item.special){
+      triggerSurprise();
+      return;
+    }
+
+    if(idx === item.correct){
+      btnEl.classList.add('correct');
+      score++;
+    } else {
+      btnEl.classList.add('wrong');
+      const opts = document.querySelectorAll('.option');
+      opts[item.correct].classList.add('correct');
+    }
+    setTimeout(()=>{
+      currentQ++;
+      if(currentQ < questions.length){
+        renderQuestion();
+      } else {
+        showResult();
+      }
+    }, 1100);
+  }
+
+  function triggerSurprise(){
+    const optsWrap = document.getElementById('qOptions');
+    optsWrap.innerHTML = `
+      <div class="surprise-card">
+        <div class="surprise-heart">💌</div>
+        <div class="surprise-text">${SURPRISE_MESSAGE}</div>
+        <button class="btn" onclick="advanceAfterSurprise()">continuar</button>
+      </div>
+    `;
+  }
+  function advanceAfterSurprise(){
+    currentQ++;
+    if(currentQ < questions.length){
+      renderQuestion();
+    } else {
+      showResult();
+    }
+  }
+
+  function showResult(){
+    goTo('quiz-result');
+    const totalScored = questions.filter(q=>!q.special).length;
+    document.getElementById('scoreBig').textContent = `${score} / ${totalScored}`;
+    let msg = '';
+    if(score <= 1) msg = 'ainda temos muita coisa boa pra descobrir um do outro 🤍';
+    else if(score <= 3) msg = 'você me conhece bem, viu? gostei disso 🥰';
+    else msg = 'você me conhece de verdade. isso me deixou emocionado ♥';
+    document.getElementById('scoreMsg').textContent = msg;
+  }
+</script>
+
+</body>
+</html>

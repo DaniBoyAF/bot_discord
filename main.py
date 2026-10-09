@@ -26,6 +26,7 @@ import subprocess
 import os
 import shutil
 import re
+import json
 from painel.app import app
 from datetime import datetime, timedelta
 
@@ -527,9 +528,9 @@ def get_track_name(track_id):
         23: "Texas Short", 24: "Suzuka Short", 25: "Hanoi",
         26: "Zandvoort", 27: "Imola", 28: "Portimão",
         29: "Jeddah", 30: "Miami", 31: "Las Vegas",
-        32: "Losail (Qatar)"
+        32: "Losail (Qatar)",41: "Zandvoort R"
     }
-    return tracks.get(track_id, "Unknown Track")
+    return tracks.get(track_id)   # ← FIX 1: None se não existir (era "Unknown Track")
 
 @bot.command()
 async def salvar_dados(ctx):
@@ -596,7 +597,16 @@ async def volta_salvar(bot):
             if int(waited) % 5 == 0:
                 await send_or_edit(mensagem, f"🔄 Aguardando dados do jogo... {int(waited)}s")
 
-        nome_pista = get_track_name(getattr(SESSION, "m_track_id", -1)) or (getattr(SESSION, "track_name", None) or "Unknown Track")
+        # ═══════════════════════════════════════════════════
+        # FIX 2: fallback correto do nome da pista (3 níveis)
+        # ═══════════════════════════════════════════════════
+        _tid = getattr(SESSION, "m_track_id", -1)
+        nome_pista = get_track_name(_tid)
+        if not nome_pista or str(nome_pista).strip() in ("", "Unknown Track", "Desconhecida"):
+            nome_pista = getattr(SESSION, "track_name", None) or getattr(SESSION, "m_track_name", None)
+        if not nome_pista or str(nome_pista).strip() in ("", "Unknown Track"):
+            nome_pista = f"Pista ID {_tid}"
+
         tipo_sessao = session_dictionary.get(getattr(SESSION, "m_session_type", 0), "Desconhecido")
         total_voltas = getattr(SESSION, "m_total_laps", 0) or 0
         clima = weather_dictionary.get(getattr(SESSION, "m_weather", 0), "Desconhecido")
@@ -667,8 +677,16 @@ async def volta_salvar(bot):
                 tipo_novo = session_dictionary.get(novo_session_type, "Desconhecido")
                 print(f"🔄 TROCA DE SESSÃO DETECTADA: {tipo_antigo} → {tipo_novo}")
                 
-                # Cria nova sessão no banco
-                nome_pista = get_track_name(getattr(SESSION, "m_track_id", -1)) or "Unknown Track"
+                # ═══════════════════════════════════════════════════
+                # FIX 3: fallback correto do nome da pista (3 níveis)
+                # ═══════════════════════════════════════════════════
+                _tid = getattr(SESSION, "m_track_id", -1)
+                nome_pista = get_track_name(_tid)
+                if not nome_pista or str(nome_pista).strip() in ("", "Unknown Track", "Desconhecida"):
+                    nome_pista = getattr(SESSION, "track_name", None) or getattr(SESSION, "m_track_name", None)
+                if not nome_pista or str(nome_pista).strip() in ("", "Unknown Track"):
+                    nome_pista = f"Pista ID {_tid}"
+
                 tipo_sessao = tipo_novo
                 total_voltas = getattr(SESSION, "m_total_laps", 0) or 0
                 clima_val = weather_dictionary.get(getattr(SESSION, "m_weather", 0), "Desconhecido")
@@ -1917,14 +1935,103 @@ try:
     import Server_20 as ws_server
 except Exception :
     ws_server = None
+# ═══════════════════════════════════════════════════════════════
+# 🔍 MONITOR DE PISTAS — descobre o track_id da sua versão
+#   • Roda em background (thread daemon)
+#   • Loga no console quando o jogo troca de pista
+#   • Salva tudo em track_ids_descobertos.json
+# ═══════════════════════════════════════════════════════════════
+_PISTAS_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "track_ids_descobertos.json")
+
+def _carregar_pistas_descobertas():
+    if os.path.exists(_PISTAS_JSON):
+        try:
+            with open(_PISTAS_JSON, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def _salvar_pistas_descobertas(dados):
+    try:
+        with open(_PISTAS_JSON, "w", encoding="utf-8") as f:
+            json.dump(dados, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️ não consegui salvar track_ids_descobertos.json: {e}")
+
+def monitor_de_pistas():
+    """Thread que fica olhando o SESSION e logando mudanças de pista."""
+    pistas_descobertas = _carregar_pistas_descobertas()
+    ultimo_id = None
+    ja_avisou_espera = False
+
+    print(f"🔍 Monitor de pistas iniciado ({len(pistas_descobertas)} já conhecidas)")
+
+    while True:
+        try:
+            from Bot.Session import SESSION
+            from utils.dictionnaries import track_dictionary
+
+            tid   = getattr(SESSION, 'm_track_id', None)
+            tname = getattr(SESSION, 'track_name', None)
+            tlen  = getattr(SESSION, 'm_track_length', None)
+
+            # Ainda não tem dado nenhum → aguarda silenciosamente
+            if tid is None or tid == -1 or (not tname and not tlen):
+                if not ja_avisou_espera:
+                    print("🔍 Monitor de pistas: aguardando SESSION (abre o jogo pra começar)...")
+                    ja_avisou_espera = True
+                time.sleep(3)
+                continue
+            ja_avisou_espera = False
+
+            # Só loga quando muda de pista
+            if tid != ultimo_id:
+                ultimo_id = tid
+                dict_entry = track_dictionary.get(tid)
+                dict_nome  = dict_entry[0] if dict_entry else "?"
+                bate = "✅" if dict_nome.lower() in str(tname or "").lower() else "⚠️"
+
+                print(f"🏁 PISTA DETECTADA:")
+                print(f"   ID do jogo:    {tid}")
+                print(f"   Nome do jogo:  {tname}")
+                print(f"   Nome no dict:  {dict_nome}  {bate}")
+                print(f"   Comprimento:   {tlen} m")
+
+                pistas_descobertas[str(tid)] = {
+                    "id":            tid,
+                    "nome_jogo":     tname,
+                    "nome_dict":     dict_nome,
+                    "comprimento":   tlen,
+                    "bate_com_dict": bate == "✅",
+                }
+                _salvar_pistas_descobertas(pistas_descobertas)
+
+        except Exception:
+            # SESSION ainda não existe — silencioso
+            pass
+
+        time.sleep(3)
+
+
 if __name__ == "__main__":
     import threading
-    if ws_server: 
-          threading.Thread(target=ws_server.run, kwargs={"host":"0.0.0.0","port":6789}, daemon=True).start()  
-    
+
+    if ws_server:
+        threading.Thread(
+            target=ws_server.run,
+            kwargs={"host": "0.0.0.0", "port": 6789},
+            daemon=True
+        ).start()
+
     from Bot.parser2025 import start_udp_listener
     threading.Thread(target=start_udp_listener, daemon=True).start()
-    threading.Thread(target=iniciar_painel_e_cloudflared, daemon=True).start()  
-    
- #python Bot/bot_discord.py pra ativar
+
+    threading.Thread(target=iniciar_painel_e_cloudflared, daemon=True).start()
+
+    # 🔍 Monitor de pistas — sobe junto com o main
+    threading.Thread(target=monitor_de_pistas, daemon=True).start()
+
+# python Bot/bot_discord.py pra ativar
 bot.run(TOKEN)

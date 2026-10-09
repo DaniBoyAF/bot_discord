@@ -80,7 +80,8 @@ track_dictionary = { #(track name, highNumber=Small on canvas, x_offset, y_offse
     29: ("jeddah", 4,500, 350),
     30:("Miami", 2,400,300),
     31:("Las Vegas", 4,400, 300),
-    32:("Losail", 2.5,400,300)
+    32:("Losail", 2.5,400,300),
+    41:("zandvoort R", 2, 400, 300),
 }
 
 teams_color_dictionary = {
