@@ -47,37 +47,36 @@ def db_connect():
 
 def execute_with_retry(func, retries=6, backoff=0.15):
     """Executa func() com retry se 'database is locked'"""
-    last_exc = None  # ✅ inicializa
+    last_exc = None
     for i in range(retries):
         try:
             return func()
         except sqlite3.OperationalError as e:
-            last_exc = e  # ✅ guarda exceção
+            last_exc = e
             if "database is locked" not in str(e).lower():
                 raise
             _time.sleep(backoff * (1 + i))
     if last_exc is not None:
-        raise last_exc  # ✅ lança última exceção se todas tentativas falharem
-    raise RuntimeError("database operation failed after retries")  # fallback seguro
+        raise last_exc
+    raise RuntimeError("database operation failed after retries")
 
 TEMPO_INICIO = False
 TEMPO_INICIO_TABELA = False
 TEMPO_INICIO_VOLTAS = False
 TEMPO_INICIO_TABELA_Q = False
 sessao_id_atual = None
-session_type_atual = None  # 🆕 rastreia o tipo de sessão atual
+session_type_atual = None
 public_url = None
 _cloudflared_proc = None
 inicio= time.time()
 tempo_maximo = 600 * 60 
 
 # 🆕 CACHE para evitar duplicatas
-voltas_ja_salvas = {}  # {(sessao_id, piloto_id, numero_volta): True}
-ultimo_pneu_salvo = {}  # {(sessao_id, piloto_id): timestamp}
-ultimo_dano_salvo = {}  # {(sessao_id, piloto_id): timestamp}
-ultimo_pneu_por_piloto = {}  # 🆕 {(sessao_id, piloto_id): {'pneu': 'Soft', 'volta_inicio': 1, 'stint': 1}}
+voltas_ja_salvas = {}
+ultimo_pneu_salvo = {}
+ultimo_dano_salvo = {}
+ultimo_pneu_por_piloto = {}
 
-# Corrige o caminho para importar módulos de fora da pasta
 intents =discord.Intents.default()
 intents.message_content=True
 intents.members = True
@@ -101,6 +100,7 @@ async def on_command_error(ctx, error):
         await ctx.send(f"⏳ Este comando está em cooldown. Tente novamente em {error.retry_after:.2f} segundos.")
     else:
         await ctx.send(f"❌ Ocorreu um erro: {error}")
+
 async def get_text_channel(channel_id: int) -> discord.abc.Messageable | None:
     canal = bot.get_channel(channel_id)
     if canal is None:
@@ -185,7 +185,6 @@ async def voltas(ctx, *, piloto: str):
     jogadores = get_jogadores()
     piloto_busca = piloto.lower()
     
-    # Função auxiliar interna para converter segundos (ex: 110.345) em formato MM:SS.mmm
     def formatar_tempo(segundos):
         if not segundos or segundos <= 0:
             return "—"
@@ -204,26 +203,18 @@ async def voltas(ctx, *, piloto: str):
                 await ctx.send(f"❌ Não há dados de voltas registradas para **{nome_piloto}**.")
                 return
 
-            # 1. Cria a lista com os tempos já formatados no padrão de corrida
             voltas_formatadas = []
             for v in todas_voltas:
                 num_volta = v.get('volta', 0)
                 tempo_raw = v.get('tempo_total', 0)
                 tempo_limpo = formatar_tempo(tempo_raw)
-                
-                # Guarda o texto base de cada volta (ex: "V01: 1:30.452")
                 voltas_formatadas.append(f"V{num_volta:02d}: {tempo_limpo}")
 
-            # 2. Organiza as voltas em 3 colunas paralelas para economizar espaço
             linhas_tabela = []
             num_colunas = 3
             
             for i in range(0, len(voltas_formatadas), num_colunas):
-                # Pega um grupo de até 3 voltas
                 grupo = voltas_formatadas[i:i + num_colunas]
-                
-                # Formata a linha garantindo espaçamento fixo entre as colunas
-                # O '<18' diz para cada coluna ocupar exatamente 18 caracteres de largura
                 linha = "".join(f"{volta:<18}" for volta in grupo)
                 linhas_tabela.append(linha)
 
@@ -239,29 +230,23 @@ async def velocidade(ctx):
     from Bot.jogadores import get_jogadores
     
     jogadores = get_jogadores()
-
-    # 1. Filtra apenas os jogadores que já registraram alguma velocidade
     jogadores_validos = [j for j in jogadores if (getattr(j, 'speed_trap', 0) or 0) > 0]
 
-    # 2. Proteção caso ninguém tenha passado no speed trap ainda
     if not jogadores_validos:
         await ctx.send("❌ Nenhum dado de speed trap disponível no momento.")
         return
 
-    # 3. Acha o mais rápido de forma segura
     m_rapido = max(jogadores_validos, key=lambda j: getattr(j, 'speed_trap', 0))
     
     nome = getattr(m_rapido, 'name', 'Unknown')
     velocidade = getattr(m_rapido, 'speed_trap', 0)
 
-    # Usei .0f porque a velocidade no F1 normalmente é um número float (ex: 342.56 km/h)
     await ctx.send(f"🚀 **{nome}** foi o mais rápido no speed trap: {velocidade:.2f} km/h")
 @bot.command()
 async def setor(ctx):
     conn = sqlite3.connect('f1_telemetry.db')
     cursor = conn.cursor()
     
-    # Pega a sessão mais recente
     cursor.execute('SELECT MAX(id) FROM sessoes')
     sessao_id = cursor.fetchone()[0]
     
@@ -270,7 +255,6 @@ async def setor(ctx):
         conn.close()
         return
     
-    # Pega dados dos pilotos e voltas
     cursor.execute('''
     SELECT p.nome, v.numero_volta, v.tempo_volta, v.setor1, v.setor2, v.setor3
     FROM pilotos p
@@ -286,7 +270,6 @@ async def setor(ctx):
         await ctx.send("❌ Nenhum dado de voltas encontrado.")
         return
     
-    # Organiza dados por piloto
     pilotos_dict = {}
     for nome, volta, tempo, s1, s2, s3 in dados:
         if nome not in pilotos_dict:
@@ -305,14 +288,12 @@ async def setor(ctx):
     
     pilotos = list(pilotos_dict.values())
     
-    # Classe temporária para transformar dicionário em objeto
     class PilotoTemp:
         def __init__(self, d):
             self.__dict__ = d
     
     pilotos_obj = [PilotoTemp(p) for p in pilotos]
     
-    # Gera o gráfico
     from dados.setor import melhor_setor_gap
     melhor_setor_gap(pilotos_obj, nome_arquivo="grafico_melhor_setor.png")
     await ctx.send(file=discord.File("grafico_melhor_setor.png"))
@@ -322,26 +303,20 @@ async def ranking(ctx):
     from Bot.jogadores import get_jogadores
     
     jogadores = get_jogadores()
-    
-    # 1. Filtra apenas pilotos com posição válida (maior que 0)
     jogadores_validos = [j for j in jogadores if getattr(j, 'position', 0) > 0]
     
-    # 2. Proteção caso a sessão esteja vazia ou carregando
     if not jogadores_validos:
         await ctx.send("❌ Nenhum piloto registrado na sessão ainda.")
         return
 
-    # 3. Ordena de forma segura usando getattr (se não tiver posição, vai pro final com 99)
     top10 = sorted(jogadores_validos, key=lambda j: getattr(j, 'position', 99))[:10]
     
-    # 4. Formatação alinhada
     linhas = []
     for j in top10:
         pos = getattr(j, 'position', 0)
-        nome = getattr(j, 'name', 'Unknown')[:15].ljust(15) # Limita a 15 letras e preenche com espaços
-        velocidade = getattr(j, 'speed_trap', 0) or 0       # 'or 0' previne erro se vier None
+        nome = getattr(j, 'name', 'Unknown')[:15].ljust(15)
+        velocidade = getattr(j, 'speed_trap', 0) or 0
         
-        # O ':>2' e ':>3' garantem que os números fiquem alinhados à direita
         linhas.append(f"{pos:>2}º | {nome} | {velocidade:>3.0f} km/h")
         
     texto = "\n".join(linhas)
@@ -351,7 +326,6 @@ async def grafico(ctx):
     conn = sqlite3.connect('f1_telemetry.db')
     cursor = conn.cursor()
     
-    # Pega a sessão mais recente
     cursor.execute('SELECT MAX(id) FROM sessoes')
     sessao_id = cursor.fetchone()[0]
     
@@ -359,11 +333,9 @@ async def grafico(ctx):
         await ctx.send("❌ Nenhuma sessão encontrada.")
         return
     
-    # Pega total de voltas
     cursor.execute('SELECT total_voltas FROM sessoes WHERE id = ?', (sessao_id,))
     total_voltas = cursor.fetchone()[0]
     
-    # Pega dados dos pilotos e voltas
     cursor.execute('''
     SELECT p.nome, v.numero_volta, v.tempo_volta, v.setor1, v.setor2, v.setor3
     FROM pilotos p
@@ -375,7 +347,6 @@ async def grafico(ctx):
     dados = cursor.fetchall()
     conn.close()
     
-    # Organiza dados
     pilotos_dict = {}
     for nome, volta, tempo, s1, s2, s3 in dados:
         if nome not in pilotos_dict:
@@ -390,14 +361,12 @@ async def grafico(ctx):
     
     pilotos = list(pilotos_dict.values())
     
-    # Cria objetos temporários
     class PilotoTemp:
         def __init__(self, d):
             self.__dict__ = d
     
     pilotos_obj = [PilotoTemp(p) for p in pilotos]
     
-    # Gera gráfico
     from dados.telemetria_pdf import mostra_graficos_geral
     mostra_graficos_geral(pilotos_obj, total_voltas=total_voltas, nome_arquivo="grafico_tempos.png")
     await ctx.send(file=discord.File("grafico_tempos.png"))
@@ -406,7 +375,6 @@ async def corrida(ctx):
     conn = sqlite3.connect('f1_telemetry.db')
     cursor = conn.cursor()
     
-    # Pega a sessão mais recente
     cursor.execute('SELECT MAX(id) FROM sessoes')
     sessao_id = cursor.fetchone()[0]
     
@@ -415,12 +383,10 @@ async def corrida(ctx):
         conn.close()
         return
     
-    # Pega dados da sessão
     cursor.execute('SELECT total_voltas, nome_pista FROM sessoes WHERE id = ?', (sessao_id,))
     resultado = cursor.fetchone()
     total_voltas, nome_pista = resultado
     
-    # Pega dados dos pilotos e voltas
     cursor.execute('''
     SELECT p.nome, v.numero_volta, v.tempo_volta, v.setor1, v.setor2, v.setor3
     FROM pilotos p
@@ -436,7 +402,6 @@ async def corrida(ctx):
         await ctx.send("❌ Nenhum dado de voltas encontrado.")
         return
     
-    # Organiza dados por piloto
     pilotos_dict = {}
     for nome, volta, tempo, s1, s2, s3 in dados:
         if nome not in pilotos_dict:
@@ -454,20 +419,17 @@ async def corrida(ctx):
     
     pilotos = list(pilotos_dict.values())
     
-    # Classe temporária
     class PilotoTemp:
         def __init__(self, d):
             self.__dict__ = d
     
     pilotos_obj = [PilotoTemp(p) for p in pilotos]
     
-    # Gera gráfico boxplot
-    
     gerar_boxplot(pilotos_obj, nome_pista=nome_pista or "Unknown Track", 
                  total_voltas=total_voltas or 0, nome_arquivo="corrida.png")
     await ctx.send(file=discord.File("corrida.png"))
 @bot.command()
-async def tabela(ctx):  # pronto
+async def tabela(ctx):
     global TEMPO_INICIO_TABELA
     TEMPO_INICIO_TABELA = True
     from Bot.jogadores import get_jogadores
@@ -508,8 +470,8 @@ async def tabela(ctx):  # pronto
             print(f"Erro ao atualizar tabela: {e}")
             break
 
-        await asyncio.sleep(0.5) # Intervalo de atualização, ajuste conforme necessário
-@bot.command()# pronto
+        await asyncio.sleep(0.5)
+@bot.command()
 async def parar_tabela(ctx):
     global TEMPO_INICIO_TABELA
     TEMPO_INICIO_TABELA = False
@@ -530,7 +492,7 @@ def get_track_name(track_id):
         29: "Jeddah", 30: "Miami", 31: "Las Vegas",
         32: "Losail (Qatar)",41: "Zandvoort R"
     }
-    return tracks.get(track_id)   # ← FIX 1: None se não existir (era "Unknown Track")
+    return tracks.get(track_id)
 
 @bot.command()
 async def salvar_dados(ctx):
@@ -540,11 +502,11 @@ async def salvar_dados(ctx):
         await ctx.send("⚠️ Coleta já está ativa! Use `.parar_salvar` para parar.")
         return
 
-    # Reseta sessão para criar uma nova
     sessao_id_atual = None
     TEMPO_INICIO_VOLTAS = True
     await ctx.send("✅ Coleta iniciada! Aguardando dados do jogo...")
     bot.loop.create_task(volta_salvar(bot))
+
 async def volta_salvar(bot):
     global TEMPO_INICIO_VOLTAS, sessao_id_atual, voltas_ja_salvas, ultimo_pneu_por_piloto, session_type_atual
     from Bot.jogadores import get_jogadores
@@ -574,13 +536,12 @@ async def volta_salvar(bot):
             if v is None:
                 return None
             fv = float(v)
-            if fv > 1000:  # ms -> s
+            if fv > 1000:
                 return fv / 1000.0
             return fv
         except Exception:
             return None
 
-    # aguarda dados da sessão
     if sessao_id_atual is None:
         voltas_ja_salvas.clear()
         ultimo_pneu_por_piloto.clear()
@@ -597,9 +558,6 @@ async def volta_salvar(bot):
             if int(waited) % 5 == 0:
                 await send_or_edit(mensagem, f"🔄 Aguardando dados do jogo... {int(waited)}s")
 
-        # ═══════════════════════════════════════════════════
-        # FIX 2: fallback correto do nome da pista (3 níveis)
-        # ═══════════════════════════════════════════════════
         _tid = getattr(SESSION, "m_track_id", -1)
         nome_pista = get_track_name(_tid)
         if not nome_pista or str(nome_pista).strip() in ("", "Unknown Track", "Desconhecida"):
@@ -613,12 +571,11 @@ async def volta_salvar(bot):
         temp_ar = getattr(SESSION, "m_air_temperature", 0)
         temp_pista = getattr(SESSION, "m_track_temperature", 0)
         safety = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
-        flag = obter_bandeira_atual(SESSION)  # 🆕 corrigido: antes lia atributo inexistente e sempre caía em "Verde"
-        # --- CORREÇÃO DA PORCENTAGEM DE CHUVA ---
+        flag = obter_bandeira_atual(SESSION)
         chuva = 0
         amostras_clima = getattr(SESSION, "m_weatherForecastSamples", getattr(SESSION, "m_weather_forecast_samples", []))
         if len(amostras_clima) > 0:
-            amostra_atual = amostras_clima[0] # Pega a previsão atualizada do momento
+            amostra_atual = amostras_clima[0]
             chuva = getattr(amostra_atual, "m_rainPercentage", getattr(amostra_atual, "m_rain_percentage", 0))
 
         conn = db_connect()
@@ -631,7 +588,7 @@ async def volta_salvar(bot):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (nome_pista, tipo_sessao, total_voltas, clima, temp_ar, temp_pista, chuva, safety, flag, 0))
             sessao_id_atual = cur.lastrowid
-            session_type_atual = getattr(SESSION, "m_session_type", 0)  # 🆕 salva o tipo inicial
+            session_type_atual = getattr(SESSION, "m_session_type", 0)
             execute_with_retry(lambda: conn.commit())
             print(f"✅ Sessão criada: #{sessao_id_atual} | {nome_pista} | {tipo_sessao}")
             await send_or_edit(mensagem, f"✅ Sessão criada: **{nome_pista}** (#{sessao_id_atual})")
@@ -647,7 +604,6 @@ async def volta_salvar(bot):
     pit_quant = {}
     tyres_nomes = tyres_dictionnary
 
-    # BUG3 CORRIGIDO: _norm_tyre definida uma vez fora do loop
     def _norm_tyre(raw):
         if raw is None: return "DESCONHECIDO"
         if isinstance(raw, str):
@@ -666,20 +622,13 @@ async def volta_salvar(bot):
 
     while TEMPO_INICIO_VOLTAS:
         try:
-            # ══════════════════════════════════════════════════
-            # 🆕 DETECTA TROCA DE SESSÃO (Qualy → Race, etc.)
-            # ══════════════════════════════════════════════════
             novo_session_type = getattr(SESSION, "m_session_type", 0)
             
             if session_type_atual is not None and novo_session_type != session_type_atual and novo_session_type != 0:
-                # Tipo de sessão mudou! (ex: Qualy → Race)
                 tipo_antigo = session_dictionary.get(session_type_atual, "Desconhecido")
                 tipo_novo = session_dictionary.get(novo_session_type, "Desconhecido")
                 print(f"🔄 TROCA DE SESSÃO DETECTADA: {tipo_antigo} → {tipo_novo}")
                 
-                # ═══════════════════════════════════════════════════
-                # FIX 3: fallback correto do nome da pista (3 níveis)
-                # ═══════════════════════════════════════════════════
                 _tid = getattr(SESSION, "m_track_id", -1)
                 nome_pista = get_track_name(_tid)
                 if not nome_pista or str(nome_pista).strip() in ("", "Unknown Track", "Desconhecida"):
@@ -693,12 +642,11 @@ async def volta_salvar(bot):
                 temp_ar = getattr(SESSION, "m_air_temperature", 0)
                 temp_pista = getattr(SESSION, "m_track_temperature", 0)
                 safety_val = safetyCarStatusDict.get(getattr(SESSION, "m_safety_car_status", 0), "Desconhecido")
-                flag_val = obter_bandeira_atual(SESSION)  # 🆕 corrigido: idem acima
-                # --- CORREÇÃO DA PORCENTAGEM DE CHUVA ---
+                flag_val = obter_bandeira_atual(SESSION)
                 chuva_val = 0
                 amostras_clima = getattr(SESSION, "m_weatherForecastSamples", getattr(SESSION, "m_weather_forecast_samples", []))
                 if len(amostras_clima) > 0:
-                    amostra_atual = amostras_clima[0] # Pega a previsão atualizada do momento
+                    amostra_atual = amostras_clima[0]
                     chuva_val = getattr(amostra_atual, "m_rainPercentage", getattr(amostra_atual, "m_rain_percentage", 0))
                 conn_new = db_connect()
                 cur_new = conn_new.cursor()
@@ -713,12 +661,10 @@ async def volta_salvar(bot):
                     execute_with_retry(lambda: conn_new.commit())
                     print(f"✅ Nova sessão criada: #{sessao_id_atual} | {nome_pista} | {tipo_sessao}")
                     
-                    # Limpa caches da sessão anterior
                     voltas_ja_salvas.clear()
                     ultimo_pneu_por_piloto.clear()
                     pit_quant.clear()
                     
-                    # Notifica no Discord
                     try:
                         await send_or_edit(mensagem, f"🔄 Nova sessão detectada: **{tipo_sessao}** em {nome_pista} (#{sessao_id_atual})")
                     except Exception:
@@ -728,10 +674,8 @@ async def volta_salvar(bot):
                 finally:
                     conn_new.close()
             
-            # Atualiza o tipo atual (só se não for 0/desconhecido)
             if novo_session_type != 0:
                 session_type_atual = novo_session_type
-            # ══════════════════════════════════════════════════
 
             jogadores = get_jogadores()
             if not jogadores:
@@ -741,7 +685,6 @@ async def volta_salvar(bot):
             conn = db_connect()
             cursor = conn.cursor()
 
-            # atualiza velocidade maxima geral
             maior_speed_geral = 0
             for j in jogadores:
                 speed = getattr(j, 'speed_trap', 0)
@@ -754,12 +697,6 @@ async def volta_salvar(bot):
             except Exception as e:
                 print("Erro update velocidade_maxima_geral:", e)
 
-            # ══════════════════════════════════════════════════
-            # 🆕 MONITORA BANDEIRA E SAFETY CAR POR VOLTA
-            # Grava na tabela 'bandeiras' toda vez que o estado muda,
-            # pra podermos usar esses períodos no cálculo do Comparar.html
-            # (ex.: não penalizar ritmo/posição perdidos durante SC/VSC/bandeira).
-            # ══════════════════════════════════════════════════
             try:
                 lider = next((j for j in jogadores if getattr(j, "position", None) == 1), jogadores[0])
                 volta_referencia = int(
@@ -786,14 +723,11 @@ async def volta_salvar(bot):
                     continue
                 nome = nome.strip()
                 try:
-                    # pit counter
                     if nome not in pit_quant:
                         pit_quant[nome] = 0
                     if getattr(j, 'pit', False):
                         pit_quant[nome] += 1
 
-                    # upsert piloto: INSERT OR IGNORE preserva o id existente,
-                    # UPDATE mantém posição/numero atualizados sem apagar o registro.
                     try:
                         _team_name = getattr(j, 'team_name', None) or 'Desconhecido'
                         _team_id   = getattr(j, 'm_team_id', None)
@@ -810,7 +744,6 @@ async def volta_salvar(bot):
                     except Exception as e:
                         print("Erro upsert pilotos:", e)
 
-                    # get piloto_id
                     piloto_id = None
                     try:
                         cursor.execute('SELECT id FROM pilotos WHERE sessao_id = ? AND nome = ?', (sessao_id_atual, nome))
@@ -832,37 +765,30 @@ async def volta_salvar(bot):
                         maior_speed = max(maior_speed)
                     maior_speed = maior_speed if isinstance(maior_speed, (int, float)) else 0
 
-                    # salvar voltas
                     for volta in todas_voltas:
                         num_volta = volta.get('volta') or volta.get('lap') or volta.get('lap_number')
                         if not num_volta or num_volta <= 0:
                             continue
                         chave_volta = (sessao_id_atual, piloto_id, int(num_volta))
-                        # só pula se a volta já foi salva COM os 3 setores completos
                         if voltas_ja_salvas.get(chave_volta) == "complete":
                             continue
 
                         tempo_raw = (volta.get('tempo_total') or volta.get('tempo') or volta.get('tempo_volta') or volta.get('lap_time'))
                         tempo_total_val = _norm(tempo_raw)
 
-                        # Obtém tempos de setor de várias fontes possíveis
                         s1_val = s2_val = s3_val = None
 
-                        # possíveis campos em português/inglês
                         s1 = volta.get('setor1') or volta.get('sector1') or volta.get('sector_1') or volta.get('sectorOne')
                         s2 = volta.get('setor2') or volta.get('sector2') or volta.get('sector_2') or volta.get('sectorTwo')
                         s3 = volta.get('setor3') or volta.get('sector3') or volta.get('sector_3') or volta.get('sectorThree')
 
-                        # lista de setores
                         setores = volta.get('setores') or volta.get('sectors') or volta.get('sector_times') or volta.get('sectors_list')
                         if isinstance(setores, (list, tuple)) and len(setores) >= 3:
                             s1, s2, s3 = setores[0], setores[1], setores[2]
 
-                        # campos acumulados (ex.: sec1_cum, sector1_cum)
                         sec1_cum = volta.get('sector1_cum') or volta.get('setor1_acum') or volta.get('sector_1_cum')
                         sec2_cum = volta.get('sector2_cum') or volta.get('setor2_acum') or volta.get('sector_2_cum')
 
-                        # normaliza com _norm (ms->s etc.)
                         _maybe_norm = lambda v: _norm(v) if v is not None else None
 
                         s1_n = _maybe_norm(s1)
@@ -872,44 +798,33 @@ async def volta_salvar(bot):
                         sec2_n = _maybe_norm(sec2_cum)
                         total_n = _norm(volta.get('tempo_total') or volta.get('tempo') or volta.get('lap_time') or volta.get('tempo_volta'))
 
-                        # se já tem setores diretos, usa
                         if s1_n is not None and s2_n is not None and s3_n is not None:
                             s1_val, s2_val, s3_val = s1_n, s2_n, s3_n
-                        # se tem tempos acumulados (sec1, sec2), calcula diferenças
                         elif sec1_n is not None and sec2_n is not None and total_n is not None:
                             s1_val = sec1_n
                             s2_val = max(0.0, sec2_n - sec1_n)
                             s3_val = max(0.0, total_n - sec2_n)
-                        # se tem apenas sec1 acumulado e total, tenta dividir restante proporcionalmente (fallback)
                         elif sec1_n is not None and total_n is not None and s2_n is None and s3_n is None:
                             remaining = max(0.0, total_n - sec1_n)
                             s1_val = sec1_n
                             s2_val = remaining * 0.5
                             s3_val = remaining * 0.5
                         else:
-                            # último recurso: tenta usar qualquer campo existente normalizado
                             s1_val = s1_n
                             s2_val = s2_n
                             s3_val = s3_n
 
-                        # if no time info at all, skip (inclui campos acumulados como fonte)
                         if (tempo_total_val is None
                                 and s1_n is None and s2_n is None and s3_n is None
                                 and sec1_n is None and sec2_n is None):
                             continue
 
-                        # DEBUG opcional: descomente para inspecionar voltas que ainda ficam sem setores
-                        # if s1_val is None or s2_val is None or s3_val is None:
-                        #     print("WARN: volta sem 3 setores completos:", volta)
-
                         try:
-                            # Determina número da volta com fallback
                             try:
                                 nv = int(num_volta)
                             except Exception:
                                 nv = int(volta.get('volta') or volta.get('lap') or volta.get('lap_number') or 0)
 
-                            # busca existente e faz merge de setores/tempo (coalesce)
                             cursor.execute(
                                 "SELECT id, tempo_volta, setor1, setor2, setor3 FROM voltas WHERE sessao_id=? AND piloto_id=? AND numero_volta=?",
                                 (sessao_id_atual, piloto_id, nv)
@@ -924,7 +839,6 @@ async def volta_salvar(bot):
                                 merged_s2 = _coalesce(s2_val, old_s2)
                                 merged_s3 = _coalesce(s3_val, old_s3)
                                 merged_tempo = _coalesce(tempo_total_val, old_tempo)
-                                # se tempo total faltando mas tem todos os setores, soma
                                 if merged_tempo is None and merged_s1 is not None and merged_s2 is not None and merged_s3 is not None:
                                     merged_tempo = merged_s1 + merged_s2 + merged_s3
 
@@ -945,11 +859,9 @@ async def volta_salvar(bot):
                                 except Exception as e:
                                     print("Erro insert volta:", e)
 
-                            # commit e marca só após sucesso
                             try:
                                 execute_with_retry(lambda: conn.commit())
                                 chave_volta = (sessao_id_atual, piloto_id, int(nv))
-                                # "complete" só quando os 3 setores estão salvos
                                 if s1_val is not None and s2_val is not None and s3_val is not None:
                                     voltas_ja_salvas[chave_volta] = "complete"
                                 else:
@@ -960,7 +872,7 @@ async def volta_salvar(bot):
                         except Exception as e:
                             print("Erro ao processar salvar/atualizar volta:", e)
 
-                    # pneus
+                    # pneus (foto atual)
                     tyre_wear = getattr(j, 'tyre_wear', [0, 0, 0, 0]) or [0, 0, 0, 0]
                     if isinstance(tyre_wear, tuple):
                         tyre_wear = list(tyre_wear)
@@ -977,7 +889,6 @@ async def volta_salvar(bot):
                     while len(temp_surface) < 4:
                         temp_surface.append(0)
                     pit_count = pit_quant.get(nome, 0)
-                    # composto 0 = não inicializado, aguarda pacote CarStatus real
                     _composto_raw = getattr(j, 'tyres', 0)
                     if _composto_raw and _composto_raw != 0:
                         try:
@@ -1002,7 +913,7 @@ async def volta_salvar(bot):
                         except Exception as e:
                             print("Erro insert pneus:", e)
 
-                    # danos — snapshot geral (último valor, usado para tela ao vivo)
+                    # danos — snapshot geral
                     try:
                         cursor.execute('''
                             INSERT OR REPLACE INTO danos (sessao_id, piloto_id, delta_to_leader, combustivel_restante,
@@ -1020,21 +931,16 @@ async def volta_salvar(bot):
                     except Exception as e:
                         print("Erro insert danos:", e)
 
-                    # ── danos_por_volta — histórico exato volta a volta ───────
-                    # Salva o estado de dano de cada piloto na volta recém-concluída.
-                    # Usa current_lap_num - 1 porque o dano registrado agora é da
-                    # volta que acabou de ser completada (não a que está em curso).
+                    # danos_por_volta
                     try:
                         _volta_atual = getattr(j, 'current_lap_num', 0) or 0
-                        _volta_dano  = max(1, _volta_atual - 1)  # volta concluída
+                        _volta_dano  = max(1, _volta_atual - 1)
                         _asa_e  = float(getattr(j, 'FrontLeftWingDamage',  0) or 0)
                         _asa_d  = float(getattr(j, 'FrontRightWingDamage', 0) or 0)
                         _asa_t  = float(getattr(j, 'rearWingDamage',       0) or 0)
                         _assoa  = float(getattr(j, 'floorDamage',          0) or 0)
                         _difus  = float(getattr(j, 'diffuserDamage',       0) or 0)
                         _sidep  = float(getattr(j, 'sidepodDamage',        0) or 0)
-                        # Só salva se há pelo menos 1 dano > 0 OU ainda não existe registro
-                        # (garante que voltas sem dano também ficam no histórico como 0)
                         cursor.execute('''
                             INSERT OR REPLACE INTO danos_por_volta
                             (sessao_id, piloto_id, numero_volta,
@@ -1048,7 +954,7 @@ async def volta_salvar(bot):
                     except Exception as e:
                         print("Erro insert danos_por_volta:", e)
 
-                    # ── salvar ultrapassagens acumuladas ─────────────────
+                    # ultrapassagens
                     try:
                         from Bot.jogadores import JOGADORES as _JOG_U
                         hist = getattr(_JOG_U[0], "historico_ultrapassagens", [])
@@ -1075,7 +981,7 @@ async def volta_salvar(bot):
                     except Exception as e:
                         print("Erro salvar ultrapassagens:", e)
 
-                   # telemetria
+                    # telemetria
                     try:
                         cursor.execute('''
                             INSERT OR REPLACE INTO telemetria (sessao_id, piloto_id, velocidade ,delta_to_leader, timestamp)
@@ -1083,9 +989,13 @@ async def volta_salvar(bot):
                         ''', (sessao_id_atual, piloto_id, maior_speed,delta, time.time()))
                     except Exception as e:
                         print("Erro insert telemetria:", e)
+
                     # stints
+                    pneu_atual = None
+                    desgaste_rl = desgaste_rr = desgaste_fl = desgaste_fr = 0.0
+                    current_stint_num = 1
+                    idade_volta_atual = 0
                     try:
-                        # detecta volta atual (múltiplos fallbacks)
                         volta_atual = None
                         for a in ("currentLapNum","current_lap","current_lap_num","lap","lap_number"):
                             v = getattr(j, a, None)
@@ -1099,7 +1009,6 @@ async def volta_salvar(bot):
                                 except: volta_atual = None
                         if volta_atual is None: volta_atual = 1
 
-                        # BUG2 CORRIGIDO: fallback correto para tyre_wear
                         tyre_wear = getattr(j, "tyre_wear", None)
                         if not tyre_wear:
                             tyre_wear = [0, 0, 0, 0]
@@ -1108,27 +1017,22 @@ async def volta_salvar(bot):
                         desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr = map(float, tyre_wear[:4])
                         idade_volta_atual = int(getattr(j, "tyresAgeLaps", 0) or 0)
 
-                        pneu_atual = _norm_tyre(getattr(j, "tyres", None))  # composto já vem correto (visual com fallback p/ real) desde o parser2025.py
+                        pneu_atual = _norm_tyre(getattr(j, "tyres", None))
 
-                        # não salva stint se o composto ainda não veio do jogo
                         if pneu_atual in ("DESCONHECIDO", None, ""):
-                            pass  # pula stints mas não interrompe o loop do piloto
-
+                            pass
                         else:
                             chave_stint = (sessao_id_atual, piloto_id)
 
-                            # determina próximo número de stint a partir do DB
                             cursor.execute('SELECT MAX(stint_numero) FROM pneu_stints WHERE sessao_id = ? AND piloto_id = ?', (sessao_id_atual, piloto_id))
                             row_max = cursor.fetchone()
                             next_stint = (row_max[0] or 0) + 1
 
-                            # decide número do stint atual
                             if chave_stint in ultimo_pneu_por_piloto:
                                 current_stint_num = ultimo_pneu_por_piloto[chave_stint]['stint']
                             else:
                                 current_stint_num = next_stint
 
-                            # BUG4 CORRIGIDO: só detecta troca de pneu fora do pit
                             piloto_no_pit = getattr(j, 'pit', False)
                             pit_count_atual = getattr(j, 'pit_stops', 0)
                             
@@ -1139,15 +1043,26 @@ async def volta_salvar(bot):
                                     or pit_count_atual > ultimo_pneu_por_piloto[chave_stint].get('pit_count', 0)
                                 )
                                 and pneu_atual != "DESCONHECIDO"
-                                and not piloto_no_pit  # ignora troca enquanto ainda na garagem
+                                and not piloto_no_pit
                             )
+
+                            # ═══════════════════════════════════════════════════
+                            # 🆕 FIX: Se é o PRIMEIRO stint do piloto (não tem no cache),
+                            #         força volta_inicio = 1 em vez de volta_atual.
+                            #         O parser pode ter acordado na V4, mas o pneu
+                            #         na verdade tava desde a V1.
+                            # ═══════════════════════════════════════════════════
+                            _primeiro_stint_do_piloto = (
+                                current_stint_num == 1
+                                and chave_stint not in ultimo_pneu_por_piloto
+                            )
+                            _volta_inicio_stint = 1 if _primeiro_stint_do_piloto else volta_atual
 
                             if pneu_mudou:
                                 prev = ultimo_pneu_por_piloto[chave_stint]
                                 fim = max(0, volta_atual - 1)
                                 total_prev = max(0, fim - prev['volta_inicio'] + 1)
 
-                                # BUG1 CORRIGIDO: usa desgaste cacheado do pneu ANTERIOR
                                 deg_fim = prev.get('desgaste_atual', prev.get('desgaste_inicio', (0,0,0,0)))
 
                                 cursor.execute('SELECT id FROM pneu_stints WHERE sessao_id=? AND piloto_id=? AND stint_numero=?', (sessao_id_atual, piloto_id, prev['stint']))
@@ -1182,64 +1097,97 @@ async def volta_salvar(bot):
                                         'idade_inicio': idade_volta_atual,
                                         'desgaste_inicio': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
                                         'desgaste_atual': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
-                                        'pit_count': pit_count_atual   # <--- REGISTRANDO CONTAGEM
+                                        'pit_count': pit_count_atual
                                     }
                                 except Exception as e:
                                     print("Erro insert novo stint:", e)
 
                             else:
-                                # atualiza cache de desgaste atual do pneu corrente (para fechar corretamente depois)
-                                if chave_stint in ultimo_pneu_por_piloto:
-                                    ultimo_pneu_por_piloto[chave_stint]['desgaste_atual'] = (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr)
+                                # Verifica se o pneu já mudou mas ainda está no pit → NÃO atualiza
+                                _pneu_stint_atual = ultimo_pneu_por_piloto.get(chave_stint, {}).get('pneu', None)
+                                _pneu_ja_trocou_no_pit = (
+                                    _pneu_stint_atual is not None
+                                    and pneu_atual != _pneu_stint_atual
+                                    and pneu_atual != "DESCONHECIDO"
+                                )
 
-                                cursor.execute('SELECT id FROM pneu_stints WHERE sessao_id=? AND piloto_id=? AND stint_numero=?', (sessao_id_atual, piloto_id, current_stint_num))
-                                existing = cursor.fetchone()
-                                if existing:
-                                    try:
-                                        cur_total = max(1, volta_atual - (ultimo_pneu_por_piloto.get(chave_stint, {}).get('volta_inicio', volta_atual)) + 1)
-                                    except Exception:
-                                        cur_total = 1
-                                    try:
-                                        cursor.execute('''
-                                            UPDATE pneu_stints
-                                            SET volta_fim = ?, total_voltas = ?,
-                                                desgaste_fim_rl = ?, desgaste_fim_rr = ?,
-                                                desgaste_fim_fl = ?, desgaste_fim_fr = ?
-                                            WHERE id = ?
-                                        ''', (volta_atual, cur_total, desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr, existing[0]))
-                                    except Exception as e:
-                                        print("Erro update stint existente:", e)
+                                if _pneu_ja_trocou_no_pit:
+                                    pass  # não envenena o cache com pneu novo
                                 else:
-                                    try:
-                                        cursor.execute('''
-                                            INSERT INTO pneu_stints
-                                            (sessao_id,piloto_id,piloto_nome,stint_numero,tipo_pneu,volta_inicio,volta_fim,total_voltas,
-                                             idade_volta_inicio,desgaste_inicio_rl,desgaste_inicio_rr,desgaste_inicio_fl,desgaste_inicio_fr,
-                                             desgaste_fim_rl,desgaste_fim_rr,desgaste_fim_fl,desgaste_fim_fr)
-                                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                                        ''', (sessao_id_atual, piloto_id, nome, current_stint_num, pneu_atual, volta_atual, volta_atual, 1,
-                                              idade_volta_atual, desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr,
-                                              desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr))
-                                    except Exception as e:
-                                        print("Erro insert stint:", e)
+                                    if chave_stint in ultimo_pneu_por_piloto:
+                                        ultimo_pneu_por_piloto[chave_stint]['desgaste_atual'] = (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr)
 
-                                if chave_stint not in ultimo_pneu_por_piloto:
-                                    ultimo_pneu_por_piloto[chave_stint] = {
-                                        'pneu': pneu_atual,
-                                        'volta_inicio': volta_atual,
-                                        'stint': current_stint_num,
-                                        'idade_inicio': idade_volta_atual,
-                                        'desgaste_inicio': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
-                                        'desgaste_atual': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
-                                    }
+                                    cursor.execute('SELECT id FROM pneu_stints WHERE sessao_id=? AND piloto_id=? AND stint_numero=?', (sessao_id_atual, piloto_id, current_stint_num))
+                                    existing = cursor.fetchone()
+                                    if existing:
+                                        try:
+                                            cur_total = max(1, volta_atual - (ultimo_pneu_por_piloto.get(chave_stint, {}).get('volta_inicio', volta_atual)) + 1)
+                                        except Exception:
+                                            cur_total = 1
+                                        try:
+                                            cursor.execute('''
+                                                UPDATE pneu_stints
+                                                SET volta_fim = ?, total_voltas = ?,
+                                                    desgaste_fim_rl = ?, desgaste_fim_rr = ?,
+                                                    desgaste_fim_fl = ?, desgaste_fim_fr = ?
+                                                WHERE id = ?
+                                            ''', (volta_atual, cur_total, desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr, existing[0]))
+                                        except Exception as e:
+                                            print("Erro update stint existente:", e)
+                                    else:
+                                        try:
+                                            # 🆕 USA _volta_inicio_stint
+                                            cursor.execute('''
+                                                INSERT INTO pneu_stints
+                                                (sessao_id,piloto_id,piloto_nome,stint_numero,tipo_pneu,volta_inicio,volta_fim,total_voltas,
+                                                 idade_volta_inicio,desgaste_inicio_rl,desgaste_inicio_rr,desgaste_inicio_fl,desgaste_inicio_fr,
+                                                 desgaste_fim_rl,desgaste_fim_rr,desgaste_fim_fl,desgaste_fim_fr)
+                                                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                                            ''', (sessao_id_atual, piloto_id, nome, current_stint_num, pneu_atual, 
+                                                  _volta_inicio_stint, volta_atual, max(1, volta_atual - _volta_inicio_stint + 1),
+                                                  idade_volta_atual, desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr,
+                                                  desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr))
+                                        except Exception as e:
+                                            print("Erro insert stint:", e)
+
+                                    if chave_stint not in ultimo_pneu_por_piloto:
+                                        ultimo_pneu_por_piloto[chave_stint] = {
+                                            'pneu': pneu_atual,
+                                            'volta_inicio': _volta_inicio_stint,
+                                            'stint': current_stint_num,
+                                            'idade_inicio': idade_volta_atual,
+                                            'desgaste_inicio': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
+                                            'desgaste_atual': (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr),
+                                        }
                     except Exception as e:
                         print("Erro stints:", e)
+
+                    # ── pneu_por_volta — desgaste a cada volta concluída ─────────────
+                    try:
+                        _volta_atual_pv = getattr(j, 'current_lap_num', 0) or 0
+                        _volta_pneu  = max(1, _volta_atual_pv - 1)
+
+                        if _volta_pneu > 0 and pneu_atual not in ("DESCONHECIDO", None, ""):
+                            _desg_medio = (desgaste_rl + desgaste_rr + desgaste_fl + desgaste_fr) / 4.0
+
+                            cursor.execute('''
+                                INSERT OR REPLACE INTO pneu_por_volta
+                                (sessao_id, piloto_id, numero_volta, stint_numero, tipo_pneu,
+                                 idade_pneu, desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr,
+                                 desgaste_medio, timestamp)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (sessao_id_atual, piloto_id, _volta_pneu,
+                                  current_stint_num, pneu_atual,
+                                  idade_volta_atual,
+                                  desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr,
+                                  _desg_medio, time.time()))
+                    except Exception as e:
+                        print("Erro insert pneu_por_volta:", e)
 
                 except Exception as e:
                     print(f"❌ Erro ao processar piloto {nome}: {e}")
                     continue
 
-            # commit com retry e fechar
             try:
                 execute_with_retry(lambda: conn.commit())
             except Exception as e:
@@ -1250,10 +1198,8 @@ async def volta_salvar(bot):
                 except Exception:
                     pass
 
-            # pruning cache
             if len(voltas_ja_salvas) > 20000:
                 keys = list(voltas_ja_salvas.keys())
-                # remove itens de sessões antigas primeiro
                 removed = 0
                 for k in keys:
                     if k[0] != sessao_id_atual:
@@ -1272,8 +1218,9 @@ async def volta_salvar(bot):
             continue
 
     await send_or_edit(mensagem, f"🏁 Salvamento finalizado! Sessão #{sessao_id_atual}")
+
 @bot.command()
-async def parar_salvar(ctx):#pronto
+async def parar_salvar(ctx):
     global TEMPO_INICIO_VOLTAS
     TEMPO_INICIO_VOLTAS = False
     await ctx.send("🛑 Envio automático de voltas parado.")
@@ -1284,7 +1231,7 @@ async def delta(ctx):
 async def pneusv(ctx,*, piloto: str | None=None):
     await comando_pneusv(ctx, piloto=piloto)
 @bot.command()
-async def clima(ctx):#pronto
+async def clima(ctx):
     await comando_clima(ctx)
 @bot.command()
 async def pilotos(ctx):
@@ -1318,7 +1265,7 @@ def salvar_sessao_no_banco(pacote_session):
     import sqlite3
     
     track_id = pacote_session.m_track_id
-    nome_pista = get_track_name(track_id)  # ← USE A FUNÇÃO
+    nome_pista = get_track_name(track_id)
     total_laps = pacote_session.m_total_laps
     clima = pacote_session.m_weather
     
@@ -1348,7 +1295,6 @@ def criar_tabela_regras():
     conn.commit()
     conn.close()
 
-# Executa ao iniciar
 criar_tabela_regras()
 def criar_tabela_clips():
     conn = sqlite3.connect('f1_telemetry.db')
@@ -1369,14 +1315,12 @@ def criar_tabela_clips():
     conn.commit()
     conn.close()
 
-# Executa ao iniciar
 criar_tabela_clips()
 def criar_tabelas():
     """Cria todas as tabelas necessárias no banco"""
     conn = sqlite3.connect('f1_telemetry.db')
     cursor = conn.cursor()
     
-    # Tabela de sessões
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS sessoes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1394,7 +1338,6 @@ def criar_tabelas():
     )
     ''')
     
-    # Tabela de pilotos
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS pilotos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1414,7 +1357,6 @@ def criar_tabelas():
     )
     ''')
     
-    # Tabela de voltas - COM UNIQUE
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS voltas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1431,7 +1373,6 @@ def criar_tabelas():
     )
     ''')
     
-    # Tabela de pneus - COM UNIQUE (só 1 registro por piloto/sessão)
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS pneus (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1462,7 +1403,6 @@ def criar_tabelas():
     )
     ''')
     
-    # Tabela de danos - COM UNIQUE (só 1 registro por piloto/sessão)
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS danos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1483,7 +1423,6 @@ def criar_tabelas():
     )
     ''')
     
-    # Tabela de telemetria - COM UNIQUE
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS telemetria (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1498,7 +1437,6 @@ def criar_tabelas():
     )
     ''')
     
-    # Tabela de estágios de pneus
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS pneu_stints (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1538,7 +1476,6 @@ def criar_tabelas():
     )
     ''')
 
-    # ── Histórico de dano volta a volta (precisão 100%) ──────────────────────
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS danos_por_volta (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1558,10 +1495,30 @@ def criar_tabelas():
     )
     ''')
 
+    # 🆕 pneu_por_volta — desgaste do pneu a cada volta concluída
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS pneu_por_volta (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sessao_id    INTEGER NOT NULL,
+        piloto_id    INTEGER NOT NULL,
+        numero_volta INTEGER NOT NULL,
+        stint_numero INTEGER,
+        tipo_pneu    TEXT,
+        idade_pneu   INTEGER,
+        desgaste_rl  REAL DEFAULT 0,
+        desgaste_rr  REAL DEFAULT 0,
+        desgaste_fl  REAL DEFAULT 0,
+        desgaste_fr  REAL DEFAULT 0,
+        desgaste_medio REAL DEFAULT 0,
+        timestamp    REAL,
+        FOREIGN KEY (sessao_id) REFERENCES sessoes(id),
+        FOREIGN KEY (piloto_id) REFERENCES pilotos(id),
+        UNIQUE(sessao_id, piloto_id, numero_volta)
+    )
+    ''')
+
     conn.commit()
     conn.close()
-
-# Executa ao iniciar
 
 def migrar_voltas_posicao():
     """Adiciona coluna posicao em voltas se nao existir."""
@@ -1641,7 +1598,7 @@ criar_tabela_regras()
 criar_tabela_clips()
 
 def migrar_danos_por_volta():
-    """Cria tabela danos_por_volta se não existir (banco já criado antes desta versão)."""
+    """Cria tabela danos_por_volta se não existir."""
     try:
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
@@ -1672,10 +1629,7 @@ migrar_danos_por_volta()
 
 def migrar_bandeiras():
     """
-    🆕 Cria a tabela 'bandeiras' se não existir.
-    Guarda o histórico de bandeiras (Verde/Amarela/Vermelha/Azul) e status
-    de Safety Car/VSC por volta, pra permitir cálculo correto no Comparar.html
-    (ex.: não penalizar ritmo/posição perdida durante SC/VSC/bandeira vermelha).
+    Cria a tabela 'bandeiras' se não existir.
     """
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -1701,17 +1655,10 @@ def migrar_bandeiras():
 migrar_bandeiras()
 
 # 🆕 Controle de estado atual de bandeira/safety car por sessão
-# {sessao_id: {"tipo": str, "registro_id": int, "volta_inicio": int}}
 estado_bandeira_atual = {}
 estado_safety_atual = {}
 
 def obter_bandeira_atual(session):
-    """
-    Mesma lógica usada em comandos/clima.py: olha a primeira 'marshal zone'
-    da sessão e traduz o m_zoneFlag pro nome da bandeira.
-    (Antes o código tentava ler session.m_zone_flag, que não existe -
-    por isso sempre caía no padrão "Verde".)
-    """
     zonas = getattr(session, "m_marshalZones", getattr(session, "m_marshal_zones", []))
     if len(zonas) > 0:
         zona_atual = zonas[0]
@@ -1720,18 +1667,13 @@ def obter_bandeira_atual(session):
     return "Verde"
 
 def obter_safety_status_atual(session, safety_dict):
-    """Status atual de Safety Car / VSC da sessão."""
     status_id = getattr(session, "m_safety_car_status", getattr(session, "m_safetyCarStatus", 0))
     return safety_dict.get(status_id, "Nenhum")
 
 def _registrar_evento_bandeira(cursor, conn, sessao_id, tipo_novo, volta_referencia, estado_dict):
-    """
-    Registra troca de estado (bandeira OU safety car) na tabela 'bandeiras'.
-    Fecha o registro anterior (define volta_fim) e abre um novo.
-    """
     estado_ant = estado_dict.get(sessao_id)
     if estado_ant is not None and estado_ant["tipo"] == tipo_novo:
-        return  # nada mudou, não faz nada
+        return
 
     if estado_ant is not None:
         try:
@@ -1786,10 +1728,8 @@ _cloudflared_proc = None
 url = None
 
 def _start_cloudflared(port=5000, cloudflared_path="cloudflared"):
-    """Inicia cloudflared e retorna o objeto subprocess e o public_url lido da saída."""
     global _cloudflared_proc
 
-    # Verifica se o executável está acessível
     if not shutil.which(cloudflared_path):
         raise FileNotFoundError(f"cloudflared não encontrado em: {cloudflared_path}")
 
@@ -1848,7 +1788,7 @@ def iniciar_painel_e_cloudflared():
     from painel.app import app
     global url
 
-    cloudflared_path = "cloudflared"  # ou caminho absoluto
+    cloudflared_path = "cloudflared"
 
     try:
         proc, url = _start_cloudflared(port=5000, cloudflared_path=cloudflared_path)
@@ -1862,7 +1802,6 @@ def iniciar_painel_e_cloudflared():
     finally:
         _stop_cloudflared()
 
-# Comandos do bot
 @bot.command()
 async def painel(ctx):
     if not url:
@@ -1905,7 +1844,6 @@ except Exception :
     ws_server = None
 @bot.command()
 async def setup_compare(ctx):
-    """Link para comparação de setups na web"""
     if not url:
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
@@ -1916,7 +1854,6 @@ except Exception :
     ws_server = None
 @bot.command()
 async def drive_compare(ctx):
-    """Link para comparação de setups na web"""
     if not url:
         await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
         return
@@ -1935,11 +1872,19 @@ try:
     import Server_20 as ws_server
 except Exception :
     ws_server = None
+@bot.command()
+async def painel3(ctx):
+    if not url:
+        await ctx.send("❌ O painel ainda não está disponível. Tente novamente em alguns segundos.")
+        return
+    await ctx.send(f"🔗 Painel disponível dos graficos estão em: {url}/surpresa")
+try:
+    import Server_20 as ws_server
+except Exception :
+    ws_server = None
+
 # ═══════════════════════════════════════════════════════════════
-# 🔍 MONITOR DE PISTAS — descobre o track_id da sua versão
-#   • Roda em background (thread daemon)
-#   • Loga no console quando o jogo troca de pista
-#   • Salva tudo em track_ids_descobertos.json
+# 🔍 MONITOR DE PISTAS
 # ═══════════════════════════════════════════════════════════════
 _PISTAS_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             "track_ids_descobertos.json")
@@ -1961,7 +1906,6 @@ def _salvar_pistas_descobertas(dados):
         print(f"⚠️ não consegui salvar track_ids_descobertos.json: {e}")
 
 def monitor_de_pistas():
-    """Thread que fica olhando o SESSION e logando mudanças de pista."""
     pistas_descobertas = _carregar_pistas_descobertas()
     ultimo_id = None
     ja_avisou_espera = False
@@ -1977,7 +1921,6 @@ def monitor_de_pistas():
             tname = getattr(SESSION, 'track_name', None)
             tlen  = getattr(SESSION, 'm_track_length', None)
 
-            # Ainda não tem dado nenhum → aguarda silenciosamente
             if tid is None or tid == -1 or (not tname and not tlen):
                 if not ja_avisou_espera:
                     print("🔍 Monitor de pistas: aguardando SESSION (abre o jogo pra começar)...")
@@ -1986,7 +1929,6 @@ def monitor_de_pistas():
                 continue
             ja_avisou_espera = False
 
-            # Só loga quando muda de pista
             if tid != ultimo_id:
                 ultimo_id = tid
                 dict_entry = track_dictionary.get(tid)
@@ -2009,7 +1951,6 @@ def monitor_de_pistas():
                 _salvar_pistas_descobertas(pistas_descobertas)
 
         except Exception:
-            # SESSION ainda não existe — silencioso
             pass
 
         time.sleep(3)
@@ -2030,8 +1971,6 @@ if __name__ == "__main__":
 
     threading.Thread(target=iniciar_painel_e_cloudflared, daemon=True).start()
 
-    # 🔍 Monitor de pistas — sobe junto com o main
     threading.Thread(target=monitor_de_pistas, daemon=True).start()
 
-# python Bot/bot_discord.py pra ativar
 bot.run(TOKEN)

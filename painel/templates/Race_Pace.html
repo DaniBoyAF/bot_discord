@@ -64,10 +64,11 @@
         const GPDashboard = () => {
             const [raceData, setRaceData] = useState([]);
             const [isLoading, setIsLoading] = useState(true);
-            const [calcMode, setCalcMode] = useState('trimmed');  // 🆕 Modo de cálculo
-            const [trimPercent, setTrimPercent] = useState(10);   // 🆕 % de outliers removidos
+            const [calcMode, setCalcMode] = useState('trimmed');
+            const [trimPercent, setTrimPercent] = useState(10);
             const [totalVoltasSessao, setTotalVoltasSessao] = useState(0);
             const [minPorcentagem, setMinPorcentagem] = useState(0);
+            const [consistMode, setConsistMode] = useState('trimmed');   // 🆕 'raw' | 'trimmed'
 
             useEffect(() => {
                 const fetchDados = async () => {
@@ -90,7 +91,6 @@
                         const dados = await response.json();
                         console.log("Dados recebidos:", dados);
                         
-                        // Suporta formato novo e antigo
                         if (dados.pilotos) {
                             setTotalVoltasSessao(dados.total_voltas_sessao || 0);
                             setRaceData(dados.pilotos);
@@ -124,15 +124,12 @@
                 };
             }, []);
 
-            // 🆕 Funções de cálculo de média
+            // ── Média (modo escolhido) ──────────────────────────────────
             const calcularMedia = {
-                // Média simples de todas as voltas
                 simple: (lapTimes) => {
                     if (lapTimes.length === 0) return 0;
                     return lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
                 },
-                
-                // Média removendo X% piores voltas (pit stops, erros)
                 trimmed: (lapTimes, trimPercent = 10) => {
                     if (lapTimes.length === 0) return 0;
                     const sorted = [...lapTimes].sort((a, b) => a - b);
@@ -140,32 +137,24 @@
                     const trimmed = sorted.slice(0, cutoff);
                     return trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
                 },
-                
-                // Mediana (menos afetada por outliers)
                 median: (lapTimes) => {
                     if (lapTimes.length === 0) return 0;
                     const sorted = [...lapTimes].sort((a, b) => a - b);
                     const mid = Math.floor(sorted.length / 2);
                     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
                 },
-                
-                // Top 5 melhores voltas
                 top5: (lapTimes) => {
                     if (lapTimes.length === 0) return 0;
                     const sorted = [...lapTimes].sort((a, b) => a - b);
                     const top = sorted.slice(0, Math.min(5, sorted.length));
                     return top.reduce((a, b) => a + b, 0) / top.length;
                 },
-                
-                // Top 10 melhores voltas
                 top10: (lapTimes) => {
                     if (lapTimes.length === 0) return 0;
                     const sorted = [...lapTimes].sort((a, b) => a - b);
                     const top = sorted.slice(0, Math.min(10, sorted.length));
                     return top.reduce((a, b) => a + b, 0) / top.length;
                 },
-                
-                // Interquartil (remove 25% piores e 25% melhores)
                 iqr: (lapTimes) => {
                     if (lapTimes.length < 4) return calcularMedia.simple(lapTimes);
                     const sorted = [...lapTimes].sort((a, b) => a - b);
@@ -176,15 +165,73 @@
                 }
             };
 
+            // ══════════════════════════════════════════════════════════════
+            // 🆕 CÁLCULO DE CONSISTÊNCIA MELHORADO
+            // ──────────────────────────────────────────────────────────────
+            // Usa mediana + MAD (Median Absolute Deviation) pra remover
+            // outliers de forma robusta, depois calcula CV (coef. variação)
+            // nas voltas limpas.
+            //
+            //   • mode='raw'     → CV sobre TODAS as voltas (mostra o caos real)
+            //   • mode='trimmed' → CV sobre voltas limpas (o piloto "puro")
+            //
+            // Score: 100 - CV*15  (CV 0% = 100 · CV ~6.7% = 0)
+            // ══════════════════════════════════════════════════════════════
+            const calcularConsistencia = (lapTimes, mode = 'trimmed') => {
+                if (!lapTimes || lapTimes.length < 3) {
+                    return {
+                        score: 0,
+                        cvPct: 0,
+                        voltasLimpa: 0,
+                        voltasTotal: lapTimes ? lapTimes.length : 0,
+                    };
+                }
+
+                const n = lapTimes.length;
+                const sorted = [...lapTimes].sort((a, b) => a - b);
+
+                // 1) Mediana (robusta a outliers)
+                const median = n % 2
+                    ? sorted[Math.floor(n / 2)]
+                    : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+
+                // 2) MAD
+                const deviations = sorted.map(t => Math.abs(t - median));
+                const sortedDev  = [...deviations].sort((a, b) => a - b);
+                const mad = sortedDev[Math.floor(n / 2)] || 0;
+
+                // 3) Filtra outliers (fator 2.5)
+                let clean;
+                if (mode === 'raw' || mad === 0) {
+                    clean = sorted;
+                } else {
+                    const limiar = 2.5 * mad;
+                    clean = sorted.filter(t => Math.abs(t - median) <= limiar);
+                    if (clean.length < 3) clean = sorted; // fallback
+                }
+
+                // 4) CV amostral (n-1) das voltas limpas
+                const mean     = clean.reduce((a, b) => a + b, 0) / clean.length;
+                const variance = clean.reduce((s, t) => s + (t - mean) ** 2, 0) / Math.max(1, clean.length - 1);
+                const stdDev   = Math.sqrt(variance);
+                const cvPct    = mean > 0 ? (stdDev / mean) * 100 : 0;
+
+                // 5) Score 0-100 · CV 0% = 100, CV ~6.7% = 0
+                const score = Math.max(0, Math.min(100, 100 - cvPct * 15));
+
+                return {
+                    score,
+                    cvPct,
+                    voltasLimpa: clean.length,
+                    voltasTotal: n,
+                };
+            };
+
             const processRacerData = (racer) => {
                 if (!racer || !racer.voltas) return null;
 
-                // Filtra voltas inválidas
                 const validLaps = racer.voltas.filter(lap => {
                     if (!lap.tempo_total || lap.tempo_total <= 0) return false;
-                    
-                    // Remove voltas muito lentas (pit stops, safety car)
-                    // e muito rápidas (erros de telemetria)
                     return lap.tempo_total > 30 && lap.tempo_total < 300;
                 });
 
@@ -195,36 +242,19 @@
                 const worstLap = Math.max(...lapTimes);
                 const totalVoltasPiloto = racer.total_voltas_piloto || racer.voltas.length;
 
-                // 🆕 Calcula média baseado no modo selecionado
                 let racePace;
                 switch (calcMode) {
-                    case 'simple':
-                        racePace = calcularMedia.simple(lapTimes);
-                        break;
-                    case 'trimmed':
-                        racePace = calcularMedia.trimmed(lapTimes, trimPercent);
-                        break;
-                    case 'median':
-                        racePace = calcularMedia.median(lapTimes);
-                        break;
-                    case 'top5':
-                        racePace = calcularMedia.top5(lapTimes);
-                        break;
-                    case 'top10':
-                        racePace = calcularMedia.top10(lapTimes);
-                        break;
-                    case 'iqr':
-                        racePace = calcularMedia.iqr(lapTimes);
-                        break;
-                    default:
-                        racePace = calcularMedia.trimmed(lapTimes, trimPercent);
+                    case 'simple':  racePace = calcularMedia.simple(lapTimes); break;
+                    case 'trimmed': racePace = calcularMedia.trimmed(lapTimes, trimPercent); break;
+                    case 'median':  racePace = calcularMedia.median(lapTimes); break;
+                    case 'top5':    racePace = calcularMedia.top5(lapTimes); break;
+                    case 'top10':   racePace = calcularMedia.top10(lapTimes); break;
+                    case 'iqr':     racePace = calcularMedia.iqr(lapTimes); break;
+                    default:        racePace = calcularMedia.trimmed(lapTimes, trimPercent);
                 }
 
-                // Calcula consistência (desvio padrão)
-                const mean = calcularMedia.simple(lapTimes);
-                const variance = lapTimes.reduce((sum, t) => sum + Math.pow(t - mean, 2), 0) / lapTimes.length;
-                const stdDev = Math.sqrt(variance);
-                const consistency = 100 - Math.min(100, (stdDev / mean) * 100 * 10); // 0-100%
+                // 🆕 Consistência melhorada
+                const consistencia = calcularConsistencia(lapTimes, consistMode);
 
                 return {
                     nome: racer.nome,
@@ -237,12 +267,11 @@
                     simpleAvg: calcularMedia.simple(lapTimes),
                     lapCount: validLaps.length,
                     totalVoltasPiloto: totalVoltasPiloto,
-                    consistency: consistency,
+                    consistencia,                                       // 🆕 objeto
                     color: `hsl(${(racer.numero || 0) * 37 % 360}, 70%, 50%)`
                 };
             };
 
-            // Filtra por % de conclusão
             const minVoltasParaCompletar = totalVoltasSessao > 0 
                 ? Math.floor(totalVoltasSessao * (minPorcentagem / 100))
                 : 0;
@@ -266,7 +295,6 @@
                 return `${mins}:${secs.padStart(6, '0')}`;
             };
 
-            // Nomes amigáveis dos modos
             const modeNames = {
                 simple: '📊 Média Simples',
                 trimmed: `🎯 Sem ${trimPercent}% Piores`,
@@ -317,6 +345,15 @@
 
             const maxPace = Math.max(...sortedRacers.map(r => r.racePace));
 
+            // Cor do score de consistência
+            const corConsist = (score) => {
+                if (score >= 90) return '#22c55e';   // verde
+                if (score >= 75) return '#84cc16';   // verde-limão
+                if (score >= 60) return '#eab308';   // amarelo
+                if (score >= 40) return '#f59e0b';   // laranja
+                return '#e10600';                     // vermelho
+            };
+
             return (
                 <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-900 to-gray-900 p-4 md:p-8 relative overflow-hidden">
                     <div className="absolute inset-0 opacity-10">
@@ -336,7 +373,7 @@
                             <p className="text-base md:text-xl text-gray-300">{modeNames[calcMode]}</p>
                         </div>
 
-                        {/* 🆕 Controles de cálculo */}
+                        {/* Controles */}
                         <div className="bg-gray-800 bg-opacity-90 rounded-lg p-4 mb-6 flex flex-wrap gap-3 items-center justify-center">
                             <span className="text-white font-semibold">Modo:</span>
                             <select
@@ -368,6 +405,18 @@
                                     </select>
                                 </>
                             )}
+
+                            {/* 🆕 Modo da consistência */}
+                            <span className="text-white ml-4">📊 Consistência:</span>
+                            <select
+                                value={consistMode}
+                                onChange={(e) => setConsistMode(e.target.value)}
+                                className="px-3 py-2 rounded-lg bg-gray-700 text-purple-300 border border-purple-500 font-semibold"
+                                title="Como a consistência é calculada"
+                            >
+                                <option value="trimmed">🧹 Limpa (remove outliers)</option>
+                                <option value="raw">📊 Crua (todas as voltas)</option>
+                            </select>
 
                             <span className="text-white ml-4">Filtro:</span>
                             <select
@@ -425,7 +474,8 @@
                                     const leaderPace = sortedRacers[0].racePace;
                                     const diff = racer.racePace - leaderPace;
                                     const barWidth = (racer.racePace / maxPace) * 100;
-                                    
+                                    const cons = racer.consistencia || { score: 0, cvPct: 0, voltasLimpa: 0, voltasTotal: 0 };
+                                    const cCor = corConsist(cons.score);
 
                                     return (
                                         <div key={racer.nome} className="group">
@@ -449,13 +499,31 @@
                                                         <span className="text-white font-bold text-xs">{formatTime(racer.racePace)}</span>
                                                     </div>
                                                 </div>
-                                                <div className="flex gap-2 text-xs min-w-[140px] md:min-w-[200px]">
+                                                <div className="flex gap-2 text-xs min-w-[200px] md:min-w-[260px] items-center">
                                                     <span className={`font-semibold w-14 ${idx === 0 ? 'text-green-400' : 'text-yellow-400'}`}>
                                                         {idx === 0 ? 'LEADER' : `+${diff.toFixed(3)}`}
                                                     </span>
-                                                    <div className="flex items-center gap-1 text-purple-400 text-xs" title="Consistência">
-                                                        📊 {racer.consistency.toFixed(0)}%
+
+                                                    {/* 🆕 Consistência com score + CV */}
+                                                    <div
+                                                        className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded"
+                                                        style={{
+                                                            background: cCor + '22',
+                                                            border: `1px solid ${cCor}66`,
+                                                        }}
+                                                        title={`Consistência: score ${cons.score.toFixed(1)}/100
+CV (coef. variação): ±${cons.cvPct.toFixed(2)}%
+Voltas usadas: ${cons.voltasLimpa}/${cons.voltasTotal}
+Modo: ${consistMode === 'raw' ? 'todas as voltas' : 'voltas limpas (outliers removidos)'}`}
+                                                    >
+                                                        <span style={{ color: cCor, fontWeight: 700 }}>
+                                                            📊 {cons.score.toFixed(0)}%
+                                                        </span>
+                                                        <span style={{ color: cCor, opacity: 0.75, fontSize: '10px' }}>
+                                                            ±{cons.cvPct.toFixed(1)}%
+                                                        </span>
                                                     </div>
+
                                                     <div className="flex items-center gap-1 text-green-400 text-xs" title="Melhor volta">
                                                         <Clock size={10} />
                                                         {formatTime(racer.bestLap)}
@@ -484,10 +552,13 @@
                             <div className="bg-gray-800 bg-opacity-90 p-3 rounded-lg">
                                 <p className="text-gray-400 text-xs">📊 Mais Consistente</p>
                                 <p className="text-base md:text-xl font-bold text-purple-400 truncate">
-                                    {[...racers].sort((a, b) => b.consistency - a.consistency)[0]?.nome}
+                                    {[...racers].sort((a, b) => b.consistencia.score - a.consistencia.score)[0]?.nome}
                                 </p>
                                 <p className="text-sm text-white">
-                                    {[...racers].sort((a, b) => b.consistency - a.consistency)[0]?.consistency.toFixed(1)}%
+                                    {[...racers].sort((a, b) => b.consistencia.score - a.consistencia.score)[0]?.consistencia.score.toFixed(1)}%
+                                    <span className="text-xs text-purple-300 ml-1">
+                                        (±{[...racers].sort((a, b) => b.consistencia.score - a.consistencia.score)[0]?.consistencia.cvPct.toFixed(2)}%)
+                                    </span>
                                 </p>
                             </div>
                             <div className="bg-gray-800 bg-opacity-90 p-3 rounded-lg">
@@ -498,11 +569,17 @@
                         </div>
 
                         {/* Legenda */}
-                        <div className="mt-4 bg-gray-800 bg-opacity-60 rounded-lg p-3 text-center">
-                            <p className="text-gray-400 text-xs md:text-sm">
+                        <div className="mt-4 bg-gray-800 bg-opacity-60 rounded-lg p-3">
+                            <p className="text-gray-400 text-xs md:text-sm text-center mb-1">
                                 <span className="text-green-400">🟢 Race Pace</span> = {modeNames[calcMode]} | 
-                                <span className="text-purple-400 ml-2">📊 Consistência</span> = Menor variação entre voltas | 
+                                <span className="text-purple-400 ml-2">📊 Consistência</span> = score (0-100) + CV% real | 
                                 <span className="text-yellow-400 ml-2">⚡ Best</span> = Melhor volta
+                            </p>
+                            <p className="text-gray-500 text-[11px] text-center">
+                                💡 <strong className="text-gray-400">Score</strong> = 100 − CV×15 (CV 0% = 100 · CV 6,7% = 0) ·
+                                <strong className="text-gray-400 ml-1">CV</strong> = desvio padrão ÷ média ·
+                                <strong className="text-gray-400 ml-1">Limpa</strong> = remove outliers via mediana + MAD ·
+                                <span className="ml-1 text-purple-300">✅ {consistMode === 'raw' ? 'Modo CRU (todas as voltas)' : 'Modo LIMPO (outliers removidos)'}</span>
                             </p>
                         </div>
                     </div>
@@ -525,8 +602,7 @@
         }
     </script>
     {% endraw %}
-<!-- ═══════════════════════════════════════════════════════
-     SCREENSHOT INSTAGRAM — injeta antes de 
+
 <!-- ═══════════════════════════════════════════════════════
      F1 INFO PANEL — 3 ÍCONES (pit stops · bandeiras · danos)
 ════════════════════════════════════════════════════════ -->
@@ -687,8 +763,7 @@
 })();
 </script>
 <!-- ═══════════════════════════════ FIM F1 INFO PANEL ═══════════════════════════════ -->
-</body>
-════════════════════════════════════════════════════════ -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
@@ -824,7 +899,6 @@
 
 <script>
 (function() {
-  // fecha o menu ao clicar fora
   document.addEventListener('click', function(e) {
     const btn = document.getElementById('insta-btn');
     if (btn && !btn.contains(e.target)) {
@@ -840,14 +914,11 @@ async function instaCap(outW, outH, label) {
   overlay.classList.add('show');
   msg.textContent = 'Capturando tela...';
 
-  // esconde o botão durante a captura
   const fab = document.getElementById('insta-btn');
   fab.style.display = 'none';
 
   try {
     msg.textContent = 'Renderizando...';
-    // ── Escala de captura: usa devicePixelRatio * 3 (mínimo 4)
-    // Captura em altíssima resolução antes de comprimir para o formato Instagram
     const captureScale = Math.max(4, window.devicePixelRatio * 3);
 
     const canvas = await html2canvas(document.body, {
@@ -858,14 +929,11 @@ async function instaCap(outW, outH, label) {
       logging: false,
       removeContainer: true,
       imageTimeout: 0,
-      // renderiza fontes com antialiasing máximo
       letterRendering: true,
     });
 
     msg.textContent = 'Formatando para Instagram...';
 
-    // Canvas de saída em resolução 2x para Instagram (2160×2160 etc.)
-    // O Instagram aceita e exibe em qualidade máxima
     const pixelRatio = 2;
     const out = document.createElement('canvas');
     out.width  = outW * pixelRatio;
@@ -874,11 +942,9 @@ async function instaCap(outW, outH, label) {
     ctx.imageSmoothingEnabled  = true;
     ctx.imageSmoothingQuality  = 'high';
 
-    // fundo
     ctx.fillStyle = getComputedStyle(document.body).backgroundColor || '#07080f';
     ctx.fillRect(0, 0, out.width, out.height);
 
-    // calcula posição centralizada mantendo proporção
     const srcW = canvas.width;
     const srcH = canvas.height;
     const fit  = Math.min((out.width * 0.96) / srcW, (out.height * 0.96) / srcH);
@@ -889,7 +955,6 @@ async function instaCap(outW, outH, label) {
 
     ctx.drawImage(canvas, dx, dy, dw, dh);
 
-    // watermark sutil
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     ctx.font = 'bold 18px sans-serif';
     ctx.textAlign = 'right';
@@ -900,7 +965,7 @@ async function instaCap(outW, outH, label) {
     const link = document.createElement('a');
     const ts   = new Date().toISOString().slice(0,19).replace(/[:T]/g, '-');
     link.download = `f1-${label}-${ts}.png`;
-    link.href = out.toDataURL('image/png');  // PNG é lossless, qualidade máxima
+    link.href = out.toDataURL('image/png');
     link.click();
 
     msg.textContent = '✓ Salvo!';
@@ -915,7 +980,6 @@ async function instaCap(outW, outH, label) {
   overlay.classList.remove('show');
 }
 </script>
-<!-- ═══════════════════════════════════════════════════════ -->
 
 </body>
 </html>

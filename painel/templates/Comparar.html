@@ -399,6 +399,7 @@ const App = () => {
   const [posData,  setPosData]    = useState({});
   const [liderancaData, setLiderancaData] = useState({});
   const [voltasAfetadas, setVoltasAfetadas] = useState(new Set());
+  const [bandeirasMap, setBandeirasMap] = useState({});   // 🆕
   const [deltaLider, setDeltaLider] = useState(null);
   const [periodosChuva, setPeriodosChuva] = useState([]);
 
@@ -468,13 +469,25 @@ const App = () => {
 
       const NORMAIS = new Set(['Verde', 'Nenhum', 'Azul']);
       const afetadas = new Set();
+      const bandMap = {};   // 🆕
       (bandeiras.bandeiras || []).forEach(b => {
         if (NORMAIS.has(b.tipo)) return;
         const ini = b.volta_inicio || 0;
         const fim = b.volta_fim || ini;
-        for (let v = ini; v <= fim; v++) afetadas.add(v);
+        const t = String(b.tipo || '').toUpperCase().trim();
+        let tipo = t;
+        if (t.includes('VIRTUAL') || t === 'VSC')      tipo = 'VSC';
+        else if (t.includes('SAFETY') || t === 'SC')   tipo = 'SC';
+        else if (t.includes('VERMELH'))                tipo = 'VERMELHA';
+        else if (t.includes('AMAREL'))                tipo = 'AMARELA';
+        for (let v = ini; v <= fim; v++){
+           afetadas.add(v);
+           bandMap[v] = tipo;   // 🆕
+        }
+
       });
       setVoltasAfetadas(afetadas);
+      setBandeirasMap(bandMap);   // 🆕
       setPeriodosChuva(clima?.periodos || []);
 
       setLoading(false);
@@ -545,7 +558,7 @@ const App = () => {
               <TrackMap trackName={sessInfo.nome_pista} ref_={ref} comp={comp} />
             </>
           )}
-          {tab === 'individual' && <IndividualView pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} pitData={pitData} danoData={danoData} danoHist={danoHist} trackName={sessInfo.nome_pista} />}
+          {tab === 'individual' && <IndividualView pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} pitData={pitData} danoData={danoData} danoHist={danoHist} bandeirasMap={bandeirasMap} />}
           {tab === 'delta' && <DeltaChart pilotos={pilotos} refIdx={refIdx} cmpIdx={cmpIdx} voltasAfetadas={voltasAfetadas} />}
           {tab === 'performance' && <PerformanceView pilotos={pilotos} tipoSessao={sessInfo.tipo_sessao} danoData={danoData} danoHist={danoHist} posData={posData} liderancaData={liderancaData} voltasAfetadas={voltasAfetadas} deltaLider={deltaLider} periodosChuva={periodosChuva} />}
         </>
@@ -584,9 +597,7 @@ const TrackMap = ({ trackName, height = 280, ref_, comp }) => {
     return () => { cancelado = true; };
   }, [trackName]);
 
-  /* ═══════════════════════════════════════════════════════════════
-     ✅ Pega SÓ o maior segmento (= volta mais completa do líder)
-     ═══════════════════════════════════════════════════════════════ */
+  /* Maior segmento = volta completa */
   const maiorSegmento = useMemo(() => {
     if (!segs || !segs.length) return null;
     let maior = segs[0];
@@ -596,7 +607,6 @@ const TrackMap = ({ trackName, height = 280, ref_, comp }) => {
     return Array.isArray(maior) && maior.length > 0 ? maior : null;
   }, [segs]);
 
-  /* Bounds só do maior segmento */
   const bounds = useMemo(() => {
     if (!maiorSegmento || !maiorSegmento.length) return null;
     let minX = +Infinity, maxX = -Infinity, minZ = +Infinity, maxZ = -Infinity;
@@ -610,7 +620,6 @@ const TrackMap = ({ trackName, height = 280, ref_, comp }) => {
     return { minX, maxX, minZ, maxZ };
   }, [maiorSegmento]);
 
-  /* ── Early returns ── */
   if (segs === null) {
     return (
       <div className="trackmap-wrap">
@@ -635,7 +644,6 @@ const TrackMap = ({ trackName, height = 280, ref_, comp }) => {
     );
   }
 
-  /* ── Escala / conversão world → SVG ── */
   const PAD = 20;
   const W = 1000, H = 500;
   const spanX = (bounds.maxX - bounds.minX) || 1;
@@ -645,7 +653,6 @@ const TrackMap = ({ trackName, height = 280, ref_, comp }) => {
   const offY  = (H - spanZ * scale) / 2 - bounds.minZ * scale;
   const toSVG = (x, z) => [x * scale + offX, z * scale + offY];
 
-  /* ── Divide o MAIOR segmento em 3 setores ── */
   const todosPontos = maiorSegmento;
   const N = todosPontos.length;
   const temComp = ref_ && comp;
@@ -664,16 +671,10 @@ const TrackMap = ({ trackName, height = 280, ref_, comp }) => {
   const idx1 = Math.floor(N / 3);
   const idx2 = Math.floor((2 * N) / 3);
   const partes = [
-    { pontos: todosPontos.slice(0,     idx1), setor: 1, delta: ds1 },
-    { pontos: todosPontos.slice(idx1,  idx2), setor: 2, delta: ds2 },
-    { pontos: todosPontos.slice(idx2),        setor: 3, delta: ds3 },
+    { id: 'S1', pontos: todosPontos.slice(0,    idx1), delta: ds1, refTime: ref_?.avg_s1, compTime: comp?.avg_s1 },
+    { id: 'S2', pontos: todosPontos.slice(idx1, idx2), delta: ds2, refTime: ref_?.avg_s2, compTime: comp?.avg_s2 },
+    { id: 'S3', pontos: todosPontos.slice(idx2),       delta: ds3, refTime: ref_?.avg_s3, compTime: comp?.avg_s3 },
   ];
-
-  const meioSetor = (pontos) => {
-    if (!pontos.length) return null;
-    const p = pontos[Math.floor(pontos.length / 2)];
-    return toSVG(p.x, p.z);
-  };
 
   const pathOf = (pontos) =>
     pontos.length < 2 ? '' :
@@ -684,150 +685,194 @@ const TrackMap = ({ trackName, height = 280, ref_, comp }) => {
 
   const pathGeral = pathOf(todosPontos);
 
-  /* Evita labels sobrepostos: distribui S1/S2/S3 em pontos diferentes */
-  const meioLabel = (idx) => {
-    if (!todosPontos.length) return null;
-    // S1 ≈ 16%, S2 ≈ 50%, S3 ≈ 83% do traçado
-    const pcts = [0.16, 0.50, 0.83];
-    const idx2b = Math.floor(N * pcts[idx]);
-    const p = todosPontos[Math.min(idx2b, N - 1)];
-    return toSVG(p.x, p.z);
-  };
+  const fmt3 = (v) => (typeof v === 'number' && isFinite(v)) ? v.toFixed(3) + 's' : '—';
 
   return (
     <div className="trackmap-wrap">
       <div className="trackmap-title">TRACK MAP · {trackName || '—'}</div>
-      <div className="trackmap-svg-container" style={{ height: `${height}px` }}>
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          preserveAspectRatio="xMidYMid meet"
-          style={{ width: '100%', height: '100%', display: 'block' }}
-        >
-          {/* Sombra */}
-          {pathGeral && (
-            <path
-              d={pathGeral}
-              fill="none"
-              stroke="rgba(255,255,255,0.18)"
-              strokeWidth="26"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
 
-          {/* Linha central por setor */}
-          {partes.map((parte, i) => {
-            const d = pathOf(parte.pontos);
-            if (!d) return null;
-            const cor = temComp ? corSetor(parte.delta) : '#ff6b00';
-            return (
+      <div style={{ display: 'flex', gap: '16px', alignItems: 'stretch' }}>
+        {/* ── Traçado (esquerda) ── */}
+        <div className="trackmap-svg-container" style={{ flex: 1, height: `${height}px` }}>
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            preserveAspectRatio="xMidYMid meet"
+            style={{ width: '100%', height: '100%', display: 'block' }}
+          >
+            {pathGeral && (
               <path
-                key={`linha-${i}`}
-                d={d}
+                d={pathGeral}
                 fill="none"
-                stroke={cor}
-                strokeWidth="5"
+                stroke="rgba(255,255,255,0.18)"
+                strokeWidth="26"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-            );
-          })}
+            )}
 
-          {/* Labels S1/S2/S3 com delta (só no modo comparação) */}
-          {temComp && partes.map((parte, i) => {
-            const meio = meioLabel(i);
-            if (!meio) return null;
-            const [mx, my] = meio;
-            const cor = corSetor(parte.delta);
-            const deltaTxt = parte.delta === null ? '—'
-              : parte.delta > 0.005 ? `+${parte.delta.toFixed(3)}s`
-              : parte.delta < -0.005 ? `${parte.delta.toFixed(3)}s`
-              : '0.000s';
-            return (
-              <g key={`label-${i}`}>
-                <rect
-                  x={mx - 44} y={my - 18}
-                  width="88" height="36"
-                  rx="6"
-                  fill="rgba(10,12,20,0.9)"
+            {partes.map((parte, i) => {
+              const d = pathOf(parte.pontos);
+              if (!d) return null;
+              const cor = temComp ? corSetor(parte.delta) : '#ff6b00';
+              return (
+                <path
+                  key={`linha-${i}`}
+                  d={d}
+                  fill="none"
                   stroke={cor}
-                  strokeWidth="2"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
-                <text
-                  x={mx} y={my - 3}
-                  fill={cor}
-                  fontSize="13"
-                  fontWeight="800"
-                  textAnchor="middle"
-                  fontFamily="Orbitron, monospace"
-                  letterSpacing="1"
-                >
-                  S{parte.setor}
-                </text>
-                <text
-                  x={mx} y={my + 12}
-                  fill="#fff"
-                  fontSize="10"
-                  fontWeight="700"
-                  textAnchor="middle"
-                  fontFamily="Orbitron, monospace"
-                >
-                  {deltaTxt}
-                </text>
-              </g>
-            );
-          })}
+              );
+            })}
 
-          {/* START */}
-          {todosPontos.length > 0 && (() => {
-            const [sx, sy] = toSVG(todosPontos[0].x, todosPontos[0].z);
-            return (
-              <>
-                <circle cx={sx} cy={sy} r="9" fill="#00e87a" stroke="#000" strokeWidth="3" />
-                <text
-                  x={sx} y={sy + 30}
-                  fill="#00e87a"
-                  fontSize="20"
-                  fontWeight="800"
-                  textAnchor="middle"
-                  fontFamily="Orbitron, monospace"
-                  letterSpacing="2"
-                >
-                  START
-                </text>
-              </>
-            );
-          })()}
-        </svg>
-      </div>
-
-      {temComp && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '20px',
-          marginTop: '12px',
-          fontSize: '11px',
-          color: 'var(--muted)',
-          flexWrap: 'wrap',
-        }}>
-          <span style={{display:'flex', alignItems:'center', gap:'6px'}}>
-            <span style={{ display:'inline-block', width: 10, height: 10, background: '#e10600', borderRadius: 2 }}/>
-            {comp.nome} ganhou
-          </span>
-          <span style={{display:'flex', alignItems:'center', gap:'6px'}}>
-            <span style={{ display:'inline-block', width: 10, height: 10, background: '#0090d0', borderRadius: 2 }}/>
-            {ref_.nome} ganhou
-          </span>
-          <span style={{display:'flex', alignItems:'center', gap:'6px'}}>
-            <span style={{ display:'inline-block', width: 10, height: 10, background: '#ff6b00', borderRadius: 2 }}/>
-            Empate / sem dado
-          </span>
-          <span style={{color: '#00c8ff', marginLeft: '12px', fontWeight: 600}}>
-            ⚠ Setores aproximados por terço de traçado
-          </span>
+            {/* START */}
+            {todosPontos.length > 0 && (() => {
+              const [sx, sy] = toSVG(todosPontos[0].x, todosPontos[0].z);
+              return (
+                <>
+                  <circle cx={sx} cy={sy} r="9" fill="#00e87a" stroke="#000" strokeWidth="3" />
+                  <text
+                    x={sx} y={sy + 30}
+                    fill="#00e87a"
+                    fontSize="20"
+                    fontWeight="800"
+                    textAnchor="middle"
+                    fontFamily="Orbitron, monospace"
+                    letterSpacing="2"
+                  >
+                    START
+                  </text>
+                </>
+              );
+            })()}
+          </svg>
         </div>
-      )}
+
+        {/* ── Painel de setores (direita) ── */}
+        {temComp && (
+          <div style={{
+            width: '230px',
+            flexShrink: 0,
+            background: 'rgba(10,12,20,0.6)',
+            border: '1px solid var(--border2)',
+            borderRadius: '8px',
+            padding: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}>
+            <div style={{
+              fontFamily: 'Orbitron, monospace',
+              fontSize: '11px',
+              fontWeight: 800,
+              color: 'var(--cyan)',
+              letterSpacing: '1.5px',
+              textAlign: 'center',
+              paddingBottom: '8px',
+              borderBottom: '1px solid var(--border)',
+            }}>
+              SETORES
+            </div>
+
+            {partes.map((parte) => {
+              const cor = corSetor(parte.delta);
+              const vencedor = parte.delta === null ? '—'
+                : parte.delta > 0.005 ? ref_?.nome
+                : parte.delta < -0.005 ? comp?.nome
+                : 'Empate';
+              const deltaTxt = parte.delta === null ? '—'
+                : (parte.delta >= 0 ? '+' : '') + parte.delta.toFixed(3) + 's';
+
+              return (
+                <div key={parte.id} style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${cor}60`,
+                  borderLeft: `4px solid ${cor}`,
+                  borderRadius: '6px',
+                  padding: '10px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}>
+                    <span style={{
+                      fontFamily: 'Orbitron, monospace',
+                      fontSize: '14px',
+                      fontWeight: 900,
+                      color: cor,
+                      letterSpacing: '1px',
+                    }}>{parte.id}</span>
+                    <span style={{
+                      fontFamily: 'Orbitron, monospace',
+                      fontSize: '13px',
+                      fontWeight: 900,
+                      color: cor,
+                    }}>{deltaTxt}</span>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '10px',
+                    color: 'var(--muted)',
+                    fontFamily: 'Orbitron, monospace',
+                  }}>
+                    <span style={{color:'#0090d0'}}>{fmt3(parte.refTime)}</span>
+                    <span style={{color:'#e10600'}}>{fmt3(parte.compTime)}</span>
+                  </div>
+
+                  <div style={{
+                    fontSize: '10px',
+                    color: cor,
+                    fontWeight: 800,
+                    textAlign: 'center',
+                    paddingTop: '3px',
+                    borderTop: '1px dashed rgba(255,255,255,0.06)',
+                    letterSpacing: '.3px',
+                  }}>
+                    {vencedor === '—' ? '—' : `${vencedor} ganhou`}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div style={{
+              marginTop: 'auto',
+              paddingTop: '10px',
+              borderTop: '1px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              fontSize: '10px',
+              color: 'var(--muted)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ display:'inline-block', width: 8, height: 8, background: '#0090d0', borderRadius: 2 }}/>
+                {ref_?.nome}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ display:'inline-block', width: 8, height: 8, background: '#e10600', borderRadius: 2 }}/>
+                {comp?.nome}
+              </div>
+              <div style={{
+                color: '#00c8ff',
+                fontWeight: 600,
+                marginTop: '4px',
+                fontSize: '9px',
+                lineHeight: 1.4,
+              }}>
+                ⚠ Setores aproximados por terço de traçado
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -1168,11 +1213,59 @@ const MetricRow = ({label,valA,valB,wA,wB,fmt:fmtVal})=>{
   );
 };
 
-const IndividualView = ({pilotos, refIdx, cmpIdx, pitData, danoData, danoHist, trackName}) => {
+const IndividualView = ({pilotos, refIdx, cmpIdx, pitData, danoData, danoHist,bandeirasMap = {}}) => {
   const ref  = pilotos[refIdx];
   const comp = pilotos[cmpIdx];
   if (!ref || !comp) return null;
-
+  // 🆕 ícone de bandeira (SC/VSC) pra mostrar na frente da volta
+  const renderFlagIcon = (lap) => {
+    const tipo = bandeirasMap[lap];
+    if (!tipo) return null;
+    if (tipo === 'VSC') {
+      return (
+        <span title={`Virtual Safety Car na volta ${lap}`}
+          style={{
+            display:'inline-flex', alignItems:'center',
+            padding:'1px 5px', borderRadius:'3px',
+            background:'#ffd40025', border:'1px solid #ffd400',
+            color:'#ffd400', fontSize:'9px', fontWeight:900,
+            marginRight:'4px', letterSpacing:'.3px',
+          }}>
+          🟡 VSC
+        </span>
+      );
+    }
+    if (tipo === 'SC') {
+      return (
+        <span title={`Safety Car na volta ${lap}`}
+          style={{
+            display:'inline-flex', alignItems:'center',
+            padding:'1px 5px', borderRadius:'3px',
+            background:'#ff8c0025', border:'1px solid #ff8c00',
+            color:'#ff8c00', fontSize:'9px', fontWeight:900,
+            marginRight:'4px', letterSpacing:'.3px',
+          }}>
+          🚨 SC
+        </span>
+      );
+    }
+    if (tipo === 'VERMELHA' || tipo === 'AMARELA') {
+      const cor = tipo === 'VERMELHA' ? '#e10600' : '#ffd400';
+      return (
+        <span title={`Bandeira ${tipo.toLowerCase()} na volta ${lap}`}
+          style={{
+            display:'inline-flex', alignItems:'center',
+            padding:'1px 5px', borderRadius:'3px',
+            background:`${cor}25`, border:`1px solid ${cor}`,
+            color:cor, fontSize:'9px', fontWeight:900,
+            marginRight:'4px', letterSpacing:'.3px',
+          }}>
+          🚩 {tipo === 'VERMELHA' ? 'VERM' : 'AMAR'}
+        </span>
+      );
+    }
+    return null;
+  };
   const refMap  = {};
   const compMap = {};
   (ref.voltas  || []).forEach(v => { refMap[v.n]  = v; });
@@ -1430,7 +1523,12 @@ const IndividualView = ({pilotos, refIdx, cmpIdx, pitData, danoData, danoHist, t
 
               return (
                 <tr key={lap} style={{background:(isRefBest||isCompBest)?'rgba(255,192,0,0.06)':'transparent'}}>
-                  <td style={{textAlign:'center',fontFamily:'Rajdhani,sans-serif',fontWeight:'700',color:'var(--label)'}}>
+                                    <td style={{
+                    textAlign:'center',fontFamily:'Rajdhani,sans-serif',fontWeight:'700',
+                    color: bandeirasMap[lap] ? '#ffd400' : 'var(--label)',
+                    background: bandeirasMap[lap] ? 'rgba(255,212,0,0.05)' : 'transparent',
+                  }}>
+                    {renderFlagIcon(lap)}
                     V{lap}
                   </td>
                   <td style={{color:isRefBest?'var(--yellow)':'var(--text)',fontWeight:isRefBest?'700':'400'}}>
@@ -1461,7 +1559,7 @@ const IndividualView = ({pilotos, refIdx, cmpIdx, pitData, danoData, danoHist, t
         <span style={{fontSize:'11px',color:'var(--muted)'}}>🔧 = dano ativo nessa volta (some quando pit repara)</span>
       </div>
 
-      <TrackMap trackName={trackName} ref_={ref} comp={comp} />
+      
 
       {(refImpact || compImpact) && (
         <div className="dmg-impact-panel">
@@ -1524,9 +1622,9 @@ const DeltaChart = ({ pilotos, refIdx, cmpIdx, voltasAfetadas }) => {
   }, [pilotos, voltasAfetadas]);
 
   const SECTORS = [
-    { keyBest: 'best_s1', keyAvg: '_avg_s1_filt', label: 'Sector 1', sub: 'Curvas lentas',    color: '#0090d0' },
-    { keyBest: 'best_s2', keyAvg: '_avg_s2_filt', label: 'Sector 2', sub: 'Curvas médias',    color: '#00e87a' },
-    { keyBest: 'best_s3', keyAvg: '_avg_s3_filt', label: 'Sector 3', sub: 'Retas / alta vel', color: '#ffc000' },
+    { keyBest: 'best_s1', keyAvg: '_avg_s1_filt', label: 'Sector 1', sub: '',    color: '#0090d0' },
+    { keyBest: 'best_s2', keyAvg: '_avg_s2_filt', label: 'Sector 2', sub: '',    color: '#00e87a' },
+    { keyBest: 'best_s3', keyAvg: '_avg_s3_filt', label: 'Sector 3', sub: '', color: '#ffc000' },
   ];
 
   return (
@@ -1752,11 +1850,18 @@ const DeltaChart = ({ pilotos, refIdx, cmpIdx, voltasAfetadas }) => {
                     display: 'flex', flexDirection: 'column',
                     alignItems: 'center', gap: '2px',
                   }}>
-                    <span style={{
-                      fontSize: '11px', fontWeight: 900,
-                      letterSpacing: '0.5px',
-                      color: semDado ? 'var(--muted)' : (isBest ? '#fff' : d.cor),
-                    }}>{d.code}</span>
+                    <span
+                    title={d.nome}
+                    style={{
+                 fontSize: '11px',
+                 fontWeight: 900,
+                  letterSpacing: '0.5px',
+                   color: semDado ? 'var(--muted)' : (isBest ? '#fff' : d.cor),
+                   cursor: 'help',
+                       }}
+                   >
+                  {d.code}
+                   </span>
 
                     <span style={{
                       fontSize: '10px',

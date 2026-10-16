@@ -278,6 +278,7 @@ def dados_completos(sessao_id):
         "sessao": voltas.get("sessao", {}) if voltas else {}
     })
 
+
 # ========== ENDPOINTS ==========
 
 @app.route("/dados_voltas")
@@ -1336,6 +1337,7 @@ def api_mapa_posicoes():
             "session_bests": {},
             "erro": str(e),
         })
+
 @app.route("/debug_map")
 def debug_map():
     import dados.map_performance as m
@@ -1401,6 +1403,14 @@ def dados_stints(sessao_id):
 
 
 def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
+    """
+    Retorna todos os stints de uma sessão COM os dados de desgaste do jogo.
+
+    Lógica:
+    - Cada stint usa o PRÓPRIO desgaste_inicio_* (começo) e desgaste_fim_* (fim).
+    - Se desgaste_fim_* for 0 e for o ÚLTIMO stint, usa `pneus.desgaste_*` (live).
+    - Por_volta = (fim - inicio) / total_voltas
+    """
     try:
         cur.execute("""
             SELECT MIN(id) as id, nome, numero, MAX(posicao) as posicao
@@ -1411,27 +1421,110 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
         """, (sessao_id,))
         pilotos = [dict(r) for r in cur.fetchall()]
 
+        # Detecta se a tabela pneu_stints tem as colunas de desgaste
+        cur.execute("PRAGMA table_info(pneu_stints)")
+        _cols = [c[1] for c in cur.fetchall()]
+        tem_desgaste = all(k in _cols for k in (
+            "desgaste_inicio_rl", "desgaste_inicio_rr",
+            "desgaste_inicio_fl", "desgaste_inicio_fr",
+            "desgaste_fim_rl",    "desgaste_fim_rr",
+            "desgaste_fim_fl",    "desgaste_fim_fr",
+        ))
+
         dados = []
         for p in pilotos:
             piloto_id = p.get("id")
             nome = p.get("nome", "Desconhecido")
 
+            # 🆕 Busca o desgaste ATUAL do piloto na tabela pneus (live).
+            #    Serve de fallback pro ÚLTIMO stint (que ainda não fechou).
             cur.execute("""
-                SELECT stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas
-                FROM pneu_stints
+                SELECT desgaste_RL, desgaste_RR, desgaste_FL, desgaste_FR
+                FROM pneus
                 WHERE sessao_id = ? AND piloto_id = ?
-                ORDER BY stint_numero
+                ORDER BY id DESC LIMIT 1
             """, (sessao_id, piloto_id))
+            pneu_row = cur.fetchone()
+            desgaste_atual = [0.0, 0.0, 0.0, 0.0]
+            if pneu_row:
+                desgaste_atual = [
+                    float(pneu_row[0] or 0),
+                    float(pneu_row[1] or 0),
+                    float(pneu_row[2] or 0),
+                    float(pneu_row[3] or 0),
+                ]
+            desgaste_atual_med = sum(desgaste_atual) / 4.0
+
+            # Busca os stints do piloto
+            if tem_desgaste:
+                cur.execute("""
+                    SELECT stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas,
+                           desgaste_inicio_rl, desgaste_inicio_rr,
+                           desgaste_inicio_fl, desgaste_inicio_fr,
+                           desgaste_fim_rl,    desgaste_fim_rr,
+                           desgaste_fim_fl,    desgaste_fim_fr
+                    FROM pneu_stints
+                    WHERE sessao_id = ? AND piloto_id = ?
+                    ORDER BY stint_numero
+                """, (sessao_id, piloto_id))
+            else:
+                cur.execute("""
+                    SELECT stint_numero, tipo_pneu, volta_inicio, volta_fim, total_voltas
+                    FROM pneu_stints
+                    WHERE sessao_id = ? AND piloto_id = ?
+                    ORDER BY stint_numero
+                """, (sessao_id, piloto_id))
+
+            stints_list = [dict(s) for s in cur.fetchall()]
+            stints_list.sort(key=lambda x: x.get("stint_numero", 0))
 
             stints = []
-            for s in cur.fetchall():
-                stints.append({
-                    "stint_numero": s["stint_numero"],
-                    "tipo_pneu": s["tipo_pneu"],
-                    "volta_inicio": s["volta_inicio"],
-                    "volta_fim": s["volta_fim"],
-                    "total_voltas": s["total_voltas"]
-                })
+            total_stints = len(stints_list)
+
+            for idx, row in enumerate(stints_list):
+                if not tem_desgaste:
+                    stints.append(row)
+                    continue
+
+                # ── 1) INÍCIO do stint ────────────────────────
+                ini = [
+                    float(row.get("desgaste_inicio_rl") or 0),
+                    float(row.get("desgaste_inicio_rr") or 0),
+                    float(row.get("desgaste_inicio_fl") or 0),
+                    float(row.get("desgaste_inicio_fr") or 0),
+                ]
+                ini_med = sum(ini) / 4.0
+
+                # ── 2) FIM do stint (por padrão, o próprio stint) ──
+                fim = [
+                    float(row.get("desgaste_fim_rl") or 0),
+                    float(row.get("desgaste_fim_rr") or 0),
+                    float(row.get("desgaste_fim_fl") or 0),
+                    float(row.get("desgaste_fim_fr") or 0),
+                ]
+                fim_med = sum(fim) / 4.0
+
+                # ── 3) Fallback: ÚLTIMO stint sem fim → usa `pneus` live ──
+                if fim_med == 0 and idx == total_stints - 1 and desgaste_atual_med > 0:
+                    fim = desgaste_atual
+                    fim_med = desgaste_atual_med
+
+                # ── 4) Cálculo ────────────────────────────────
+                total = row.get("total_voltas") or 0
+
+                # Se ini for 0 (sessão antiga), assume pneu novo (0% no início)
+                if total > 0 and fim_med > 0:
+                    por_volta = round((fim_med - ini_med) / total, 3)
+                else:
+                    por_volta = 0
+
+                row["desgaste_inicio"]        = ini
+                row["desgaste_fim"]           = fim
+                row["desgaste_medio_inicio"]  = round(ini_med, 2)
+                row["desgaste_medio_fim"]     = round(fim_med, 2)
+                row["desgaste_por_volta"]     = por_volta
+
+                stints.append(row)
 
             dados.append({
                 "nome": nome,
@@ -1441,16 +1534,13 @@ def _dados_stints_por_sessao(cur, sessao_id, sessao_info):
             })
 
         cur.connection.close()
-
-        return jsonify({
-            "sessao": sessao_info,
-            "pilotos": dados
-        })
+        return jsonify({"sessao": sessao_info, "pilotos": dados})
 
     except Exception as e:
+        import traceback; traceback.print_exc()
         print(f"Erro _dados_stints_por_sessao: {e}")
         return jsonify({"sessao": {}, "pilotos": []})
-    
+
 @app.route("/dados_setups/<int:sessao_id>")
 def dados_setups(sessao_id):
     try:
@@ -2270,6 +2360,7 @@ def api_danos_por_volta(sessao_id):
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"pilotos": [], "erro": str(e)}), 500
+
 @app.route("/api/clima_por_volta/<int:sessao_id>")
 def api_clima_por_volta(sessao_id):
     try:
@@ -2372,6 +2463,7 @@ def api_clima_por_volta(sessao_id):
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"periodos": [], "max_volta": 0, "erro": str(e)}), 500
+
 def _garantir_tabela_tracados():
     """
     Cria a tabela `tracados` se não existir.
@@ -2412,6 +2504,7 @@ def _garantir_tabela_tracados():
 
 # Roda no startup e guarda o resultado numa flag global
 TRACADOS_OK = _garantir_tabela_tracados()
+
 @app.route("/api/tracados", methods=["GET"])
 def listar_tracados():
     """Lista todos os traçados salvos (só metadados, sem os pontos)."""
@@ -2606,6 +2699,78 @@ def deletar_tracado(track_key):
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "erro": str(e)}), 500
+
+@app.route("/api/pneu_por_volta/<int:sessao_id>")
+def api_pneu_por_volta(sessao_id):
+    """
+    Retorna o desgaste do pneu a cada volta, por piloto.
+    Usado no pit_stop.html pra desenhar a curva de degradação.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        # Verifica se a tabela existe
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pneu_por_volta'")
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({
+                "pilotos": [],
+                "aviso": "Tabela pneu_por_volta ainda não existe. Reinicie o main.py pra criar."
+            })
+
+        # Lista os pilotos da sessão
+        cur.execute("""
+            SELECT MIN(p.id) as pid, p.nome, MAX(p.posicao) as posicao
+            FROM pilotos p
+            WHERE p.sessao_id = ?
+            GROUP BY p.nome
+            ORDER BY posicao
+        """, (sessao_id,))
+        pilotos = [dict(r) for r in cur.fetchall()]
+
+        resultado = []
+        for p in pilotos:
+            cur.execute("""
+                SELECT numero_volta, stint_numero, tipo_pneu, idade_pneu,
+                       desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr,
+                       desgaste_medio
+                FROM pneu_por_volta
+                WHERE sessao_id = ? AND piloto_id = ?
+                ORDER BY numero_volta
+            """, (sessao_id, p["pid"]))
+            voltas = [dict(r) for r in cur.fetchall()]
+
+            resultado.append({
+                "nome":    p["nome"],
+                "posicao": p["posicao"],
+                "voltas":  voltas,
+            })
+
+        conn.close()
+        return jsonify({"pilotos": resultado})
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"pilotos": [], "erro": str(e)}), 500
+@app.route("/api/pneu_por_volta_ultimo")
+def api_pneu_por_volta_ultimo():
+    """Igual ao /api/pneu_por_volta/<id>, mas usa a última sessão automaticamente."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        conn.execute("PRAGMA journal_mode=WAL")
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM sessoes ORDER BY id DESC LIMIT 1")
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            return jsonify({"pilotos": []})
+        return api_pneu_por_volta(row[0])
+    except Exception as e:
+        print(f"Erro pneu_por_volta_ultimo: {e}")
+        return jsonify({"pilotos": []})
 if __name__ == "__main__":
     print(f"[INFO] STATIC_PATH: {STATIC_PATH}")
     print()
