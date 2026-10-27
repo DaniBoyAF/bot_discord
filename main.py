@@ -874,42 +874,46 @@ async def volta_salvar(bot):
 
                     # pneus (foto atual)
                     tyre_wear = getattr(j, 'tyre_wear', [0, 0, 0, 0]) or [0, 0, 0, 0]
-                    if isinstance(tyre_wear, tuple):
-                        tyre_wear = list(tyre_wear)
-                    while len(tyre_wear) < 4:
-                        tyre_wear.append(0)
+                    if isinstance(tyre_wear, tuple): tyre_wear = list(tyre_wear)
+                    while len(tyre_wear) < 4: tyre_wear.append(0)
+                    
                     temp_inner = getattr(j, 'tyres_temp_inner', [0, 0, 0, 0]) or [0, 0, 0, 0]
-                    if isinstance(temp_inner, tuple):
-                        temp_inner = list(temp_inner)
-                    while len(temp_inner) < 4:
-                        temp_inner.append(0)
+                    if isinstance(temp_inner, tuple): temp_inner = list(temp_inner)
+                    while len(temp_inner) < 4: temp_inner.append(0)
+                    
                     temp_surface = getattr(j, 'tyres_temp_surface', [0, 0, 0, 0]) or [0, 0, 0, 0]
-                    if isinstance(temp_surface, tuple):
-                        temp_surface = list(temp_surface)
-                    while len(temp_surface) < 4:
-                        temp_surface.append(0)
+                    if isinstance(temp_surface, tuple): temp_surface = list(temp_surface)
+                    while len(temp_surface) < 4: temp_surface.append(0)
+                    
                     pit_count = pit_quant.get(nome, 0)
                     _composto_raw = getattr(j, 'tyres', 0)
+                    
                     if _composto_raw and _composto_raw != 0:
+                        # 🆕 Pega os blisters DENTRO do if
+                        blisters = getattr(j, 'tyre_blisters', [0, 0, 0, 0]) or [0, 0, 0, 0]
+                        if isinstance(blisters, tuple): blisters = list(blisters)
+                        while len(blisters) < 4: blisters.append(0)
+
                         try:
                             cursor.execute('''
                                 INSERT OR REPLACE INTO pneus (sessao_id, piloto_id, tipo_pneu, idade_voltas,
                                             desgaste_RL, desgaste_RR, desgaste_FL, desgaste_FR,
+                                            blister_rl, blister_rr, blister_fl, blister_fr,
                                             temp_interna_RL, temp_interna_RR, temp_interna_FL, temp_interna_FR,
                                             temp_superficie_RL, temp_superficie_RR, temp_superficie_FL, temp_superficie_FR,
                                             vida_util, tyre_set_data, lap_delta_time, pit_stops, timestamp)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ''', (sessao_id_atual, piloto_id,
                                   tyres_nomes.get(_composto_raw, 'Desconhecido'),
                                   getattr(j, 'tyresAgeLaps', 0),
                                   tyre_wear[0], tyre_wear[1], tyre_wear[2], tyre_wear[3],
+                                  blisters[0], blisters[1], blisters[2], blisters[3],
                                   temp_inner[0], temp_inner[1], temp_inner[2], temp_inner[3],
                                   temp_surface[0], temp_surface[1], temp_surface[2], temp_surface[3],
                                   getattr(j, 'tyre_life', 100),
                                   getattr(j, 'tyre_set_data', 0),
                                   getattr(j, 'm_lap_delta_time', 0),
-                                  pit_count,
-                                  time.time()))
+                                  pit_count, time.time()))
                         except Exception as e:
                             print("Erro insert pneus:", e)
 
@@ -1046,12 +1050,6 @@ async def volta_salvar(bot):
                                 and not piloto_no_pit
                             )
 
-                            # ═══════════════════════════════════════════════════
-                            # 🆕 FIX: Se é o PRIMEIRO stint do piloto (não tem no cache),
-                            #         força volta_inicio = 1 em vez de volta_atual.
-                            #         O parser pode ter acordado na V4, mas o pneu
-                            #         na verdade tava desde a V1.
-                            # ═══════════════════════════════════════════════════
                             _primeiro_stint_do_piloto = (
                                 current_stint_num == 1
                                 and chave_stint not in ultimo_pneu_por_piloto
@@ -1103,7 +1101,6 @@ async def volta_salvar(bot):
                                     print("Erro insert novo stint:", e)
 
                             else:
-                                # Verifica se o pneu já mudou mas ainda está no pit → NÃO atualiza
                                 _pneu_stint_atual = ultimo_pneu_por_piloto.get(chave_stint, {}).get('pneu', None)
                                 _pneu_ja_trocou_no_pit = (
                                     _pneu_stint_atual is not None
@@ -1112,7 +1109,7 @@ async def volta_salvar(bot):
                                 )
 
                                 if _pneu_ja_trocou_no_pit:
-                                    pass  # não envenena o cache com pneu novo
+                                    pass
                                 else:
                                     if chave_stint in ultimo_pneu_por_piloto:
                                         ultimo_pneu_por_piloto[chave_stint]['desgaste_atual'] = (desgaste_rl, desgaste_rr, desgaste_fl, desgaste_fr)
@@ -1136,7 +1133,6 @@ async def volta_salvar(bot):
                                             print("Erro update stint existente:", e)
                                     else:
                                         try:
-                                            # 🆕 USA _volta_inicio_stint
                                             cursor.execute('''
                                                 INSERT INTO pneu_stints
                                                 (sessao_id,piloto_id,piloto_nome,stint_numero,tipo_pneu,volta_inicio,volta_fim,total_voltas,
@@ -1183,6 +1179,24 @@ async def volta_salvar(bot):
                                   _desg_medio, time.time()))
                     except Exception as e:
                         print("Erro insert pneu_por_volta:", e)
+
+                    # 🆕 Salvar Punições (DENTRO DO LOOP DOS PILOTOS)
+                    try:
+                        hist_pen = getattr(j, "historico_penalidades", [])
+                        for p_ev in hist_pen:
+                            cursor.execute('''
+                                INSERT INTO penalidades
+                                (sessao_id, piloto_id, piloto_nome, volta, tipo_id, tipo_str, tempo, timestamp)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ''', (sessao_id_atual, piloto_id, nome,
+                                  p_ev.get('volta', 0), p_ev.get('tipo_id', 0),
+                                  p_ev.get('tipo_str', '—'), p_ev.get('tempo', 0),
+                                  p_ev.get('timestamp', 0)))
+                        
+                        if hist_pen:
+                            j.historico_penalidades = []
+                    except Exception as e:
+                        print("Erro salvar penalidades:", e)
 
                 except Exception as e:
                     print(f"❌ Erro ao processar piloto {nome}: {e}")
@@ -1516,7 +1530,20 @@ def criar_tabelas():
         UNIQUE(sessao_id, piloto_id, numero_volta)
     )
     ''')
-
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS penalidades (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sessao_id INTEGER,
+        piloto_id INTEGER,
+        piloto_nome TEXT,
+        volta INTEGER,
+        tipo_id INTEGER,
+        tipo_str TEXT,
+        tempo REAL,
+        timestamp REAL,
+        FOREIGN KEY (sessao_id) REFERENCES sessoes(id)
+    )
+    ''')
     conn.commit()
     conn.close()
 
@@ -1653,7 +1680,28 @@ def migrar_bandeiras():
         print(f"Erro migrar_bandeiras: {e}")
 
 migrar_bandeiras()
+def migrar_blisters():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute('PRAGMA table_info(pneus)')
+        cols = [r[1] for r in cur.fetchall()]
+        
+        novos = {
+            'blister_rl': 'REAL DEFAULT 0',
+            'blister_rr': 'REAL DEFAULT 0',
+            'blister_fl': 'REAL DEFAULT 0',
+            'blister_fr': 'REAL DEFAULT 0'
+        }
+        for col, tipo in novos.items():
+            if col not in cols:
+                cur.execute(f'ALTER TABLE pneus ADD COLUMN {col} {tipo}')
+                print(f'Migration: {col} adicionada em pneus')
+        conn.commit(); conn.close()
+    except Exception as e:
+        print(f'Erro migrar_blisters: {e}')
 
+migrar_blisters() # Chame essa função logo após criar_tabelas()
 # 🆕 Controle de estado atual de bandeira/safety car por sessão
 estado_bandeira_atual = {}
 estado_safety_atual = {}

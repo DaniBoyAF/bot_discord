@@ -92,7 +92,7 @@ class Player:
         self.punicao_type = 0
         self.punicao_lap = 0
         self.punicao_points = 0
-
+        self.historico_penalidades = []
     def __str__(self):
         return self.name + str(self.position)
 

@@ -84,36 +84,51 @@ track_dictionary = { #(track name, highNumber=Small on canvas, x_offset, y_offse
     41:("zandvoort R", 2, 400, 300),
 }
 
+
 teams_color_dictionary = {
     -1: "#FFFFFF",
-    0: "#00C7CD",
-    1: "#FF0000",
-    2: "#0000FF",
-    3: "#5097FF",
-    4: "#00902A",
-    5: "#009BFF",
-    6: "#00446F",
-    7: "#95ACBB",
-    8: "#FFAE00",
-    9: "#980404",
-    41:"#000000",
+    # F1 2024/2025 (IDs antigos)
+    0: "#00C7CD",  # Mercedes
+    1: "#FF0000",  # Ferrari
+    2: "#0000FF",  # Red Bull
+    3: "#5097FF",  # Williams
+    4: "#00902A",  # Aston Martin
+    5: "#009BFF",  # Alpine
+    6: "#00446F",  # AlphaTauri / RB
+    7: "#95ACBB",  # Haas
+    8: "#FFAE00",  # McLaren
+    9: "#980404",  # Alfa Romeo / Sauber
+    # F1 2025/2026 (novos IDs)
+    220: "#27F4D2",  # Mercedes
+    221: "#E8002D",  # Ferrari
+    222: "#3671C6",  # Red Bull
+    223: "#64C4FF",  # Williams
+    224: "#229971",  # Aston Martin
+    225: "#FF87BC",  # Alpine
+    226: "#6692FF",  # RB / Racing Bulls
+    227: "#B6BABD",  # Haas
+    228: "#FF8000",  # McLaren
+    229: "#52E252",  # Kick Sauber / Audi
+    230: "#003087",  # Cadillac (novo)
+    # F2 2024
+    41: "#000000",
+    104: "#009FE3",
+    44: "#1E5BC6",
+    10: "#002F6C",
+    11: "#E6007E",
+    12: "#122B7A",
+    13: "#1A1A1A",
+    14: "#DC0000",
+    15: "#FFD800",
+    16: "#0080FF",
+    17: "#7C4DFF",
+    18: "#E91E63",
     255: "#670498",
-    104: "#009FE3", # MP Motorsport      — azul
-    255: "#FF6B00", # Van Amersfoort     — laranja
-    44:  "#1E5BC6", # Carlin             — azul médio
-    10:  "#002F6C", # DAMS               — azul escuro
-    11:  "#E6007E", # Virtuosi           — magenta
-    12:  "#122B7A", # Campos             — azul escuro
-    13:  "#1A1A1A", # Charouz            — preto
-    14:  "#DC0000", # PREMA              — vermelho
-    15:  "#FFD800", # ART Grand Prix     — amarelo
-    16:  "#0080FF", # Trident            — azul
-    17:  "#7C4DFF", # Hitech             — roxo
-    18:  "#E91E63", # PHM Racing         — rosa/vermelho
 }
 
 teams_name_dictionary = {
     -1: "Unknown",
+    # IDs antigos (F1 2024)
     0: "Mercedes",
     1: "Ferrari",
     2: "Red Bull",
@@ -124,7 +139,20 @@ teams_name_dictionary = {
     7: "Haas",
     8: "McLaren",
     9: "Alfa Romeo",
+    # Novos IDs (F1 25/26)
+    220: "Mercedes",
+    221: "Ferrari",
+    222: "Red Bull",
+    223: "Williams",
+    224: "Aston Martin",
+    225: "Alpine",
+    226: "RB",
+    227: "Haas",
+    228: "McLaren",
+    229: "Sauber",
+    230: "Cadillac",
     # F2 2024
+    41: "Multi",
     104: "MP Motorsport",
     255: "Van Amersfoort",
     44: "Carlin",
@@ -137,9 +165,7 @@ teams_name_dictionary = {
     16: "Trident",
     17: "Hitech",
     18: "PHM Racing",
-    41:"Multi",
 }
-
 weather_dictionary = {
     0: "☀️ Clear",
     1: "🌥️ Light Cloud",

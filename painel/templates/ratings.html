@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Driver Ratings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;700;900&display=swap');
+        body { background: #0a0a0a; font-family: 'Titillium Web', sans-serif; color: white; min-height: 100vh;}
+        
+        .rating-card {
+            background: linear-gradient(135deg, #1a1a1a 0%, #000 100%);
+            border: 1px solid #333;
+            position: relative;
+            width: 220px;
+            height: 320px;
+            overflow: hidden;
+            clip-path: polygon(0 0, 100% 0, 100% 85%, 85% 100%, 0 100%);
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .rating-card:hover { transform: translateY(-5px); z-index: 10; box-shadow: 0 8px 25px rgba(0,0,0,0.8); }
+        
+        .ovr-badge {
+            font-size: 3.5rem; font-weight: 900; line-height: 1; margin: 15px 0 0 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .driver-name {
+            font-size: 1.3rem; font-weight: 900; text-transform: uppercase; margin-left: 15px; margin-top: 5px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .driver-team { font-size: 0.75rem; color: #aaa; margin-left: 15px; text-transform: uppercase; letter-spacing: 1px;}
+        
+        .stats-grid {
+            position: absolute; bottom: 20px; left: 15px; right: 15px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+        }
+        .stat-box {
+            background: rgba(0,0,0,0.8); border-left: 3px solid; padding: 6px 10px;
+            display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 0.9rem;
+            cursor: help; transition: background 0.2s;
+        }
+        .stat-box:hover { background: rgba(255,255,255,0.1); }
+        
+        .card-bg-effect {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at top right, rgba(255,255,255,0.05) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .hof-card {
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid #333;
+            border-top: 4px solid;
+            border-radius: 8px;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-7xl mx-auto">
+        
+        <div class="flex flex-wrap justify-between items-center mb-8 border-b border-gray-700 pb-4 gap-4">
+            <h1 class="text-4xl font-black italic tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-gray-200 to-gray-500">
+                OFFICIAL DRIVER RATINGS
+            </h1>
+            <div class="flex items-center gap-4">
+                <label class="text-gray-400 font-bold text-sm uppercase">Temporada:</label>
+                <select id="sel-temp-rating" class="bg-gray-900 text-white p-2 border border-gray-600 rounded font-bold outline-none focus:border-red-500" onchange="calcularRatings()">
+                    <option value="">Carregando...</option>
+                </select>
+                <a href="/" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-bold text-sm text-white transition">Voltar</a>
+            </div>
+        </div>
+
+        <!-- HALL DA FAMA -->
+        <div id="hall-of-fame" class="hidden mb-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+        
+        <div id="loading-msg" class="text-center text-gray-500 text-xl font-bold mt-20 hidden">
+            Calculando notas... Aguarde.
+        </div>
+        <div id="empty-msg" class="text-center text-red-500 text-xl font-bold mt-20 hidden">
+            Nenhuma corrida encontrada.
+        </div>
+
+        <div id="cards-container" class="flex flex-wrap gap-6 justify-center"></div>
+    </div>
+
+    <script>
+        const BLOCKED_DRIVERS = [
+            "Verstappen", "Hamilton", "Russell", "Leclerc", "Sainz", "Norris", "Piastri",
+            "Alonso", "Stroll", "Gasly", "Ocon", "Albon", "Sargeant", "Ricciardo",
+            "Tsunoda", "Bottas", "Zhou", "Hulkenberg", "Magnussen", "Antonelli", 
+            "Bearman", "Doohan", "Colapinto", "Lawson", "Perez"
+        ];
+
+        const TEAM_COLORS = {
+            'Mercedes': '#27F4D2', 'Ferrari': '#E8002D', 'Red Bull': '#3671C6',
+            'McLaren': '#FF8000', 'Aston Martin': '#229971', 'Alpine': '#FF87BC',
+            'Williams': '#64C4FF', 'RB': '#6692FF', 'Racing Bulls': '#6692FF',
+            'Sauber': '#52E252', 'Haas': '#B6BABD', 'Alfa Romeo': '#C92D4B'
+        };
+
+        let statsPilotos = {};
+        let pilotosCalculados = []; 
+        let totalCorridasTemporada = 0;
+
+        async function carregarTemporadas() {
+            try {
+                const resp = await fetch('/api/temporadas');
+                const temps = await resp.json();
+                const sel = document.getElementById('sel-temp-rating');
+                sel.innerHTML = '<option value="">Selecione...</option>';
+                temps.forEach(t => { sel.innerHTML += `<option value="${t.id}">${t.nome}</option>`; });
+                if (temps.length > 0) { sel.value = temps[0].id; calcularRatings(); }
+            } catch (e) { console.error(e); }
+        }
+
+        function initPiloto(nome) {
+            if (BLOCKED_DRIVERS.some(b => nome.toLowerCase().includes(b.toLowerCase()))) return false;
+            if (!statsPilotos[nome]) {
+                statsPilotos[nome] = {
+                    nome: nome,
+                    voltasSemSC: [],              
+                    melhoresVoltas: [],           // NOVO: Guarda a melhor volta de cada corrida
+                    somaConsistencia: 0,          
+                    corridasComConsistencia: 0,   
+                    racScoreTotal: 0,             
+                    overtakesFeitas: 0,           
+                    overtakesLevadas: 0,          
+                    lapsDownTotal: 0,
+                    penalidadesTotal: 0,
+                    corridasParticipadas: 0,
+                    equipe: "F1"
+                };
+            }
+            return true;
+        }
+
+        const calcMediaComparar = (voltas) => {
+            const raw = voltas.filter(v => v && v > 1 && v < 300);
+            if (!raw.length) return null;
+            const ordenado = [...raw].sort((a, b) => a - b);
+            const mediana  = ordenado[Math.floor(ordenado.length / 2)];
+            const limpo = raw.filter(v => v <= mediana * 1.10 && v >= mediana * 0.90);
+            return limpo.length ? limpo.reduce((a, b) => a + b, 0) / limpo.length : null;
+        };
+
+        async function calcularRatings() {
+            const tempId = document.getElementById('sel-temp-rating').value;
+            const container = document.getElementById('cards-container');
+            const loading = document.getElementById('loading-msg');
+            const empty = document.getElementById('empty-msg');
+            const hall = document.getElementById('hall-of-fame');
+
+            if (!tempId) { container.innerHTML = ''; empty.classList.add('hidden'); hall.classList.add('hidden'); return; }
+
+            container.innerHTML = '';
+            loading.classList.remove('hidden');
+            empty.classList.add('hidden');
+            hall.classList.add('hidden');
+            statsPilotos = {};
+
+            try {
+                const respSess = await fetch('/historico_sessoes');
+                const todasSessoes = await respSess.json();
+                
+                const respEtapas = await fetch(`/api/etapas/${tempId}`);
+                const etapasDaTemp = await respEtapas.json();
+                const idsEtapas = etapasDaTemp.map(e => e.id);
+
+                const corridas = todasSessoes.filter(s => {
+                    const isEtapa = idsEtapas.includes(s.etapa_id);
+                    const tipo = (s.tipo_sessao || '').toLowerCase();
+                    return isEtapa && (tipo.includes('race') || tipo.includes('corrida') || tipo.includes('sprint'));
+                });
+
+                totalCorridasTemporada = corridas.length;
+                if (totalCorridasTemporada === 0) { loading.classList.add('hidden'); empty.classList.remove('hidden'); return; }
+
+                // 1. COLETA DE DADOS
+                for (const corrida of corridas) {
+                    const [resVoltas, resPos, resPen, resBandeiras, resUltra] = await Promise.all([
+                        fetch(`/dados_voltas/${corrida.id}`).then(r => r.json()).catch(()=> ({pilotos:[]})),
+                        fetch(`/api/race_positions/${corrida.id}`).then(r => r.json()).catch(()=> ({pilotos:[]})),
+                        fetch(`/api/penalidades/${corrida.id}`).then(r => r.json()).catch(()=> []),
+                        fetch(`/api/bandeiras/${corrida.id}`).then(r => r.json()).catch(()=> ({bandeiras: []})),
+                        fetch(`/api/race_positions/${corrida.id}/ultrapassagens`).then(r => r.json()).catch(()=> [])
+                    ]);
+
+                    // Monta o Set de voltas afetadas por SC/VSC (Lógica do Comparar.html)
+                    const NORMAIS = new Set(['Verde', 'Nenhum', 'Azul']);
+                    const voltasAfetadas = new Set();
+                    (resBandeiras.bandeiras || []).forEach(b => {
+                        if (NORMAIS.has(b.tipo)) return;
+                        const ini = b.volta_inicio || 0;
+                        const fim = b.volta_fim || ini;
+                        for (let v = ini; v <= fim; v++) voltasAfetadas.add(v);
+                    });
+
+                    let pilotosPresentes = new Set();
+                    
+                    // PAC, CON e POT
+                    (resVoltas.pilotos || []).forEach(p => {
+                        if (!initPiloto(p.nome)) return;
+                        
+                        let temVoltaValida = false;
+                        let temposPiloto = [];
+
+                        (p.voltas || []).forEach(v => {
+                            if (v.tempo_total > 10) {
+                                temVoltaValida = true;
+                                temposPiloto.push(v.tempo_total);
+                                
+                                // PAC: Só adiciona se a volta NÃO for afetada por SC/VSC
+                                if (!voltasAfetadas.has(v.numero_volta)) {
+                                    statsPilotos[p.nome].voltasSemSC.push(v.tempo_total);
+                                }
+                            }
+                        });
+
+                        if (temVoltaValida) {
+                            pilotosPresentes.add(p.nome);
+
+                            // POT: Pega a melhor volta da corrida e guarda
+                            if (temposPiloto.length > 1) {
+                                const melhorVoltaCorrida = Math.min(...temposPiloto);
+                                statsPilotos[p.nome].melhoresVoltas.push(melhorVoltaCorrida);
+                            }
+
+                            // CON: Cálculo idêntico ao Comparar.html (0 a 100 por corrida)
+                            if (temposPiloto.length > 1) {
+                                const media = temposPiloto.reduce((a, b) => a + b, 0) / temposPiloto.length;
+                                const limpo = temposPiloto.filter(t => t < media * 1.08);
+                                const mediaLimpa = limpo.length ? limpo.reduce((a, b) => a + b, 0) / limpo.length : media;
+                                
+                                if (limpo.length > 1 && mediaLimpa > 0) {
+                                    const dp = Math.sqrt(limpo.reduce((s, t) => s + (t - mediaLimpa) ** 2, 0) / limpo.length);
+                                    const consCorrida = Math.max(0, 100 - (dp / mediaLimpa * 100));
+                                    statsPilotos[p.nome].somaConsistencia += consCorrida;
+                                    statsPilotos[p.nome].corridasComConsistencia += 1;
+                                }
+                            }
+                        }
+                    });
+
+                    pilotosPresentes.forEach(nome => {
+                        statsPilotos[nome].corridasParticipadas += 1;
+                    });
+
+                    // RAC: Analise de Posições (Pior posição, Recuperação, etc)
+                    (resPos.pilotos || []).forEach(p => {
+                        if (!initPiloto(p.nome)) return;
+                        if (p.equipe) statsPilotos[p.nome].equipe = p.equipe;
+                        
+                        const posicoes = p.posicoes || {};
+                        const valoresPos = Object.values(posicoes).map(v => parseInt(v)).filter(v => v && v > 0);
+                        
+                        if (valoresPos.length > 0) {
+                            let grid = p.grid_position;
+                            if (!grid || grid <= 0) {
+                                grid = posicoes["0"] ? parseInt(posicoes["0"]) : (posicoes["1"] ? parseInt(posicoes["1"]) : null);
+                            }
+                            
+                            let final = p.pos_final;
+                            if (!final || final <= 0) {
+                                const voltasPos = Object.keys(posicoes).map(Number).filter(v => v > 0).sort((a,b)=>a-b);
+                                final = voltasPos.length > 0 ? parseInt(posicoes[voltasPos[voltasPos.length - 1]]) : null;
+                            }
+                            
+                            if (grid && final && grid > 0 && final > 0) {
+                                const piorPos = Math.max(...valoresPos);
+                                
+                                const ganhoLiquido = grid - final;
+                                const queda = piorPos - grid; // Se > 0, ele caiu
+                                const recuperacao = piorPos - final; // Se > 0, ele recuperou posições
+                                
+                                let ptsCorrida = ganhoLiquido * 1.0;
+                                
+                                // Bônus por resiliência: se caiu e recuperou
+                                if (queda > 0 && recuperacao > 0) {
+                                    ptsCorrida += Math.min(recuperacao, queda) * 0.5;
+                                }
+                                
+                                // Bônus por dominar a ponta (não perdeu posições no top 3)
+                                if (grid <= 3 && final <= 3 && queda <= 0) {
+                                    ptsCorrida += 1.0;
+                                }
+                                
+                                // Bônus por largada
+                                const posVolta1 = posicoes["1"] ? parseInt(posicoes["1"]) : null;
+                                if (posVolta1 && posVolta1 > 0) {
+                                    const ganhoLargada = grid - posVolta1;
+                                    if (ganhoLargada > 0) {
+                                        ptsCorrida += ganhoLargada * 1.0;
+                                    }
+                                }
+                                
+                                statsPilotos[p.nome].racScoreTotal += ptsCorrida;
+                            }
+                        }
+                    });
+
+                    // RAC: Ultrapassagens
+                    (resUltra || []).forEach(ev => {
+                        if (ev.ultrapassou_nome && initPiloto(ev.ultrapassou_nome)) {
+                            statsPilotos[ev.ultrapassou_nome].overtakesFeitas += 1;
+                        }
+                        if (ev.ultrapassado_nome && initPiloto(ev.ultrapassado_nome)) {
+                            statsPilotos[ev.ultrapassado_nome].overtakesLevadas += 1;
+                        }
+                    });
+
+                    // Punições
+                    (resPen || []).forEach(p => {
+                        if (!initPiloto(p.piloto_nome)) return;
+                        const tipo = String(p.tipo_str || '').toLowerCase();
+                        const tempo = Number(p.tempo || 0);
+                        let pts = 0;
+                        
+                        const isDrive = /drive|drive_?through|^dt$/i.test(tipo);
+                        const isStopGo = /stop[_\s]?go|stopgo|^sg$/i.test(tipo);
+                        const isWarning = /warn|avis|penalty_warn/i.test(tipo);
+                        
+                        const unserved = /unserv|nao[_\s-]?serv|nao[_\s-]?cumpr|pendente|pending/i.test(tipo);
+                        const served = !unserved && /servid|cumprid|cleared|removid|concluid|limpo|served_ok|done/i.test(tipo);
+
+                        if (isDrive) pts = 5;
+                        else if (isStopGo) pts = 5;
+                        else if (served) pts = 0; 
+                        else if (isWarning) pts = 0.1;
+                        else if (tempo > 0) {
+                            const seg = tempo > 100 ? tempo / 1000 : tempo;
+                            pts = seg <= 3 ? (seg / 3) : (1 + (seg - 3) * (4 / 7));
+                        }
+                        statsPilotos[p.piloto_nome].penalidadesTotal += pts;
+                    });
+                }
+
+                // 2. CALCULAR MÉDIAS E RANKS
+                let validosParaRank = [];
+                
+                Object.values(statsPilotos).forEach(st => {
+                    // Ritmo (PAC)
+                    st.ritmoMedio = calcMediaComparar(st.voltasSemSC) || 999;
+                    
+                    // Consistência (CON)
+                    st.mediaConsistencia = st.corridasComConsistencia > 0 ? (st.somaConsistencia / st.corridasComConsistencia) : 0;
+                    
+                    // Potencial (POT)
+                    st.mediaPot = calcMediaComparar(st.melhoresVoltas) || 999;
+                    
+                    // RAC: Adiciona o bônus de ultrapassagens ao score total de corridas
+                    st.racScoreTotal += (st.overtakesFeitas * 0.5) - (st.overtakesLevadas * 0.2);
+                    
+                    if (st.corridasParticipadas > 0) {
+                        validosParaRank.push(st);
+                    }
+                });
+
+                const totalPilotos = validosParaRank.length;
+
+                // Ordena para achar os Ranks
+                const rankPace = [...validosParaRank].sort((a,b) => a.ritmoMedio - b.ritmoMedio);
+                const rankRAC = [...validosParaRank].sort((a,b) => b.racScoreTotal - a.racScoreTotal);
+                const rankPOT = [...validosParaRank].sort((a,b) => a.mediaPot - b.mediaPot);
+
+                rankPace.forEach((st, index) => { st.posPace = index + 1; });
+                rankRAC.forEach((st, index) => { st.posRAC = index + 1; });
+                rankPOT.forEach((st, index) => { st.posPOT = index + 1; });
+
+                // 3. NOTAS FINAIS
+                pilotosCalculados = [];
+                
+                validosParaRank.forEach(st => {
+                    const calcNotaRank = (pos) => {
+                        if (totalPilotos <= 1) return 100;
+                        return Math.round(100 - ((pos - 1) / (totalPilotos - 1)) * 60);
+                    };
+
+                    // PAC (Baseado no rank do ritmo real)
+                    let pac = calcNotaRank(st.posPace);
+                    if (st.lapsDownTotal > 0) {
+                        pac = Math.max(20, pac - (st.lapsDownTotal * 10));
+                    }
+
+                    // CON (Valor bruto de 0 a 100)
+                    let con = Math.round(st.mediaConsistencia);
+
+                    // RAC (Baseado no rank do Racecraft Total)
+                    let rac = calcNotaRank(st.posRAC);
+
+                    // POT (Baseado no rank de velocidade de pico)
+                    let pot = calcNotaRank(st.posPOT);
+
+                    // OVR BASE
+                    let ovrBase = (pac + rac + con + pot) / 4;
+                    
+                    // Penalidades no OVR
+                    ovrBase = ovrBase - st.penalidadesTotal;
+
+                    // Presença
+                    const taxaPresenca = st.corridasParticipadas / totalCorridasTemporada;
+                    const multPresenca = 0.5 + (0.5 * taxaPresenca); 
+                    
+                    const ovrFinal = Math.max(0, Math.round(ovrBase * multPresenca));
+
+                    pilotosCalculados.push({
+                        nome: st.nome,
+                        equipe: st.equipe,
+                        pac, rac, con, pot, 
+                        ovr: ovrFinal,
+                        corridas: st.corridasParticipadas
+                    });
+                });
+
+                pilotosCalculados.sort((a, b) => b.ovr - a.ovr);
+                renderizarCards();
+                renderizarHallDaFama();
+                loading.classList.add('hidden');
+
+            } catch (e) {
+                console.error("Erro no cálculo:", e);
+                loading.classList.add('hidden');
+            }
+        }
+
+        function renderizarHallDaFama() {
+            const hall = document.getElementById('hall-of-fame');
+            hall.classList.remove('hidden');
+            hall.innerHTML = '';
+
+            const categorias = [
+                { key: 'pac', label: '⚡ MELHOR PAC', color: 'border-purple-500', text: 'text-purple-400' },
+                { key: 'rac', label: '🏎️ MELHOR RAC', color: 'border-red-500', text: 'text-red-400' },
+                { key: 'con', label: '🎯 MELHOR CON', color: 'border-green-500', text: 'text-green-400' },
+                { key: 'pot', label: '💨 MELHOR POT', color: 'border-yellow-500', text: 'text-yellow-400' }
+            ];
+
+            categorias.forEach(cat => {
+                const top3 = [...pilotosCalculados].sort((a, b) => b[cat.key] - a[cat.key]).slice(0, 3);
+                
+                let htmlTop3 = '';
+                top3.forEach((p, idx) => {
+                    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+                    const partesNome = p.nome.trim().split(/\s+/);
+                    const sobrenome = partesNome.length > 1 ? partesNome[partesNome.length - 1] : partesNome[0];
+                    
+                    htmlTop3 += `
+                        <div class="flex justify-between items-center py-2 border-b border-gray-700/50 last:border-0">
+                            <div class="flex items-center gap-2">
+                                <span>${medal}</span>
+                                <span class="font-bold text-sm text-gray-200" title="${p.nome}">${sobrenome.toUpperCase()}</span>
+                            </div>
+                            <span class="font-black ${cat.text}">${p[cat.key]}</span>
+                        </div>
+                    `;
+                });
+
+                const card = document.createElement('div');
+                card.className = `hof-card ${cat.color}`;
+                card.innerHTML = `
+                    <h3 class="text-xs font-black tracking-widest text-center mb-3 ${cat.text}">${cat.label}</h3>
+                    <div class="flex flex-col">${htmlTop3}</div>
+                `;
+                hall.appendChild(card);
+            });
+        }
+
+        function renderizarCards() {
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+
+            pilotosCalculados.forEach((p, index) => {
+                const teamColor = getTeamColor(p.equipe);
+                const ovrColor = getOVRColor(p.ovr);
+                
+                const partesNome = p.nome.trim().split(/\s+/);
+                const sobrenome = partesNome.length > 1 ? partesNome[partesNome.length - 1] : partesNome[0];
+
+                const faltouCorridas = p.corridas < totalCorridasTemporada;
+                const badgePresenca = faltouCorridas 
+                    ? `<span class="text-[10px] text-red-500 font-bold ml-1">(${p.corridas}/${totalCorridasTemporada})</span>` 
+                    : '';
+
+                const card = document.createElement('div');
+                card.className = 'rating-card';
+                card.style.borderTop = `5px solid ${teamColor}`;
+                
+                card.innerHTML = `
+                    <div class="card-bg-effect"></div>
+                    
+                    <div class="flex items-start justify-between pr-4" title="Overall: Média das 4 notas. Punições e voltas perdidas reduzem esta nota.">
+                        <div class="ovr-badge" style="color: ${ovrColor}">${p.ovr}</div>
+                        <div class="mt-4 text-xs font-bold text-gray-500 flex items-center">
+                            #${index + 1} ${badgePresenca}
+                        </div>
+                    </div>
+
+                    <div class="driver-team" style="color: ${teamColor}">${p.equipe}</div>
+                    <div class="driver-name" title="${p.nome}">${sobrenome.toUpperCase()}</div>
+                    <div class="driver-team text-[10px]">${p.nome}</div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-box" style="border-color: #fbbf24" title="POT (Potencial): Velocidade de pico. Baseado na média das melhores voltas de cada corrida — quem extrai o máximo do carro numa volta só.">
+                            <span class="text-gray-400 text-[10px]">POT</span> 
+                            <span>${p.pot}</span>
+                        </div>
+                        
+                        <div class="stat-box" style="border-color: #f87171" title="RAC (Racecraft): Saldo de posições, recuperação de quedas (ex: P5 -> P13 -> P6), domínio no topo e ultrapassagens na pista.">
+                            <span class="text-gray-400 text-[10px]">RAC</span> 
+                            <span>${p.rac}</span>
+                        </div>
+                        
+                        <div class="stat-box" style="border-color: #34d399" title="CON (Constância): Mede a variação dos tempos de volta. Quem mantém tempos idênticos tira 100.">
+                            <span class="text-gray-400 text-[10px]">CON</span> 
+                            <span>${p.con}</span>
+                        </div>
+                        
+                        <div class="stat-box" style="border-color: #c084fc" title="PAC (Pace): Ritmo de corrida baseado no Ranking. P1 = 100, P10 = 70, P20 = 40. Removidas voltas de SC/VSC.">
+                            <span class="text-gray-400 text-[10px]">PAC</span> 
+                            <span>${p.pac}</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function getTeamColor(equipe) {
+            const eq = (equipe || '').toLowerCase();
+            for (const [key, color] of Object.entries(TEAM_COLORS)) {
+                if (eq.includes(key.toLowerCase())) return color;
+            }
+            return '#e10600'; 
+        }
+
+        function getOVRColor(ovr) {
+            if (ovr >= 95) return '#facc15'; 
+            if (ovr >= 90) return '#a3e635'; 
+            if (ovr >= 85) return '#22c55e'; 
+            if (ovr >= 80) return '#3b82f6'; 
+            if (ovr >= 75) return '#f97316'; 
+            return '#ef4444'; 
+        }
+
+        carregarTemporadas();
+    </script>
+</body>
+</html>

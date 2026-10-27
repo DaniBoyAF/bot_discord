@@ -1001,6 +1001,7 @@ def start_udp_listener():
 
         if header.m_packet_id == 2:  # PacketLapData
             atualizar_lapdata(body)
+            atualizar_penalidades(body)
         elif header.m_packet_id == 5:  # PacketCarSetupData
             atualizar_CarSetupData(body)
         elif header.m_packet_id == 12:
@@ -1239,6 +1240,19 @@ def atualizar_participantes(pacote_participantes):
             piloto.team_name = "My Team"
         else:
             piloto.team_name = teams_name_dictionary.get(team_id, f"Team {team_id}")
+ # PRINT SIMPLES: EQUIPE + PILOTO
+    for idx, participante in enumerate(pacote_participantes.m_participants):
+        nome = participante.m_name.decode('utf-8', errors='replace').split('\x00')[0].strip()
+        if not nome:
+            continue
+
+        team_id = participante.m_team_id
+        if participante.m_my_team == 1:
+            equipe = "My Team"
+        else:
+            equipe = teams_name_dictionary.get(team_id, f"Team {team_id}")
+
+        print(f"{equipe} - {nome}")
 
 
 def atualizar_car_status(pacote_status):
@@ -1259,7 +1273,10 @@ def atualizar_car_status(pacote_status):
         # ── ERS (faltava ler isso do pacote) ─────────────────────────────────
         piloto.ers_store_energy = float(status.m_ers_store_energy)
         piloto.ers_deploy_mode = int(status.m_ers_deploy_mode)
-
+        # 🆕 ERS — energia recuperada/gasta nesta volta (pro recorder)
+        piloto.ers_harvested_mguk = float(status.m_ers_harvested_this_lap_mguk)
+        piloto.ers_harvested_mguh = float(status.m_ers_harvested_this_lap_mguh)
+        piloto.ers_deployed_lap   = float(status.m_ers_deployed_this_lap)
         # CORREÇÃO (bug do pneu trocado): m_actual_tyre_compound NÃO é Soft/Medium/Hard.
         # Ele indica qual dos 5 compostos absolutos (C1-C5) está montado, e isso muda
         # de pista pra pista. Quem corresponde a Soft/Medium/Hard de fato é o composto
@@ -1487,3 +1504,61 @@ def atualizar_pit_stop_served(pacote_pit_stop_served):
             'tempo_parado': getattr(piloto, 'pit_stop_time', 0),
             'timestamp': time.time()
         }
+# ═══════════════════════════════════════════════════════════════
+# 🆕 FUNÇÃO DEDICADA EXCLUSIVAMENTE A PUNIÇÕES
+# ═══════════════════════════════════════════════════════════════
+def atualizar_penalidades(pacote_lap):
+    from Bot.jogadores import JOGADORES
+
+    for idx, lap in enumerate(pacote_lap.m_lap_data):
+        if idx >= len(JOGADORES):
+            continue
+            
+        piloto = JOGADORES[idx]
+
+        # Valores atuais que vieram do jogo
+        _pen_atual  = int(lap.m_penalties)
+        _warn_atual = int(lap.m_total_warnings)
+
+        # Valores anteriores guardados no objeto do piloto
+        _pen_anterior  = int(getattr(piloto, 'punicao_time', 0))
+        _warn_anterior = int(getattr(piloto, 'warnings', 0))
+
+        # Garante que a lista existe
+        if not hasattr(piloto, 'historico_penalidades'):
+            piloto.historico_penalidades = []
+
+        # 1. Detecta nova punição de tempo (ex: +3s)
+        if _pen_atual > _pen_anterior:
+            diff = _pen_atual - _pen_anterior
+            print(f"🚨 {piloto.name} recebeu +{diff}s de Time Penalty!")
+            
+            piloto.historico_penalidades.append({
+                'volta': getattr(piloto, 'current_lap_num', 0),
+                'tipo_str': f'Time Penalty (+{diff}s)',
+                'tipo_id': 4,
+                'tempo': diff,
+                'timestamp': time.time()
+            })
+
+        # 2. Detecta novo aviso (Warning)
+        if _warn_atual > _warn_anterior:
+            diff = _warn_atual - _warn_anterior
+            print(f"⚠️ {piloto.name} recebeu +{diff} Aviso(s)!")
+            
+            piloto.historico_penalidades.append({
+                'volta': getattr(piloto, 'current_lap_num', 0),
+                'tipo_str': f'Warning (+{diff})',
+                'tipo_id': 5,
+                'tempo': 0,
+                'timestamp': time.time()
+            })
+
+        # Atualiza o estado do piloto para a próxima checagem
+        piloto.punicao_time = _pen_atual
+        piloto.warnings = _warn_atual
+        
+        # Salva também os status de punições a cumprir (drive-through, stop-go)
+        piloto.unserved_drive_through = int(lap.m_num_unserved_drive_through_pens)
+        piloto.unserved_stop_go = int(lap.m_num_unserved_stop_go_pens)
+        piloto.serve_pen_at_pit = bool(lap.m_pit_stop_should_serve_pen)

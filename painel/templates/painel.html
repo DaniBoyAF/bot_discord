@@ -180,6 +180,25 @@
     50%      { transform: scale(1.18); filter: brightness(1.45); }
   }
 
+  /* ═══ ALERTA DE PUNIÇÃO (branco, estático) ═══ */
+  .penalty-alert-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    font-size: 12px;
+    line-height: 1;
+    margin-left: 5px;
+    vertical-align: middle;
+    border-radius: 3px;
+    cursor: help;
+    color: #ffffff;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.55);
+    /* sem animation de propósito */
+  }
+
   /* ═══ ALERTA DE DANO NO CARRO (ao lado do nome) ═══ */
   .dmg-alert-icon {
     display: inline-flex;
@@ -422,6 +441,12 @@
 /* ── estado global ────────────────────────────────────── */
 let selectedDriverName = null;
 
+/* ── cache de penalidades ─────────────────────────────── */
+let penaltyCache     = [];
+let penaltySessionId = null;
+let penaltyLastFetch = 0;
+const PENALTY_CACHE_MS = 3000;
+
 /* ── helpers ──────────────────────────────────────────── */
 function shortCode(nome) {
   if (!nome) return "???";
@@ -496,6 +521,67 @@ function danoConsolidado(p) {
                    parts[2] * 0.15 + parts[3] * 0.20 +
                    parts[4] * 0.15 + parts[5] * 0.15;
   return Math.max(maxPart, weighted);
+}
+
+/* ── analisa as punições ativas de um piloto ───────────── */
+function analisaPenalidades(nome, lista) {
+  const nomeLower = String(nome || "").toLowerCase().trim();
+  const vazio = { ativos: 0, avisos: 0, tempo: 0, drive: 0, stopgo: 0 };
+  if (!lista || !lista.length) return vazio;
+
+  const pens = lista.filter(p =>
+    String(p.piloto_nome || "").toLowerCase().trim() === nomeLower
+  );
+
+  let avisos = 0, tempo = 0, drive = 0, stopgo = 0, ativos = 0;
+
+  pens.forEach(p => {
+    const tipo = String(p.tipo_str || "").toLowerCase();
+    const t    = Number(p.tempo || 0);
+
+    const isDrive   = /drive|drive_?through|^dt$/i.test(tipo);
+    const isStopGo  = /stop[_\s]?go|stopgo|^sg$/i.test(tipo);
+    const isWarning = /warn|avis|penalty_warn/i.test(tipo);
+    const isTime    = /time|tempo|secs|seg/i.test(tipo) ||
+                      (!isWarning && !isDrive && !isStopGo && t > 0);
+
+    // Se foi cumprida/servida, não conta (exceto DT/SG)
+    const unserved = /unserv|nao[_\s-]?serv|nao[_\s-]?cumpr|pendente|pending/i.test(tipo);
+    const served   = !unserved &&
+      /servid|cumprid|cleared|removid|concluid|limpo|served_ok|done/i.test(tipo);
+
+    if (isDrive)  { drive++;  ativos++; return; }   // sempre conta
+    if (isStopGo) { stopgo++; ativos++; return; }   // sempre conta
+
+    if (served) return;
+
+    if (isWarning)          { avisos++; ativos++; }
+    else if (isTime && t>0) { tempo += (t > 100 ? t/1000 : t); ativos++; }
+  });
+
+  return {
+    ativos,
+    avisos,
+    tempo: Math.round(tempo * 10) / 10,
+    drive,
+    stopgo,
+  };
+}
+
+/* ── ícone HTML (só aparece se houver punição ativa) ──── */
+function penaltyIconHTML(nome) {
+  const p = analisaPenalidades(nome, penaltyCache);
+  if (!p.ativos) return "";
+
+  const linhas = ["Punições ativas:"];
+  if (p.avisos) linhas.push(`• ${p.avisos} aviso(s)`);
+  if (p.tempo)  linhas.push(`• ${p.tempo.toFixed(1)}s de tempo`);
+  if (p.drive)  linhas.push(`• ${p.drive} drive-through`);
+  if (p.stopgo) linhas.push(`• ${p.stopgo} stop-go`);
+
+  const tooltip = linhas.join("\n");
+
+  return `<span class="penalty-alert-icon" title="${tooltip}">⚠</span>`;
 }
 
 /* renderização completa do painel de detalhes */
@@ -737,6 +823,22 @@ async function atualizar() {
     const lideres = data.lideres_setor || {};
     const sessionBests = data.session_bests || {};
 
+    /* 🆕 Penalidades — cache de 3s (o painel atualiza a 1Hz) */
+    const sid = sessao.id;
+    if (sid && (sid !== penaltySessionId || Date.now() - penaltyLastFetch > PENALTY_CACHE_MS)) {
+      try {
+        const pr = await fetch(`/api/penalidades/${sid}`, { cache: "no-store" });
+        if (pr.ok) {
+          const arr = await pr.json();
+          penaltyCache     = Array.isArray(arr) ? arr : [];
+          penaltySessionId = sid;
+          penaltyLastFetch = Date.now();
+        }
+      } catch (e) {
+        /* silencioso — se falhar, nenhum ícone aparece */
+      }
+    }
+
     const pista = sessao.nome_pista || "—";
     const tipo  = sessao.tipo_sessao || "Sessão";
     document.getElementById("sessionName").textContent = `${pista} : ${tipo}`;
@@ -806,7 +908,7 @@ async function atualizar() {
         tdPos.textContent = p.posicao ?? "-";
         tr.appendChild(tdPos);
 
-        /* ─── DRIVER (nome + alerta 🔧 de dano) ─── */
+        /* ─── DRIVER (nome + alerta de punição ⚠ + alerta 🔧 de dano) ─── */
         const dmgVal = danoConsolidado(p);
         let dmgIcon = '';
         if (dmgVal >= 1) {
@@ -816,11 +918,13 @@ async function atualizar() {
             dmgIcon = `<span class="dmg-alert-icon lvl-${lvl}" title="Carro danificado">🔧</span>`;
         }
 
+        const penIcon = penaltyIconHTML(p.nome);
+
         const tdDriver = document.createElement("td");
         tdDriver.className = "driver-cell";
         tdDriver.style.borderLeft = `4px solid ${p.team_color || "#666"}`;
         tdDriver.style.background = `linear-gradient(90deg, ${p.team_color || "#666"}22 0%, transparent 60%)`;
-        tdDriver.innerHTML = `<span class="num">${p.numero ?? ""}</span><span class="code">${shortCode(p.nome)}</span>${dmgIcon}`;
+        tdDriver.innerHTML = `<span class="num">${p.numero ?? ""}</span><span class="code">${shortCode(p.nome)}</span>${penIcon}${dmgIcon}`;
         tr.appendChild(tdDriver);
 
         const tdGap = document.createElement("td");

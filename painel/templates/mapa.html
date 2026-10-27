@@ -14,11 +14,13 @@
   .lb-header .f1 { color:#e10600; font-weight:900; letter-spacing:2px; font-size:16px; font-style:italic; }
   .lb-header .f1 span { color:#fff; }
   .lb-lap { background:#111; color:#ffd400; margin:6px -14px -8px; padding:5px 14px; font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase; font-variant-numeric: tabular-nums; }
+  
   .lb-mode { display:flex; gap:0; border-bottom:1px solid #1a1a1a; }
-  .lb-mode button { flex:1; background:#0a0a0a; color:#888; border:none; padding:7px 0; font-family:inherit; font-size:10px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; cursor:pointer; border-right:1px solid #1a1a1a; transition: all .15s; }
+  .lb-mode button { flex:1; background:#0a0a0a; color:#888; border:none; padding:7px 0; font-family:inherit; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; cursor:pointer; border-right:1px solid #1a1a1a; transition: all .15s; }
   .lb-mode button:last-child { border-right:none; }
   .lb-mode button:hover { background:#141414; color:#ccc; }
   .lb-mode button.on { background:#e10600; color:#fff; }
+  
   .lb-body { flex:1; overflow-y:auto; padding:4px 0; }
   .lb-row { display:grid; grid-template-columns: 26px 22px 1fr auto 22px 16px; align-items:center; height:26px; padding:0 8px 0 6px; border-left:3px solid transparent; font-size:12px; font-variant-numeric: tabular-nums; transition: background .15s; cursor:pointer; }
   .lb-row:nth-child(even) { background:#0a0a0a; }
@@ -32,6 +34,7 @@
   .lb-val.purple { color:#c04cff; font-weight:800; }
   .lb-val.green  { color:#23e07a; font-weight:700; }
   .lb-val.yellow { color:#ffd400; font-weight:800; }
+  .lb-val.red    { color:#e10600; font-weight:900; }
   .lb-val.dim    { color:#666; }
   .lb-tyre { width:18px; height:18px; border-radius:50%; text-align:center; line-height:16px; font-size:10px; font-weight:900; color:#000; justify-self:center; border:2px solid #222; }
   .lb-tyre.S  { background:#ff0000; color:#fff; }
@@ -84,76 +87,18 @@
   .toast .item { display:flex; justify-content:space-between; gap:12px; color:#eee; }
   .toast .item .nome { font-weight:700; letter-spacing:.3px; }
   .toast .item .val { color:#f97316; font-weight:800; font-variant-numeric: tabular-nums; }
-
-  .toast-section + .toast-section {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255,255,255,0.08);
-  }
-  .toast-sec-title {
-    color: #ccc;
-    font-weight: 800;
-    letter-spacing: .8px;
-    font-size: 9px;
-    text-transform: uppercase;
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .toast-sec-title .badge-count {
-    background: rgba(255,255,255,0.12);
-    color: #fff;
-    padding: 0 6px;
-    border-radius: 999px;
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: 0;
-  }
+  .toast-section + .toast-section { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .toast-sec-title { color: #ccc; font-weight: 800; letter-spacing: .8px; font-size: 9px; text-transform: uppercase; margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
+  .toast-sec-title .badge-count { background: rgba(255,255,255,0.12); color: #fff; padding: 0 6px; border-radius: 999px; font-size: 9px; font-weight: 900; letter-spacing: 0; }
   .toast .item.dmg .val { color: #ff8c00; }
-
-  .toast .dmg-badge {
-    display: inline-block;
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: .3px;
-    margin-left: 4px;
-    font-family: 'Orbitron', monospace;
-    vertical-align: middle;
-  }
+  .toast .dmg-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 900; letter-spacing: .3px; margin-left: 4px; font-family: 'Orbitron', monospace; vertical-align: middle; }
   .toast .dmg-badge.lvl-1 { background: rgba(34,197,94,0.18);  color: #22c55e; border: 1px solid rgba(34,197,94,0.5); }
   .toast .dmg-badge.lvl-2 { background: rgba(245,158,11,0.18); color: #f59e0b; border: 1px solid rgba(245,158,11,0.5); }
-  .toast .dmg-badge.lvl-3 { background: rgba(239,68,68,0.20);  color: #ef4444; border: 1px solid rgba(239,68,68,0.6);
-                            animation: dmgPulse 1.2s ease-in-out infinite; }
-  @keyframes dmgPulse {
-    0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
-    50%     { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
-  }
-  .toast .part-icon {
-    display: inline-block;
-    font-size: 9px;
-    color: #aaa;
-    margin-left: 2px;
-    letter-spacing: .2px;
-  }
+  .toast .dmg-badge.lvl-3 { background: rgba(239,68,68,0.20);  color: #ef4444; border: 1px solid rgba(239,68,68,0.6); animation: dmgPulse 1.2s ease-in-out infinite; }
+  @keyframes dmgPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
+  .toast .part-icon { display: inline-block; font-size: 9px; color: #aaa; margin-left: 2px; letter-spacing: .2px; }
 
-  .side-panel {
-    position:absolute;
-    top:58px;
-    right:210px;
-    z-index:14;
-    width:236px;
-    display:none;
-    flex-direction:column;
-    border-radius:4px;
-    overflow:hidden;
-    box-shadow:0 10px 30px rgba(0,0,0,.8);
-    font-family:'Titillium Web','Segoe UI',sans-serif;
-    animation:pitIn .25s ease both;
-    background:#0a0a0a;
-  }
+  .side-panel { position:absolute; top:58px; right:210px; z-index:14; width:236px; display:none; flex-direction:column; border-radius:4px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.8); font-family:'Titillium Web','Segoe UI',sans-serif; animation:pitIn .25s ease both; background:#0a0a0a; }
   .side-panel.on { display:flex; }
 
   .cmp-header { display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; background:#111; padding:6px 10px; border-bottom:1px solid #1a1a1a; gap:6px; }
@@ -174,123 +119,35 @@
   .cmp-val.mid  { color:#e8eaf6; }
   .cmp-val.warn { color:#ffd400; font-weight:900; }
 
-  .drs-header {
-    display:flex; align-items:center; gap:8px;
-    background:#111; padding:6px 10px;
-    border-bottom:1px solid #1a1a1a;
-  }
+  .drs-header { display:flex; align-items:center; gap:8px; background:#111; padding:6px 10px; border-bottom:1px solid #1a1a1a; }
   .drs-header .bar { width:4px; height:18px; border-radius:1px; }
   .drs-header .code { font-size:13px; font-weight:900; letter-spacing:1px; color:#fff; }
-  .drs-header .lbl {
-    margin-left:auto; font-size:9px; font-weight:900;
-    letter-spacing:1.5px; color:#888; text-transform:uppercase;
-  }
-  .drs-body {
-    background:#0a0a0a; padding:14px 12px; text-align:center;
-    display:flex; flex-direction:column; gap:4px;
-  }
-  .drs-state {
-    font-family:'Orbitron','Titillium Web',monospace;
-    font-size:18px; font-weight:900; letter-spacing:1px;
-    font-variant-numeric: tabular-nums;
-    transition: color .2s;
-  }
+  .drs-header .lbl { margin-left:auto; font-size:9px; font-weight:900; letter-spacing:1.5px; color:#888; text-transform:uppercase; }
+  .drs-body { background:#0a0a0a; padding:14px 12px; text-align:center; display:flex; flex-direction:column; gap:4px; }
+  .drs-state { font-family:'Orbitron','Titillium Web',monospace; font-size:18px; font-weight:900; letter-spacing:1px; font-variant-numeric: tabular-nums; transition: color .2s; }
   .drs-state.ok   { color:#00e87a; text-shadow:0 0 12px rgba(0,232,122,.55); }
   .drs-state.warn { color:#ffd400; text-shadow:0 0 12px rgba(255,212,0,.55); }
   .drs-state.dim  { color:#555; }
-  .drs-sub {
-    font-size:10px; color:#888; letter-spacing:1px;
-    text-transform:uppercase;
-  }
+  .drs-sub { font-size:10px; color:#888; letter-spacing:1px; text-transform:uppercase; }
 
-  .tempos-panel {
-    position: absolute;
-    top: 175px;
-    right: 210px;
-    z-index: 14;
-    width: 178px;
-    display: none;
-    flex-direction: column;
-    border-radius: 4px;
-    overflow: hidden;
-    background: #0a0a0a;
-    box-shadow: 0 10px 30px rgba(0,0,0,.8);
-    font-family: 'Titillium Web','Segoe UI',sans-serif;
-    animation: pitIn .25s ease both;
-  }
+  .tempos-panel { position: absolute; top: 175px; right: 210px; z-index: 14; width: 178px; display: none; flex-direction: column; border-radius: 4px; overflow: hidden; background: #0a0a0a; box-shadow: 0 10px 30px rgba(0,0,0,.8); font-family: 'Titillium Web','Segoe UI',sans-serif; animation: pitIn .25s ease both; }
   .tempos-panel.on { display: flex; }
-
-  .tp-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 12px;
-    background: #111;
-    border-bottom: 1px solid #1a1a1a;
-  }
-  .tp-lbl {
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-    color: #888;
-    text-transform: uppercase;
-  }
-  .tp-volta {
-    font-family: 'Orbitron','Titillium Web',monospace;
-    font-size: 12px;
-    font-weight: 900;
-    color: #fff;
-    letter-spacing: .5px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .tp-time {
-    text-align: center;
-    padding: 10px 8px 8px;
-    font-family: 'Orbitron','Titillium Web',monospace;
-    font-size: 20px;
-    font-weight: 900;
-    letter-spacing: .5px;
-    color: #fff;
-    background: #0a0a0a;
-    font-variant-numeric: tabular-nums;
-    transition: color .2s;
-  }
+  .tp-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #111; border-bottom: 1px solid #1a1a1a; }
+  .tp-lbl { font-size: 9px; font-weight: 800; letter-spacing: 1.5px; color: #888; text-transform: uppercase; }
+  .tp-volta { font-family: 'Orbitron','Titillium Web',monospace; font-size: 12px; font-weight: 900; color: #fff; letter-spacing: .5px; font-variant-numeric: tabular-nums; }
+  .tp-time { text-align: center; padding: 10px 8px 8px; font-family: 'Orbitron','Titillium Web',monospace; font-size: 20px; font-weight: 900; letter-spacing: .5px; color: #fff; background: #0a0a0a; font-variant-numeric: tabular-nums; transition: color .2s; }
   .tp-time.purple { color: #c04cff; text-shadow: 0 0 12px rgba(192,76,255,.5); }
   .tp-time.green  { color: #23e07a; text-shadow: 0 0 12px rgba(35,224,122,.5); }
   .tp-time.yellow { color: #ffd400; }
   .tp-time.red    { color: #ff3c00; }
-
-  .tp-sectors {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 3px;
-    padding: 4px 8px 8px;
-    background: #0a0a0a;
-  }
-  .tp-sector {
-    height: 6px;
-    border-radius: 3px;
-    background: #1a1a1a;
-    transition: background .2s;
-  }
+  .tp-sectors { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px; padding: 4px 8px 8px; background: #0a0a0a; }
+  .tp-sector { height: 6px; border-radius: 3px; background: #1a1a1a; transition: background .2s; }
   .tp-sector.sb     { background: #c04cff; box-shadow: 0 0 6px rgba(192,76,255,.6); }
   .tp-sector.pb     { background: #23e07a; box-shadow: 0 0 6px rgba(35,224,122,.5); }
   .tp-sector.yellow { background: #ffd400; }
   .tp-sector.red    { background: #ff3c00; }
   .tp-sector.dim    { background: #333; }
-
-  .tp-foot {
-    padding: 5px 10px 6px;
-    text-align: center;
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: #888;
-    background: #0a0a0a;
-    border-top: 1px solid #1a1a1a;
-  }
+  .tp-foot { padding: 5px 10px 6px; text-align: center; font-size: 9px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: #888; background: #0a0a0a; border-top: 1px solid #1a1a1a; }
 
   .modal-bg { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.8); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; padding:20px; }
   .modal-bg.on { display:flex; }
@@ -442,6 +299,7 @@
       <button data-mode="last">LAST</button>
       <button data-mode="best">BEST</button>
       <button data-mode="interval">INT</button>
+      <button data-mode="pen">PEN</button>
     </div>
     <div class="lb-body" id="lbBody">
       <div style="text-align:center;padding:30px 10px;color:#666;font-size:11px">Aguardando sessão...</div>
@@ -558,6 +416,7 @@
       </label>
       <button id="btnReset">Reset</button>
       <button id="btnLimpar">Limpar</button>
+      <button id="btnGravar" style="display:none" title="Retomar gravação do traçado">▶ Gravar</button>
       <button id="btnResetPaineis" title="Devolver painéis ao lugar original">
         Reset painéis
       </button>
@@ -582,6 +441,8 @@ const state = {
   escala: 1, offsetX: 0, offsetY: 0,
   pista: null, pistaKey: null,
   tracado: [], ultimoLid: null,
+  recording: true,
+  voltaCompleta: false,
   pilotos: [], sessao: {},
   session_bests: {},
   selectedDriver: null, compareDriver: null,
@@ -589,7 +450,6 @@ const state = {
   deltaTrend: { lastLapRef: 0, prevDelta: null, currentDelta: null },
 };
 
-/* ═══ Estado do cronômetro ao vivo (interpolado no front) ═══ */
 let _liveClock = {
   nome: null,
   base: 0,
@@ -686,7 +546,6 @@ function damageColor(v) {
 function normalizeTrackKey(t) {
   return String(t || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
 }
-/* ═══ Storage: SQLite no backend + cache localStorage ═══ */
 const API_BASE = "/api/tracados";
 
 async function ls_load(track) {
@@ -717,7 +576,8 @@ function ls_save(track, segmentos) {
   if (!track) return;
 
   const dados = segmentos.filter(s => Array.isArray(s) && s.length > 0);
-  const finais = dados.length > 20 ? dados.slice(-20) : dados;
+  // 🆕 Não trunca em 20 — mantém até 300 segmentos (várias voltas completas)
+  const finais = dados.length > 300 ? dados.slice(-300) : dados;
 
   try {
     localStorage.setItem(LS_KEY + "::" + track, JSON.stringify(finais));
@@ -726,9 +586,6 @@ function ls_save(track, segmentos) {
   salvarNoBackendDebounced(track, finais, state.pista);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Throttle de save para o backend (5s) — NÃO reinicia o timer
-   ═══════════════════════════════════════════════════════════════ */
 let _saveTimer     = null;
 let _saveAgendado  = false;
 let _ultimoTrack   = null;
@@ -780,7 +637,8 @@ window.addEventListener("beforeunload", () => {
   if (!state.pistaKey || !state.tracado.length) return;
 
   const segs   = state.tracado.filter(s => Array.isArray(s) && s.length > 0);
-  const finais = segs.length > 20 ? segs.slice(-20) : segs;
+  // 🆕 Não trunca em 20 — mantém até 300
+  const finais = segs.length > 300 ? segs.slice(-300) : segs;
 
   try {
     localStorage.setItem(LS_KEY + "::" + state.pistaKey, JSON.stringify(finais));
@@ -808,20 +666,83 @@ function ls_clear(track) {
   } catch {}
 
   fetch(`${API_BASE}/${encodeURIComponent(track)}`, { method: "DELETE" })
-    .then(r => r.ok && console.log(`🗑️  ${track} removido do backend`))
+    .then(r => r.ok && console.log(`🗑️  ${track} removido do backend`))  // 🆕 fix r.ok
     .catch(e => console.warn("ls_clear backend:", e));
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ✅ CACHE de trail/bounds — invalidação por evento (ZERO delay)
+   🆕 DETECTOR AUTOMÁTICO DE VOLTA COMPLETA
+   • Guarda o ponto de partida do líder
+   • Considera "saiu do início" quando se afasta 30% do diâmetro da pista
+   • Considera "voltou" quando chega a 5% do ponto de partida
+   • Ao detectar → forcarSaveImediato() + toast na barra
    ═══════════════════════════════════════════════════════════════ */
+let _voltaInicioPonto = null;
+let _saiuDoInicio     = false;
+let _toastTimer       = null;
+let _toastOriginalText = null;
+
+function _detectarVoltaCompleta(x, z) {
+  if (_voltaInicioPonto === null) {
+    _voltaInicioPonto = { x, z };
+    _saiuDoInicio = false;
+    return false;
+  }
+
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const seg of state.tracado) {
+    for (const p of seg) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.z < minZ) minZ = p.z;
+      if (p.z > maxZ) maxZ = p.z;
+    }
+  }
+  if (!isFinite(minX)) return false;
+
+  const diametro = Math.hypot(maxX - minX, maxZ - minZ) || 500;
+  const LIMIAR_SAIDA   = diametro * 0.30;
+  const LIMIAR_RETORNO = diametro * 0.05;
+
+  const dist = Math.hypot(x - _voltaInicioPonto.x, z - _voltaInicioPonto.z);
+
+  if (dist > LIMIAR_SAIDA) _saiuDoInicio = true;
+
+  if (_saiuDoInicio && dist < LIMIAR_RETORNO) {
+    _saiuDoInicio = false;
+    _voltaInicioPonto = { x, z };
+    return true;
+  }
+  return false;
+}
+
+function _mostrarToastVoltaCompleta() {
+  const el = document.getElementById('pistaNome');
+  if (!el) return;
+
+  if (_toastOriginalText === null) {
+    _toastOriginalText = el.textContent;
+  }
+
+  el.textContent = '🏁 VOLTA COMPLETA · TRAÇADO SALVO';
+  el.style.background = '#009d45';
+  el.style.transition = 'background .2s';
+
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => {
+    if (_toastOriginalText !== null) el.textContent = _toastOriginalText;
+    _toastOriginalText = null;
+    el.style.background = '';
+  }, 2500);
+}
+
 let _cacheTrail    = null;
 let _cacheBounds   = null;
 
 function _invalidarCacheTrail() {
   _cacheTrail  = null;
   _cacheBounds = null;
-  _offTrailKey = '';           // ✅ invalida também o cache offscreen
+  _offTrailKey = '';
 }
 
 function push_ponto(x, z, speed) {
@@ -839,7 +760,8 @@ function push_ponto(x, z, speed) {
     seg.push({ x, z, speed });
     if (seg.length > PONTOS_POR_SEGMENTO) segs.push(seg.slice(-1000));
   }
-  if (segs.length > 10) segs.shift();
+  // 🆕 Só descarta segmentos MUITO antigos — e apenas se a pista já completou ≥1 volta
+  if (state.voltaCompleta && segs.length > 300) segs.shift();
 
   _invalidarCacheTrail();
 }
@@ -850,7 +772,7 @@ function resize() {
   canvas.width  = r.width  * dpr;
   canvas.height = r.height * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  _offTrailKey = '';          // ✅ força redesenho do offscreen no novo tamanho
+  _offTrailKey = '';
 }
 addEventListener('resize', resize);
 window.addEventListener('load', resize);
@@ -899,7 +821,7 @@ function pilotoNaPosicao(mx, my, raio = null) {
 
   let melhor = null, melhorDist = r;
   for (const p of pilotosComPos) {
-    const pos = _getPos(p);            // ✅ usa posição interpolada
+    const pos = _getPos(p);
     if (!pos) continue;
     const [sx, sy] = worldToScreen(pos.x, pos.z, b);
     const d = Math.hypot(mx - sx, my - sy);
@@ -922,23 +844,17 @@ function corVelocidade(v) {
   return '#fff';
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ✅ INTERPOLAÇÃO v4 — sem stutter
-   • Interpola sempre da posição VISUAL atual → alvo novo
-   • Mede o intervalo REAL entre updates e adapta a duração
-   ═══════════════════════════════════════════════════════════════ */
 let _ultimoFeed  = 0;
-let _interpMs    = 100;      // valor inicial (será ajustado)
+let _interpMs    = 100;
 const INTERP_MIN = 40;
 const INTERP_MAX = 300;
 
-const _posRender = new Map();   // posição VISUAL atual
-const _posTarget = new Map();   // alvo + timestamp
+const _posRender = new Map();
+const _posTarget = new Map();
 
 function _feedInterpolacao(pilotos) {
   const now = performance.now();
 
-  // Mede o intervalo entre updates (média móvel 70/30)
   if (_ultimoFeed > 0) {
     const dt = now - _ultimoFeed;
     if (dt > 10 && dt < 500) {
@@ -971,15 +887,11 @@ function _tickInterpolacao() {
   }
 }
 
-
 function _getPos(p) {
   if (!p.has_pos) return null;
   return _posRender.get(p.nome) || { x: p.x, z: p.z };
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ✅ CACHE OFFSCREEN DO TRAÇADO — evita redesenhar milhares de pts/frame
-   ═══════════════════════════════════════════════════════════════ */
 const _offTrail    = document.createElement('canvas');
 const _offTrailCtx = _offTrail.getContext('2d');
 let   _offTrailKey = '';
@@ -1066,7 +978,6 @@ function draw() {
   }
   const b = _cacheBounds;
 
-  /* ── Traçado em cache offscreen (só redesenha quando muda) ── */
   const key = _trailCacheKey(b, W, H);
   if (key !== _offTrailKey) {
     _offTrailKey = key;
@@ -1074,7 +985,6 @@ function draw() {
   }
   ctx.drawImage(_offTrail, 0, 0, W, H);
 
-  /* ── Pilotos (usam posição interpolada) ── */
   for (const p of pilotosComPos) {
     const pos = _getPos(p);
     if (!pos) continue;
@@ -1175,7 +1085,6 @@ function draw() {
   }
 }
 
-/* ═══ Trend do delta por volta (compare) ═══ */
 function getDeltaTrend(a, b) {
   const lapRef = Math.min(a.current_lap || 0, b.current_lap || 0);
   const lastA  = Number(a.last_lap) || 0;
@@ -1199,7 +1108,6 @@ function getDeltaTrend(a, b) {
   return state.deltaTrend;
 }
 
-/* ═══ Estado de DRS de um piloto ═══ */
 function drsStateInfo(p) {
   if (!p) return { txt: '—', cls: 'mid' };
 
@@ -1213,7 +1121,6 @@ function drsStateInfo(p) {
   return { txt: '⚫ —', cls: 'lose' };
 }
 
-/* ═══ Painel COMPARE ═══ */
 function renderComparePanel() {
   const panel = document.getElementById('comparePanel');
   if (!panel) return;
@@ -1304,7 +1211,6 @@ function renderComparePanel() {
   }).join('');
 }
 
-/* ═══ Painel DRS ═══ */
 function renderDRSPanel() {
   const panel = document.getElementById('drsPanel');
   if (!panel) return;
@@ -1354,7 +1260,6 @@ function renderDRSPanel() {
   }
 }
 
-/* ═══ Painel TEMPOS (com cronômetro ao vivo) ═══ */
 function renderTemposPanel() {
   const el = document.getElementById('temposPanel');
   if (!el) return;
@@ -1449,7 +1354,6 @@ function renderTemposPanel() {
   });
 }
 
-/* ═══ Loop de animação do cronômetro ═══ */
 function _animateClock() {
   const timeEl = document.getElementById('tpTime');
   if (!timeEl || !_liveClock.nome) {
@@ -1479,9 +1383,6 @@ function _animateClock() {
 
 _animateClock();
 
-/* ═══════════════════════════════════════════════════════════════
-   ✅ Helper: só escreve no DOM se o valor mudou
-   ═══════════════════════════════════════════════════════════════ */
 function _setText(id, txt) {
   const el = document.getElementById(id);
   if (el && el.textContent !== txt) el.textContent = txt;
@@ -1495,9 +1396,6 @@ function _setClassToggle(id, cls, on) {
   if (el) el.classList.toggle(cls, on);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ✅ renderLeaderboard — hash p/ evitar re-render
-   ═══════════════════════════════════════════════════════════════ */
 let _lastLbHash = '';
 
 function renderLeaderboard(pilotos, sessao) {
@@ -1515,7 +1413,7 @@ function renderLeaderboard(pilotos, sessao) {
   const ordered = [...pilotos].sort((a, b) => (a.posicao ?? 999) - (b.posicao ?? 999));
 
   const hash = state.lbMode + '|' + ordered.map(p =>
-    `${p.nome}:${p.posicao}:${p.gap}:${p.interval}:${p.last_lap}:${p.best_lap}:${p.is_pit}:${p.tyre}:${p.tyre_age}:${(p.tyre_wear||[]).map(x=>Math.round(x||0)).join(',')}`
+    `${p.nome}:${p.posicao}:${p.gap}:${p.interval}:${p.last_lap}:${p.best_lap}:${p.is_pit}:${p.tyre}:${p.tyre_age}:${(p.tyre_wear||[]).map(x=>Math.round(x||0)).join(',')}:${p.penalties_time}:${p.total_warnings}:${p.unserved_drive_through}:${p.unserved_stop_go}`
   ).join(';');
 
   if (hash === _lastLbHash) return;
@@ -1529,6 +1427,21 @@ function renderLeaderboard(pilotos, sessao) {
       case 'interval': { if (idx === 0) return { txt: '—', cls: 'dim' };
                          const v = p.interval;
                          return { txt: v != null ? '+' + fmtTempo(v) : '—', cls: v == null ? 'dim' : '' }; }
+      case 'pen': {
+        if (p.penalties_time > 0) {
+          return { txt: `+${p.penalties_time}s`, cls: 'red' };
+        }
+        if (p.unserved_drive_through > 0) {
+          return { txt: 'DT', cls: 'red' };
+        }
+        if (p.unserved_stop_go > 0) {
+          return { txt: 'SG', cls: 'red' };
+        }
+        if (p.total_warnings > 0) {
+          return { txt: `${p.total_warnings} AV`, cls: 'yellow' };
+        }
+        return { txt: '—', cls: 'dim' };
+      }
       case 'gap':
       default:         { if (p.gap === 0)  return { txt: 'Leader', cls: 'yellow' };
                          if (p.gap != null) return { txt: '+' + fmtTempo(p.gap), cls: '' };
@@ -1568,10 +1481,6 @@ function renderLeaderboard(pilotos, sessao) {
   }).join('');
 }
 
-
-/* ═══════════════════════════════════════════════════════════════
-   ✅ TOASTS DE ALERTA — pneus + dano
-   ═══════════════════════════════════════════════════════════════ */
 let lastToastHash = '';
 
 function _danoInfo(p) {
@@ -1696,6 +1605,7 @@ function renderToast(pilotos) {
   bodyEl.innerHTML = html;
   toast.classList.add('on');
 }
+
 function handleDriverClick(nome) {
   const sel = state.selectedDriver;
   const cmp = state.compareDriver;
@@ -1811,11 +1721,12 @@ function renderTyres(p) {
   const ti = Array.isArray(p.tyre_temp_inner)   ? p.tyre_temp_inner   : [0,0,0,0];
   const ts = Array.isArray(p.tyre_temp_surface) ? p.tyre_temp_surface : [0,0,0,0];
   const bt = Array.isArray(p.brakes_temp)       ? p.brakes_temp       : [0,0,0,0];
+  const bl = Array.isArray(p.tyre_blisters)     ? p.tyre_blisters     : [0,0,0,0];
   const pares = [
-    { letra:'FL', cond: tw[2], surf: ts[2], inner: ti[2], brake: bt[2] },
-    { letra:'FR', cond: tw[3], surf: ts[3], inner: ti[3], brake: bt[3] },
-    { letra:'RL', cond: tw[0], surf: ts[0], inner: ti[0], brake: bt[0] },
-    { letra:'RR', cond: tw[1], surf: ts[1], inner: ti[1], brake: bt[1] },
+    { letra:'FL', cond: tw[2], surf: ts[2], inner: ti[2], brake: bt[2], blister: bl[2] },
+    { letra:'FR', cond: tw[3], surf: ts[3], inner: ti[3], brake: bt[3], blister: bl[3] },
+    { letra:'RL', cond: tw[0], surf: ts[0], inner: ti[0], brake: bt[0], blister: bl[0] },
+    { letra:'RR', cond: tw[1], surf: ts[1], inner: ti[1], brake: bt[1], blister: bl[1] },
   ];
   const media = pares.reduce((s, x) => s + x.cond, 0) / 4;
   const cardsHtml = pares.map(x => `
@@ -1826,6 +1737,10 @@ function renderTyres(p) {
         <div class="temp-item"><div class="lbl">Surface</div><div class="val surf">${Math.round(x.surf)}°C</div></div>
         <div class="temp-item"><div class="lbl">Inner</div><div class="val inner">${Math.round(x.inner)}°C</div></div>
         <div class="temp-item"><div class="lbl">Brake</div><div class="val brake">${Math.round(x.brake)}°C</div></div>
+        <div class="temp-item">
+          <div class="lbl">Bolhas</div>
+          <div class="val" style="color: ${x.blister > 30 ? '#ef4444' : '#eab308'}">${Math.round(x.blister)}%</div>
+        </div>
       </div>
     </div>`).join('');
   return `
@@ -1968,7 +1883,6 @@ addEventListener('mouseup', e => {
   canvas.classList.remove('arrastando');
 });
 
-/* ✅ Drag: só atualiza estado — renderLoop já redesenha no próximo frame */
 addEventListener('mousemove', e => {
   if (!arrastando) return;
   const dx = e.clientX - mouseInicio.x;
@@ -1980,9 +1894,6 @@ addEventListener('mousemove', e => {
   ultimoMouse = { x:e.clientX, y:e.clientY };
 });
 
-/* ═══════════════════════════════════════════════════════════════
-   ✅ Throttle do mousemove — 1 callback por frame (rAF)
-   ═══════════════════════════════════════════════════════════════ */
 let _mouseRaf  = null;
 let _mouseLast = null;
 
@@ -2019,12 +1930,26 @@ document.getElementById('selModo').onchange = e => {
   document.getElementById('legenda').classList.toggle('on', state.modo === 'heatmap');
 };
 document.getElementById('btnReset').onclick  = resetZoom;
+
 document.getElementById('btnLimpar').onclick = () => {
   state.tracado = [];
   state.ultimoLid = null;
+  state.recording = false;
+  state.voltaCompleta = false;
+  _voltaInicioPonto = null;
+  _saiuDoInicio = false;
   _invalidarCacheTrail();
   if (state.pistaKey) ls_clear(state.pistaKey);
+  document.getElementById('btnLimpar').style.display = 'none';
+  document.getElementById('btnGravar').style.display = '';
 };
+
+document.getElementById('btnGravar').onclick = () => {
+  state.recording = true;
+  document.getElementById('btnLimpar').style.display = '';
+  document.getElementById('btnGravar').style.display = 'none';
+};
+
 document.getElementById('btnOcultar').onclick = () => {
   document.getElementById('app').classList.add('sem-lb');
   setTimeout(resize, 50);
@@ -2170,9 +2095,6 @@ function renderPitWindow(sessao, pilotos) {
 
 let pontosDesdeSave = 0;
 
-/* ═══════════════════════════════════════════════════════════════
-   ✅ PAINÉIS ARRASTÁVEIS (versão consolidada)
-   ═══════════════════════════════════════════════════════════════ */
 const DRAG_PANELS = [
   { id:'toast',        key:'f1_drag_toast',    ox:336, oy:58  },
   { id:'pitWindow',    key:'f1_drag_pit',      ox:196, oy:200 },
@@ -2314,9 +2236,6 @@ initDragPanels();
 
 document.getElementById('btnResetPaineis')?.addEventListener('click', resetDragPanels);
 
-/* ═══════════════════════════════════════════════════════════════
-   ✅ LOOP PRINCIPAL (dados) — sem draw(), só atualiza estado
-   ═══════════════════════════════════════════════════════════════ */
 async function tick() {
   try {
     const r = await fetch('/api/mapa_posicoes', { cache:'no-store' });
@@ -2329,12 +2248,22 @@ async function tick() {
         forcarSaveImediato();
       }
 
-      state.pistaKey  = novaKey;
-      state.pista     = data.track;
-      state.tracado   = [];
-      state.ultimoLid = null;
-      pontosDesdeSave = 0;
+      state.pistaKey      = novaKey;
+      state.pista         = data.track;
+      state.tracado       = [];
+      state.ultimoLid     = null;
+      state.recording     = true;
+      state.voltaCompleta = false;
+      _voltaInicioPonto   = null;
+      _saiuDoInicio       = false;
+      // 🆕 reset do toast caso esteja ativo durante troca de pista
+      clearTimeout(_toastTimer);
+      _toastOriginalText  = null;
+      pontosDesdeSave     = 0;
       _invalidarCacheTrail();
+      document.getElementById('btnLimpar').style.display = '';
+      document.getElementById('btnGravar').style.display = 'none';
+      document.getElementById('pistaNome').style.background = '';
       document.getElementById('pistaNome').textContent = (data.track || '—').toUpperCase();
 
       ls_load(novaKey).then(segs => {
@@ -2348,7 +2277,6 @@ async function tick() {
     state.sessao  = data.sessao  || {};
     state.session_bests = data.session_bests || {};
 
-    /* ✅ alimenta a interpolação com as posições novas */
     _feedInterpolacao(state.pilotos);
 
     renderSessionBar(state.sessao);
@@ -2367,16 +2295,28 @@ async function tick() {
       } else closeModal();
     }
 
-    /* Trail do líder — usa a posição interpolada (suave) */
+    /* Trail do líder — só grava se state.recording === true */
     const lider = state.pilotos.find(p => p.posicao === 1 && !p.is_pit && p.has_pos);
-    if (lider) {
+    if (lider && state.recording) {
       const pos = _getPos(lider) || { x: lider.x, z: lider.z };
       const antes = state.tracado.reduce((a, s) => a + s.length, 0);
       push_ponto(pos.x, pos.z, lider.speed || 0);
       const depois = state.tracado.reduce((a, s) => a + s.length, 0);
       if (depois > antes) {
         pontosDesdeSave += (depois - antes);
-        if (pontosDesdeSave >= 20) { ls_save(state.pistaKey, state.tracado); pontosDesdeSave = 0; }
+        if (pontosDesdeSave >= 20) {
+          ls_save(state.pistaKey, state.tracado);
+          pontosDesdeSave = 0;
+        }
+      }
+
+      // 🆕 Detector de volta completa → SALVA IMEDIATAMENTE
+      if (_detectarVoltaCompleta(pos.x, pos.z)) {
+        console.log('🏁 Volta completa detectada — salvando traçado');
+        state.voltaCompleta = true;
+        forcarSaveImediato();
+        ls_save(state.pistaKey, state.tracado);
+        _mostrarToastVoltaCompleta();
       }
     }
 
@@ -2386,15 +2326,11 @@ async function tick() {
   } catch (e) { console.error('mapa:', e); }
 }
 
-/* ✅ Loop de dados: só agenda o próximo tick DEPOIS que o atual termina */
 (async function loopTick() {
   await tick();
   setTimeout(loopTick, 50);
 })();
 
-/* ═══════════════════════════════════════════════════════════════
-   ✅ RENDER LOOP — 60fps · interpola + desenha
-   ═══════════════════════════════════════════════════════════════ */
 (function renderLoop() {
   _tickInterpolacao();
   draw();
